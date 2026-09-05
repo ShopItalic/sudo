@@ -11,7 +11,11 @@
 
 struct bsp_spi_config
 {
+#if defined(SUDO_VOICE_ONLY)
+	volatile bool spi_xfer_done;
+#else
 	bool          spi_xfer_done;
+#endif
 	uint32_t      cs_io_pin;
 	uint32_t      miso_io_pin;
 	uint32_t      mosi_io_pin;
@@ -156,7 +160,16 @@ static bool bsp_spi_init(struct BSP_SPI *spi_config)
 	
 	  //初始化SPI
 //    APP_ERROR_CHECK(nrf_drv_spi_init(&spi_config->spi_config.spi_handler, &config, (nrf_drv_spi_evt_handler_t)spi_config->spi_config.spi_callback_handler, NULL));	
+#if defined(SUDO_VOICE_ONLY)
+	 if(nrfx_spim_init(&spi_config->spi_config.spi_handler, &config,
+	 	(nrfx_spim_evt_handler_t)spi_config->spi_config.spi_callback_handler, NULL) != NRFX_SUCCESS)
+	 {
+	 	spi_config->lock = false;
+	 	return false;
+	 }
+#else
 	 APP_ERROR_CHECK(nrfx_spim_init(&spi_config->spi_config.spi_handler, &config, (nrfx_spim_evt_handler_t)spi_config->spi_config.spi_callback_handler, NULL));
+#endif
 	spi_config->lock = true;
 	return true;
 }
@@ -187,7 +200,12 @@ static bool bsp_spi_uninit(struct BSP_SPI *spi_config)
 static bool bsp_spi_read_and_write(struct spi_package *package,struct BSP_SPI *spi)
 {
 	uint32_t count = 0;
+#if defined(SUDO_VOICE_ONLY)
+	bool transfer_submitted = false;
+#endif
+#if !defined(SUDO_VOICE_ONLY)
 	spi->spi_config.spi_xfer_done = false;
+#endif
 	nrfx_spim_xfer_desc_t spim_xfer;
 	spim_xfer.tx_length = package->write_length;
 	spim_xfer.p_tx_buffer = package->write_buff;
@@ -199,6 +217,9 @@ static bool bsp_spi_read_and_write(struct spi_package *package,struct BSP_SPI *s
     count = 100;
     do {
         taskENTER_CRITICAL();
+        /* Clear completion while interrupts are masked and immediately
+         * before submitting this transfer. */
+        spi->spi_config.spi_xfer_done = false;
         ret =nrfx_spim_xfer(&spi->spi_config.spi_handler, &spim_xfer, 0);
         taskEXIT_CRITICAL();
         if(NRFX_ERROR_BUSY != ret)
@@ -213,7 +234,15 @@ static bool bsp_spi_read_and_write(struct spi_package *package,struct BSP_SPI *s
 //	Q_DEVICE_LOG_INFO("test1  %02x  %02x  %02x  %02x   \r\n",package->write_buff[0],package->write_buff[1],package->write_buff[2],package->write_buff[3]);
 //	Q_DEVICE_LOG_INFO("test2  %02x  %02x  %02x  %02x   \r\n",package->write_buff[0],package->read_buff[0],package->read_buff[1],package->read_buff[2]);
 //	Q_DEVICE_LOG_INFO("leng  %d   %d  ret:%d \r\n",package->write_length,package->read_length,ret);
+#if defined(SUDO_VOICE_ONLY)
+	if(ret != NRFX_SUCCESS)
+	{
+		return false;
+	}
+	transfer_submitted = true;
+#else
 	APP_ERROR_CHECK(ret);
+#endif
 	  //等待SPI传输完成
     while(!spi->spi_config.spi_xfer_done)
 	{
@@ -221,6 +250,20 @@ static bool bsp_spi_read_and_write(struct spi_package *package,struct BSP_SPI *s
 		if(count >= 100000)
 		{
 			Q_DEVICE_LOG_INFO("spi timeout \r\n");
+#if defined(SUDO_VOICE_ONLY)
+			if(transfer_submitted)
+			{
+				/* The SDK abort only stops the peripheral and clears its
+				 * in-progress flag; it does not disable the END IRQ. Abort,
+				 * uninitialize, and reinitialize with interrupts masked so a
+				 * late completion cannot touch a buffer used by the next retry. */
+				taskENTER_CRITICAL();
+				nrfx_spim_abort(&spi->spi_config.spi_handler);
+				bsp_spi_uninit(spi);
+				taskEXIT_CRITICAL();
+				(void)bsp_spi_init(spi);
+			}
+#endif
 			return false;
 		}
 		nrf_delay_us(1);
@@ -253,7 +296,13 @@ static int bsp_spi_open(q_device_t*dev)
 	if(bsp_spi_init(&bsp_list))
 	{
 //		Q_DEVICE_LOG_INFO("open %s \r\n",bsp_list.name);		
-	}				
+	}
+#if defined(SUDO_VOICE_ONLY)
+	else
+	{
+		return RESULT_OPEN_ERR;
+	}
+#endif
 	return RESULT_OK;
 }
 

@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#if defined(SUDO_VOICE_ONLY)
+#include "bc_touch_report.h"
+#include "bc_touch_tuning.h"
+#endif
+
 #if (defined(HANDWARE_1_23_1) )	
 
 
@@ -30,6 +35,10 @@
 void IQS7211E_Init(void);
 void IQS7211E_unInit(void);
 void Process_IQS7211E_Events(void);
+
+#if defined(SUDO_VOICE_ONLY)
+bool IQS7211E_touch_report_register_callback(bc_touch_report_callback_t callback);
+#endif
 void IQS7211E_Force_I2C_Comm_Window(void);
 
 void IQS7211E_low_power_on(void);

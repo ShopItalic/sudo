@@ -855,7 +855,13 @@ static int bsp_adc_read(q_device_t *dev, int pos,const void *buffer, int size)
 			}
 
 			nrf_saadc_value_t nrf_saadc_value;
+#if defined(SUDO_VOICE_ONLY)
+			int result = nrfx_saadc_sample_convert(i, &nrf_saadc_value);
+			if(result != RESULT_OK)
+				return result;
+#else
 			nrfx_saadc_sample_convert(i, &nrf_saadc_value);
+#endif
 			
 			*((uint16_t*)buffer) = nrf_saadc_value;
 			return RESULT_OK;

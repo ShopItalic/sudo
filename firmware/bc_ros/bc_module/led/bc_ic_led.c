@@ -126,8 +126,18 @@ struct __attribute__((__packed__)) ic_led_status
 
 static struct ic_led_status led_status ={0};
 
+#if defined(SUDO_VOICE_ONLY)
+/* Latest synchronous recording indicator request; the LED task owns hardware writes. */
+static volatile bool sudo_recording_indicator_desired = false;
+/* Aligned word publication prevents a torn GRB request across tasks. */
+static volatile uint32_t sudo_idle_rgb_desired;
+#endif
+
 enum BC_IC_LED_EVENT
 {
+#if defined(SUDO_VOICE_ONLY)
+  IC_LED_SUDO_IDLE_COLOR_EVENT = (0x00000001 << 23),
+#endif
   IC_LED_BLE_CONNECT_EVENT   = (0x00000001 << 0),
   IC_LED_BLE_DISCONNECT_EVENT = (0x00000001 << 1),
   IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT = (0x00000001 << 2),
@@ -269,6 +279,9 @@ static void bc_ic_led_handler_thread(void *thread_handler)
                                                 IC_LED_MIC_ONLINE_RECORDING_CAPTURE_ON_EVENT | IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_ON_EVENT | \
                                                 IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT | IC_LED_MIC_ONLINE_RECORDING_OFF_EVENT | \
                                                 IC_LED_MIC_ONLINE_RECORDING_CAPTURE_OFF_EVENT | IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_OFF_EVENT
+#if defined(SUDO_VOICE_ONLY)
+                                                 | IC_LED_SUDO_IDLE_COLOR_EVENT
+#endif
 #if defined(HANDWARE_1_23_4)
                                                  | IC_LED_HOLD_RECORDING_ON_EVENT | IC_LED_HOLD_RECORDING_OFF_EVENT
                                                  | IC_LED_BATTERY_INDICATION_ON_EVENT | IC_LED_BATTERY_INDICATION_OFF_EVENT
@@ -285,6 +298,26 @@ static void bc_ic_led_handler_thread(void *thread_handler)
 #endif
                                                 ,
                                                 event_struct.event_clear_on_exit,event_struct.event_wait_for_all_bits,bc_rtos_max_delay);
+#if defined(SUDO_VOICE_ONLY)
+    /* Only this task drives the LED. A queued legacy/off/online event cannot
+     * override the latest recording indicator, or replay an old idle color
+     * after Stop. Candidate connection notifications are deliberately quiet. */
+    if (event_bits & (IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT |
+                     IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT |
+                     IC_LED_SUDO_IDLE_COLOR_EVENT))
+    {
+      led_status.mic_offline_reocrding = sudo_recording_indicator_desired;
+      if (sudo_recording_indicator_desired) bc_ic_led_rgb_set(5, 0, 0, 1);
+      else if (event_bits & IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT) bc_ic_led_rgb_clear();
+      else if (event_bits & IC_LED_SUDO_IDLE_COLOR_EVENT)
+      {
+        uint32_t color = sudo_idle_rgb_desired;
+        if (color == 0) bc_ic_led_rgb_clear();
+        else bc_ic_led_rgb_set((uint8_t)color, (uint8_t)(color >> 8), (uint8_t)(color >> 16), 1);
+      }
+    }
+    continue;
+#endif
     if((event_bits & IC_LED_BLE_CONNECT_EVENT) == IC_LED_BLE_CONNECT_EVENT)
     {
       led_status.ble_connect = IC_LED_ENABLE;
@@ -402,7 +435,18 @@ static void bc_ic_led_handler_thread(void *thread_handler)
     {
       BC_LOG_INFO("IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT \r\n");
       led_status.mic_offline_reocrding = IC_LED_ENABLE;
-#if defined(HANDWARE_1_23_2)
+#if defined(SUDO_VOICE_ONLY)
+      if (sudo_recording_indicator_desired)
+      {
+        led_status.mic_offline_reocrding = IC_LED_ENABLE;
+        /* SUDO recording indicator is always green (GRB 5,0,0). */
+        bc_ic_led_rgb_set(5, 0, 0, 1);
+      }
+      else
+      {
+        led_status.mic_offline_reocrding = IC_LED_DISENABLE;
+      }
+#elif defined(HANDWARE_1_23_2)
       #if defined(HANDWARE_1_23_2_ONE_SEC)
         /* HANDWARE_1_23_2_ONE_SEC: 红灯慢闪替代绿灯常亮 */
         bc_ic_led_breathing_start(LED_BREATHING_SLOW, 0, 0, 20, 0);
@@ -531,7 +575,14 @@ static void bc_ic_led_handler_thread(void *thread_handler)
     {
       BC_LOG_INFO("IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT \r\n");
       led_status.mic_offline_reocrding = IC_LED_DISENABLE;
-#if (defined(HANDWARE_1_23_2) && !defined(HANDWARE_1_23_2_ONE_SEC))
+#if defined(SUDO_VOICE_ONLY)
+      led_status.mic_offline_reocrding = sudo_recording_indicator_desired ? IC_LED_ENABLE : IC_LED_DISENABLE;
+      if (!sudo_recording_indicator_desired)
+      {
+        /* Clear only when the latest synchronous request is stop. */
+        bc_ic_led_rgb_clear();
+      }
+#elif (defined(HANDWARE_1_23_2) && !defined(HANDWARE_1_23_2_ONE_SEC))
       /* HANDWARE_1_23_2: 录音LED为常亮模式，直接清除 */
       bc_ic_led_rgb_clear();
 #elif defined(HANDWARE_1_23_2_ONE_SEC)
@@ -1034,28 +1085,47 @@ static void bc_ic_led_handler_thread(void *thread_handler)
 
 void bc_ic_led_ble_connect_from_isr(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+    return;
+#else
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xEventGroupSetBitsFromISR(event_struct.event_handler, IC_LED_BLE_CONNECT_EVENT, &xHigherPriorityTaskWoken);
+#endif
 }
 
 void bc_ic_led_ble_connect(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  return;
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_BLE_CONNECT_EVENT );
+#endif
 }
 
 void bc_ic_led_ble_disconnect(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  return;
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_BLE_DISCONNECT_EVENT );
+#endif
 }
 
 void bc_ic_led_ble_disconnect_from_isr(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  return;
+#else
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xEventGroupSetBitsFromISR(event_struct.event_handler,IC_LED_BLE_DISCONNECT_EVENT , &xHigherPriorityTaskWoken);
+#endif
 }
 
 void bc_ic_led_mic_offline_recording_on(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  sudo_recording_indicator_desired = true;
+#endif
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT);
 }
 
@@ -1078,6 +1148,9 @@ void bc_ic_led_mic_online_recording_capture_on(void)
 
 void bc_ic_led_mic_offline_recording_off(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  sudo_recording_indicator_desired = false;
+#endif
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT);
 }
 
@@ -1106,16 +1179,28 @@ void bc_ic_led_mic_online_recording_capture_off(void)
 
 void bc_ic_led_stop(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  if (sudo_recording_indicator_desired) return;
+  sudo_idle_rgb_desired = 0;
+  bc_rtos_event_group_set_bits(event_struct.event_handler, IC_LED_SUDO_IDLE_COLOR_EVENT);
+#else
 	struct rgb_struct rgb_config = {.rgb_g = 0,.rgb_r = 0,.rgb_b =0};
 
 	tx1812n5_RGB(&rgb_config ,1);
 	bc_ldo_rgb_power_off();
 //	tx1812n5_reset();
+#endif
 }
 
 
 void bc_ic_led_set(uint8_t* rgb_data)
 {
+#if defined(SUDO_VOICE_ONLY)
+  if (!rgb_data || sudo_recording_indicator_desired) return;
+  sudo_idle_rgb_desired = (uint32_t)rgb_data[0] | ((uint32_t)rgb_data[1] << 8) |
+                           ((uint32_t)rgb_data[2] << 16);
+  bc_rtos_event_group_set_bits(event_struct.event_handler, IC_LED_SUDO_IDLE_COLOR_EVENT);
+#else
 	bc_ldo_rgb_power_on();
 	bc_delay_ms(20);
 	struct rgb_struct rgb_config  = *(struct rgb_struct*)rgb_data;
@@ -1125,7 +1210,7 @@ void bc_ic_led_set(uint8_t* rgb_data)
 	}else{
 	tx1812n5_RGB(&rgb_config ,1);
   }
-  
+#endif
 }
 
 

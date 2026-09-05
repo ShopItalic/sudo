@@ -26,6 +26,30 @@ void spi_flash_device_lowpower(void)
 
 }
 
+#if defined(SUDO_VOICE_ONLY)
+bool spi_flash_device_wakeup_checked(void)
+{
+	bool result;
+
+	bc_spi_flash_cs_low();
+	bc_delay_ms(10);
+	spi_flash_write_buff[0] = 0xAB;
+	result = bc_spi_flash_write_and_read(spi_flash_write_buff, 1,
+		spi_flash_read_buff, 0);
+	if(result)
+	{
+		bc_delay_ms(10);
+	}
+	/* Always release CS, including a failed command. */
+	bc_spi_flash_cs_high();
+	return result;
+}
+
+void spi_flash_device_wakeup(void)
+{
+	(void)spi_flash_device_wakeup_checked();
+}
+#else
 void spi_flash_device_wakeup(void)
 {
 
@@ -42,6 +66,7 @@ void spi_flash_device_wakeup(void)
 
 }
 
+#endif
 bool sFLASH_CheckStatus(uint8_t checkflg)
 {
 	memset(spi_flash_read_buff,0,sizeof(spi_flash_read_buff));

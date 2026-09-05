@@ -14,7 +14,7 @@
 #include <string.h>
 
 
-#include "..\..\..\bc_ros\bc_config\ring_config.h"
+#include "ring_config.h"
 #include "bc_device_info.h"
 #include "bc_delay.h"
 
@@ -100,7 +100,7 @@ static void app_six_axis_sensor_read_timer_callback(void * pvParameter)
 		case SIX_AXIS_SENSOR_REAL_TIME_ACCELERATION:
 		{
 			six_axis_sensor_ppg_pcakage.sensor_pack.data[0] = 0x00;
-			int32_t temp[3] = {0};
+			int temp[3] = {0};
 #if (G_SENSOR_DEVIECE_TYPE == 0)   //QMA6100/QMA6100P
             if(temp_count < six_axis_sensor_data_max)
 			{
@@ -135,7 +135,7 @@ static void app_six_axis_sensor_read_timer_callback(void * pvParameter)
 		case SIX_AXIS_SENSOR_REAL_TIME_GYRO:
 		{
 			six_axis_sensor_ppg_pcakage.sensor_pack.data[0] = 0x00;
-			int32_t temp[3] = {0};
+			int temp[3] = {0};
 #if (G_SENSOR_DEVIECE_TYPE == 0)   //QMA6100/QMA6100P
 
 
@@ -162,8 +162,8 @@ static void app_six_axis_sensor_read_timer_callback(void * pvParameter)
 
 #elif (G_SENSOR_DEVIECE_TYPE == 1 || G_SENSOR_DEVIECE_TYPE == 4)  // ICM42688 / LSM6DSOW
 			{
-				int32_t temp_acc[3] = {0};
-				int32_t temp_gyro[3] = {0};
+				int temp_acc[3] = {0};
+				int temp_gyro[3] = {0};
 //				bc_gsensor_RawData_dataRead(axis_sensor_data[temp_count].acc,axis_sensor_data[temp_count].gyro);
 				bc_gsensor_dataRead(temp_acc);
 				bc_gsensor_Gyroscope_dataRead(temp_gyro);
@@ -287,7 +287,7 @@ void app_six_axis_sensor_event(struct app_cmd_package * pack)
 		case SIX_AXIS_SENSOR_ACCELERATION:
 		{
 			six_axis_sensor_ppg_pcakage.sensor_pack.data[0] = 0x00;
-			int32_t temp[3] = {0};
+			int temp[3] = {0};
 #if (G_SENSOR_DEVIECE_TYPE == 0)   //QMA6100/QMA6100P
 
 			bc_gsensor_dataRead(temp);
@@ -310,7 +310,7 @@ void app_six_axis_sensor_event(struct app_cmd_package * pack)
 		case SIX_AXIS_SENSOR_GYRO:
 		{
 			six_axis_sensor_ppg_pcakage.sensor_pack.data[0] = 0x00;
-			int32_t temp[3] = {0};
+			int temp[3] = {0};
 #if (G_SENSOR_DEVIECE_TYPE == 0)   //QMA6100/QMA6100P
 
 
@@ -330,8 +330,8 @@ void app_six_axis_sensor_event(struct app_cmd_package * pack)
 		case SIX_AXIS_SENSOR_ACCELERATION_ADN_GYRO:
 		{
 			six_axis_sensor_ppg_pcakage.sensor_pack.data[0] = 0x00;
-			int32_t temp_acc[3] = {0};
-			int32_t temp_gyro[3] = {0};
+			int temp_acc[3] = {0};
+			int temp_gyro[3] = {0};
 #if (G_SENSOR_DEVIECE_TYPE == 0)   //QMA6100/QMA6100P
 
 

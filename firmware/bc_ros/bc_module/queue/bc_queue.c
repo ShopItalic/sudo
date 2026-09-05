@@ -132,7 +132,11 @@ static bc_rtos_queue_struct bc_queue[BC_QUEUE_TYPE_NUM] = {
  bool bc_queue_isr_enqueue(bc_queue_type queue_type,void *  enqueue_data)
 {
 	struct bc_ble_data_package copy;
-    if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
+    if (queue_type == BC_QUEUE_TYPE_BLE_SEND
+#if defined(SUDO_VOICE_ONLY)
+        || queue_type == BC_QUEUE_TYPE_BLE_RECV
+#endif
+    )
     {
         copy = *(const struct bc_ble_data_package *)enqueue_data;
         copy.session_id = bc_ble_session_id();
@@ -167,7 +171,11 @@ static bc_rtos_queue_struct bc_queue[BC_QUEUE_TYPE_NUM] = {
 bool bc_queue_isr_enqueue_not_yield(bc_queue_type queue_type,void *  enqueue_data)
 {
 	struct bc_ble_data_package copy;
-    if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
+    if (queue_type == BC_QUEUE_TYPE_BLE_SEND
+#if defined(SUDO_VOICE_ONLY)
+        || queue_type == BC_QUEUE_TYPE_BLE_RECV
+#endif
+    )
     {
         copy = *(const struct bc_ble_data_package *)enqueue_data;
         copy.session_id = bc_ble_session_id();
@@ -210,6 +218,14 @@ bool bc_queue_isr_enqueue_not_yield(bc_queue_type queue_type,void *  enqueue_dat
  *******************************************************************************/
 bool bc_queue_enqueue(bc_queue_type queue_type,void *  enqueue_data)
 {
+#if defined(SUDO_VOICE_ONLY)
+    struct bc_ble_data_package received;
+    if (queue_type == BC_QUEUE_TYPE_BLE_RECV) {
+        received = *(const struct bc_ble_data_package *)enqueue_data;
+        received.session_id = bc_ble_session_id();
+        enqueue_data = &received;
+    }
+#endif
 if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
         return bc_queue_ble_send((const struct bc_ble_data_package *)enqueue_data,
                                  bc_ble_session_id(), 0);

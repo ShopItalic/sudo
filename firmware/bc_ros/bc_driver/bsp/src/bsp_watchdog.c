@@ -46,8 +46,10 @@ static struct BSP_WDT bsp_list =
 static void wdt_event_handler(void)
 {
     //NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
+#if !defined(SUDO_VOICE_ONLY)
     printf("wdt reset\r\n");
   Q_DEVICE_LOG_INFO("bsp wdg event \r\n");
+#endif
 }
 /*******************************************************************************
  * Function Name     : device_wdt_init

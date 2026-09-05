@@ -176,7 +176,7 @@ int8_t da267_close_active_interrupt(void){
     return res;
 }
 
-int da267_read_fifo(da267_acc_data_t *p_fifo_buf,uint8_t *p_num)
+int32_t da267_read_fifo(da267_acc_data_t *p_fifo_buf,uint8_t *p_num)
 {
     if(p_fifo_buf == NULL || p_num == NULL){
         return false;

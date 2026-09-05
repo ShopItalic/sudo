@@ -53,6 +53,9 @@ for group in list(original.findall('./Groups/Group')):
             why = 'already disabled in supplier 1.23.2 target'
         if f.findtext('FileName') in ('app_ble_speed_handler.c', 'app_opus.c'):
             why = 'unused traffic generator or alternative audio encoder'
+        if f.findtext('FileName') in ('app_pdm_handler.c',
+                                      'app_ppg_file_data_handler.c'):
+            why = 'replaced by single Sudo recording/archive worker'
         if why:
             removed.append({'path':f.findtext('FilePath'),'reason':why})
             files.remove(f)
@@ -63,6 +66,41 @@ for name in ('bc_ble_tx.c','bc_file_transfer.c'):
     E.SubElement(f, 'FileType').text = '1'
     E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\ble\\src\\'+name
 controls = original.find('.//TargetArmAds/Cads/VariousControls')
+recording = E.SubElement(original.find('Groups'), 'Group')
+E.SubElement(recording, 'GroupName').text = 'Sudo Recording'
+recording_files = E.SubElement(recording, 'Files')
+# Keep this tuple explicit so a supplier-side source added to the directory
+# cannot silently enter the candidate target. These are the portable recording
+# sources currently reviewed for Sudo, including the staged store/service API.
+recording_sources = (
+    'bc_capture.c',
+    'bc_rec_store.c',
+    'bc_recording.c',
+    'bc_touch_report.c',
+    'bc_touch_tuning.c',
+    'bc_voice_gesture.c',
+    'bc_voice_legacy_archive.c',
+    'bc_voice_service.c',
+    'bc_voice_wire.c',
+)
+for name in recording_sources:
+    f = E.SubElement(recording_files, 'File')
+    E.SubElement(f, 'FileName').text = name
+    E.SubElement(f, 'FileType').text = '1'
+    E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\recording\\' + name
+f = E.SubElement(recording_files, 'File')
+E.SubElement(f, 'FileName').text = 'app_sudo_capture.c'
+E.SubElement(f, 'FileType').text = '1'
+E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_application\\app_sudo_capture.c'
+f = E.SubElement(recording_files, 'File')
+E.SubElement(f, 'FileName').text = 'app_sudo_voice.c'
+E.SubElement(f, 'FileType').text = '1'
+E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_application\\app_sudo_voice.c'
+f = E.SubElement(recording_files, 'File')
+E.SubElement(f, 'FileName').text = 'bc_battery_filter.c'
+E.SubElement(f, 'FileType').text = '1'
+E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\pmic\\bc_battery_filter.c'
+controls.find('IncludePath').text += ';..\\..\\..\\..\\bc_ros\\bc_module\\recording'
 controls.find('Define').text += ' SUDO_VOICE_ONLY'
 # Remove stale options needed only by the pruned Opus and different IMU/NFC sources.
 defines = controls.find('Define').text.split()

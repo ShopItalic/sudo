@@ -44,6 +44,9 @@ HARDWARE_1181_ENABLED == 1)
 #include "bc_rtos.h"
 #include "bc_rtc.h"
 
+#if defined(SUDO_VOICE_ONLY)
+#include "bc_battery_filter.h"
+#else
 #define LEN_PRECENT_ARRY        10
 
 typedef struct {
@@ -51,11 +54,19 @@ typedef struct {
     uint8_t allprecent;
     uint8_t cntprecent;
 } STR_PRECENT;
+#endif
 
 static uint8_t pmic_percent_low_count = 0;
 
 uint8_t precent = 0;
+#if defined(SUDO_VOICE_ONLY)
+static bc_battery_filter battery_filter;
+static enum pmic_charge_status battery_filter_status = PMIC_CHARGED_NOT;
+static bool battery_filter_status_initialized = false;
+static volatile bool battery_filter_transaction_active = false;
+#else
 static STR_PRECENT precentval = {0};
+#endif
 
 static 	enum pmic_charge_status pmic_state =PMIC_CHARGED_NOT;
 static 	enum pmic_charge_status pmic_state_check =PMIC_CHARGED_NOT;
@@ -64,7 +75,9 @@ static void app_pmic_handler_timer_callback (void * pvParameter);
 
 static bool led_flag = false;
 static bool CHARGED_NOT_flag = false;
+#if !defined(SUDO_VOICE_ONLY)
 static uint8_t pre_percent = 0;
+#endif
 
 static bc_rtos_timer_struct  timer_struct = {
 	
@@ -75,6 +88,22 @@ static bc_rtos_timer_struct  timer_struct = {
 		.timer_callback_function = app_pmic_handler_timer_callback,
 	
 };
+
+#if defined(SUDO_VOICE_ONLY)
+static bool battery_filter_transaction_try_begin(void)
+{
+    bool acquired;
+
+    /* Claim the complete status -> ADC -> filter transaction before any
+     * potentially blocking PMIC or ADC call. */
+    bc_rtos_taskENTER_CRITICAL();
+    acquired = !battery_filter_transaction_active;
+    if(acquired)
+        battery_filter_transaction_active = true;
+    bc_rtos_taskEXIT_CRITICAL();
+    return acquired;
+}
+#endif
 
 #if defined(HANDWARE_1_23_4)
 static uint8_t irq_status_pre = 0;
@@ -217,6 +246,47 @@ static void app_pmic_irq_timer_callback(void * pvParameter)
 
 uint8_t getvpct_(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+    enum pmic_charge_status charge_status;
+    enum pmic_charge_status current_status;
+    bool charging;
+    bool current_charging;
+    uint8_t sample;
+    uint8_t result;
+
+    if(!battery_filter_transaction_try_begin())
+        return BC_BATTERY_PERCENT_UNKNOWN;
+
+    /* The PMIC status getter may access the PMIC bus, so both status reads and
+     * the slow ADC transaction stay outside the critical section.  The second
+     * read closes the sampling window: a sample taken in an older charge
+     * epoch is discarded instead of changing the current filter history. */
+    charge_status = bc_pmic_get_charge_status();
+    charging = charge_status != PMIC_CHARGED_NOT;
+    sample = bc_pmic_get_vbat_percen();
+    current_status = bc_pmic_get_charge_status();
+    current_charging = current_status != PMIC_CHARGED_NOT;
+
+    bc_rtos_taskENTER_CRITICAL();
+    if(!battery_filter_status_initialized ||
+       battery_filter_status != current_status)
+    {
+        bc_battery_filter_reset(&battery_filter, current_charging);
+        battery_filter_status = current_status;
+        battery_filter_status_initialized = true;
+    }
+    if(current_status != charge_status)
+    {
+        result = BC_BATTERY_PERCENT_UNKNOWN;
+    }
+    else
+    {
+        result = bc_battery_filter_update(&battery_filter, sample, charging);
+    }
+    battery_filter_transaction_active = false;
+    bc_rtos_taskEXIT_CRITICAL();
+    return result;
+#else
     uint8_t i = 0, ipval = 0;
     uint32_t imax = 0, imin = 0, iall = 0;
     
@@ -260,10 +330,14 @@ uint8_t getvpct_(void)
             ipval = 100;
         return ipval;
     }
+#endif
 }
 
 uint8_t getvpct(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+    return getvpct_();
+#else
 
     uint8_t percent = getvpct_();
 
@@ -281,6 +355,7 @@ uint8_t getvpct(void)
     }
 
     return pre_percent;
+#endif
 }
 
 /*******************************************************************************

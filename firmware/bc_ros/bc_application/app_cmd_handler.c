@@ -1,4 +1,8 @@
 #include "app_cmd_handler.h"
+#if defined(SUDO_VOICE_ONLY)
+#include "app_sudo_voice.h"
+#include "bc_ble.h"
+#endif
 
 #include "app_package.h"
 #include "app_ppg_handler.h"
@@ -3297,6 +3301,10 @@ void app_cmd_package_parse(uint8_t *cmd_pack,uint16_t pack_length)
     struct app_cmd_package *cmd_package = &decoded;
     if (!cmd_pack || pack_length < 4 || pack_length > 250)
         return;
+#if defined(SUDO_VOICE_ONLY)
+    if (app_sudo_voice_command(cmd_pack, pack_length, bc_ble_session_id()))
+        return;
+#endif
     /* The legacy cast wrote length beyond the 250-byte receive buffer. */
     memcpy(&decoded, cmd_pack, pack_length);
     decoded.length = (uint8_t)pack_length;

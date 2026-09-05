@@ -12,6 +12,7 @@
 #include "q_device.h"
 
 #include "string.h"
+#include <stdio.h>
 
 
 
@@ -89,18 +90,26 @@ bool bc_rtc_format_beijing_time(char *buffer, size_t size)
         return false;
     }
     struct rtc_time time={0};
+#if defined(SUDO_VOICE_ONLY)
+    if(q_device_read(rtc_dev,0,(void*)&time,0) != RESULT_OK) return false;
+    int written = snprintf(buffer, size, "%04d_%02d_%02d:%02d:%02d:%02d",
+            time.bj_time.tm_year, time.bj_time.tm_mon, time.bj_time.tm_mday,
+            time.bj_time.tm_hour, time.bj_time.tm_min, time.bj_time.tm_sec);
+    return written == 19 && (size_t)written < size;
+#else
     q_device_read(rtc_dev,0,(void*)&time,0);
  
     sprintf(buffer, "%04d_%02d_%02d:%02d:%02d:%02d", 
             time.bj_time.tm_year, time.bj_time.tm_mon, time.bj_time.tm_mday, 
             time.bj_time.tm_hour, time.bj_time.tm_min, time.bj_time.tm_sec);
     return true;
+#endif
 }
 
 void bc_uinx_to_bj_time(struct tm *ble_date_time,uint32_t uinx_time)
 {
 	
-	uint32_t temp_time = uinx_time + (8*60*60);
+	time_t temp_time = (time_t)uinx_time + (8*60*60);
 	struct tm *p_real_time = localtime(&temp_time);
 	ble_date_time->tm_year = p_real_time->tm_year + 1900;
 	ble_date_time->tm_mon = p_real_time->tm_mon + 1;
@@ -123,7 +132,7 @@ void bc_uinx_to_bj_time(struct tm *ble_date_time,uint32_t uinx_time)
 void bc_uinx_to_bj_time_print(uint32_t uinx_time)
 {
 	
-	uint32_t temp_time = uinx_time + (8*60*60);
+	time_t temp_time = (time_t)uinx_time + (8*60*60);
 	struct tm *p_real_time = localtime(&temp_time);
 
     BC_LOG_INFO("bj_time:%u-%u-%u %u:%u:%u",

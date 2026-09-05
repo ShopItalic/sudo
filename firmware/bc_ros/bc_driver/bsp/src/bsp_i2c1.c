@@ -138,18 +138,24 @@ static void i2c_1_callback_handler(nrf_drv_twi_evt_t const *p_event, void *p_con
         break;
 
     case NRF_DRV_TWI_EVT_ADDRESS_NACK:
+#if !defined(SUDO_VOICE_ONLY)
         Q_DEVICE_LOG_INFO("i2c_1: NRF_DRV_TWI_EVT_ADDRESS_NACK \r\n");
+#endif
         i2c_1_xfer_done = true;
         nrf_transfer_status = NRF_ERROR_NOT_FOUND;
         break;
 
     case NRF_DRV_TWI_EVT_DATA_NACK:
+#if !defined(SUDO_VOICE_ONLY)
         Q_DEVICE_LOG_INFO("i2c_1: NRF_DRV_TWI_EVT_DATA_NACK \r\n");
+#endif
         i2c_1_xfer_done = true;
         nrf_transfer_status = NRF_ERROR_INVALID_PARAM;
         break;
     default:
+#if !defined(SUDO_VOICE_ONLY)
         Q_DEVICE_LOG_INFO("hrs_twi: DEFAULT (%d) in mEventHandler \r\n", p_event->type);
+#endif
         i2c_1_xfer_done = true;
         break;
     }

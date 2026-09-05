@@ -9,6 +9,10 @@ void spi_flash_device_lowpower(void);
 
 void spi_flash_device_wakeup(void);
 
+#if defined(SUDO_VOICE_ONLY)
+bool spi_flash_device_wakeup_checked(void);
+#endif
+
 uint32_t spi_flash_device_get_id(void);
 
 bool spi_flash_device_check_id(void);

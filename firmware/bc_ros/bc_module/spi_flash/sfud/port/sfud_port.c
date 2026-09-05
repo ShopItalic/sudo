@@ -68,6 +68,32 @@ static sfud_err spi_write_read(const sfud_spi *spi, uint8_t *write_buf, size_t w
         SFUD_ASSERT(read_buf);
     }
 
+#if defined(SUDO_VOICE_ONLY)
+     bc_spi_flash_cs_low();	
+
+	if(write_size > 0)
+    {
+//		memcpy(send_data,write_buf,write_size);
+		if(!bc_spi_flash_write_and_read(write_buf,write_size,read_buf,0))
+		{
+			result = SFUD_ERR_WRITE;
+			goto spi_write_read_cleanup;
+		}
+
+	}
+	if(read_size > 0)	
+	{
+//		memset(send_data,0,write_size);
+		if(!bc_spi_flash_write_and_read(write_buf,0,read_buf,read_size))
+		{
+			result = SFUD_ERR_READ;
+		}
+	}
+
+spi_write_read_cleanup:
+	/* A failed command ends the transaction without issuing a read. */
+    bc_spi_flash_cs_high();
+#else
      bc_spi_flash_cs_low();	
 
 	if(write_size > 0)
@@ -89,6 +115,7 @@ static sfud_err spi_write_read(const sfud_spi *spi, uint8_t *write_buf, size_t w
 	}
 	
     bc_spi_flash_cs_high();
+#endif
     return result;
 }
 		

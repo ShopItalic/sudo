@@ -2,7 +2,10 @@
 #define SUDO_VOICE_PROFILE_H
 
 /* Engineering candidate only: the supplier assigns the DFU release counter. */
-#define RING_1232_SOFTWARE_VERSION "6.0.3.3-SUDO1"
+/* Both legacy version replies copy exactly ten bytes before the hardware
+ * field. Keep the candidate identifiable without truncating its suffix. */
+#define RING_1232_SOFTWARE_VERSION "6.0.3.3S01"
+typedef char sudo_voice_version_fits_legacy_field[(sizeof(RING_1232_SOFTWARE_VERSION) == 11U) ? 1 : -1];
 #if !defined(HANDWARE_1_23_2) || defined(HANDWARE_1_23_3) || defined(USE_OPUS)
 #error "Sudo voice profile requires the 603V1.23.2 ADPCM production board"
 #endif

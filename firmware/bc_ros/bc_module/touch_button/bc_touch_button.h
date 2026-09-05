@@ -6,6 +6,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(SUDO_VOICE_ONLY)
+#include "bc_touch_report.h"
+#endif
+
 uint8_t bc_touch_button_chip_id_get(void);
 bool bc_touch_button_chip_id_hardware_check(void);
 
@@ -14,6 +18,10 @@ void bc_touch_button_init(void);
 void bc_touch_button_uninit(void);
 
 void bc_touch_button_irq_process(void);
+
+#if defined(SUDO_VOICE_ONLY)
+bool bc_touch_button_touch_report_register_callback(bc_touch_report_callback_t callback);
+#endif
 
 bool bc_touch_button_config_flag_get(void);
 

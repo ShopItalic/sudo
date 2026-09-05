@@ -20,21 +20,24 @@ signature checks passed. These are extracted factory artifacts, not a device
 dump or an approved release. No ring was dumped or flashed.
 
 The [Sudo Voice firmware candidate](docs/reference/ring-firmware-candidate.md)
-preserves the reviewed factory source at commit `102bfd2` and adds a queued BLE
-sender, correct file resume, transfer error handling, and a recording-focused
-Keil target. Host fault-injection tests and ARM object checks pass. A production
-link, signed update package, measured throughput, and hardware validation remain
-pending. Start with that document for the changes and reproduction commands.
-Its [Caption comparison](docs/reference/ring-firmware-candidate.md#comparison-with-caption)
-identifies recording-safety, recovery and session features to adapt next,
-including inherited Ring capture and storage issues outside the transfer patch.
+implements hold/release push-to-talk, configurable double-tap memos, local Flash
+recording while connected or standalone, explicit final-file results, checked
+recovery and resumable Bluetooth delivery. The matching client is in
+[ShopItalic/app](https://github.com/ShopItalic/app). Candidate version
+**6.0.3.3S01** is distinct from factory **6.0.3.3Z62**.
 
-The [recording and push-to-talk requirements](docs/reference/ring-recording-and-ptt.md)
-restore the earlier hold/release, LED/haptic, gesture, reliable command and
-recovery requirements alongside the connected-recording bug. The original
-supplier briefs and the Chinese request are preserved with source hashes.
-**Native connected Flash recording and complete push-to-talk remain unfinished**;
-the transfer candidate does not implement them.
+The integrated host tests pass, and the GNU target compiles and links all
+225 sources with no undefined symbols. Physical radio/audio,
+power-loss, battery, pairing and DFU acceptance remains pending. The candidate
+is an unsigned engineering build. No ring has been dumped or flashed.
+
+The [recording requirements and acceptance matrix](docs/reference/ring-recording-and-ptt.md)
+records the earlier supplier briefs, the Chinese connected-recording request,
+implemented behavior and remaining product/device decisions. The
+[native wire protocol](docs/reference/ring-voice-protocol.md) defines the shared
+firmware/app contract. The [Caption comparison](docs/reference/ring-firmware-candidate.md#comparison-with-caption)
+explains the recording ownership, tail-drain, recovery and session concepts
+adapted to this Ring's smaller memory and existing ADPCM codec.
 
 The separate
 [`botnetai/ring-firmware`](https://github.com/botnetai/ring-firmware) repository

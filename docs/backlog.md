@@ -1,53 +1,46 @@
 # Open work
 
-- Implement the [recording and push-to-talk requirements](reference/ring-recording-and-ptt.md)
-  as one firmware-owned lifecycle for hold/release and configurable double-tap
-  memos. Restore reliable release handling, honor Stop during Start, and use
-  consistent green recording LED / one short start haptic in connected and
-  standalone modes. The current app bridge handles double taps only.
-- Add versioned recording capabilities, idempotent Start/Stop results, a real
-  state query and final file/session metadata with saved bytes and completion
-  status. Coordinate the adapter in `ShopItalic/app`: its current workaround
-  matches only `6.0.3.3Z62`, not the candidate's `6.0.3.3-SUDO1`. Do not treat
-  the unacknowledged internal `0x71/0xFD` or a 150 ms delay as the final protocol.
-- Resolve the preserved gesture/clip-limit configuration and keyboard-dictation
-  exploration; finish sensitivity/optional-gesture controls, documented LED
-  and haptic configuration ranges, SDK errors, power/battery reporting and
-  release control from the June supplier briefs. The lean profile does not
-  establish that these requested features work.
-- Adapt the [Caption recording lifecycle](reference/ring-firmware-candidate.md#comparison-with-caption)
-  for the selected production target: local backup before live BLE, a bounded
-  recording worker, and an explicit encoder/capture-queue drain before Stop
-  finalizes the file. The current vendor stop clears queued audio.
-- Propagate recording write/sync failures instead of ignoring them or advancing
-  accepted-byte counts. Preserve partial recordings and expose a fault. Review
-  low-space reclamation, which can delete files without a durable phone receipt;
-  define retention/full-storage behavior before enabling continuous live backup.
-- Adapt Caption's bounded recording journal/recovery and checkpoint fault tests
-  to LittleFS and the Ring's memory budget while preserving raw ADPCM and
-  logical file-resume offsets. Verify power-loss behavior on hardware.
-- Design a versioned Ring/app session-rejoin and readiness contract, separating
-  BLE queue acceptance, live ACK progress, durable phone receipt and completed
-  transcription. Caption's saved-file catch-up and automatic rollover remain
-  unfinished; they are not implementations to copy.
-- Rebuild factory source commit `102bfd2` with Arm Compiler 5.06 update 7
-  (build 960), then link the [Sudo Voice candidate](reference/ring-firmware-candidate.md).
-  Resolve the existing vendor warnings and inspect all memory/stack boundaries,
-  opaque library compatibility, and the selected six/one notification window.
-  Host fault tests and GNU ARM object checks are complete; no production image
-  has been linked, signed, installed, or measured.
-- Run the candidate's supplier acceptance matrix on a spare production ring:
-  transfer integrity and throughput, resume/cancellation, small MTU and stalled
-  notifications, persisted settings, recording, charging/thermal behavior,
-  pairing, and DFU/recovery. Enable app resume only after joint validation.
-- Confirm the lean feature scope with the supplier. Temperature and shared
-  motion dependencies remain; PPG was already disabled. The candidate excludes
-  optional phone/media HID actions and vendor batch uploads.
-- Resolve the [open specifications](reference/sudo-ring-hardware.md#open-specifications),
-  including battery ratings, fitted PMIC / haptic parts, case BOM, mechanical
-  clearance, RF evidence, and supplier cost discrepancies.
-- On a verified production ring, run the physical capture, streaming,
-  stored-file sync, reconnect, charging, firmware-update, and read-back matrix
-  against [ShopItalic/app](https://github.com/ShopItalic/app). Confirm the
-  device's flashed revision, audio framing, transfer behavior, and recovery
-  without treating the factory extraction as a device dump.
+The source tranche is implemented and host-tested. The remaining work is
+external qualification, supplier/build review, compatibility migration, and
+product decisions:
+
+- **Physical qualification and measurements.** On a spare, identified
+  production ring, read back the board and firmware identity; measure PDM/audio
+  framing, PTT release and stop timing, connected and standalone capture, BLE
+  loss/rejoin, transfer throughput and resume, battery/charging/thermal
+  behavior, touch, haptics, LEDs, and power draw. The factory extraction is not
+  a device dump. Record the evidence before enabling a release or app rollout.
+- **Supplier build, signing, and recovery review.** Reproduce the factory and
+  candidate builds with Arm Compiler 5.06 update 7 (build 960), compare the
+  linked GNU engineering candidate, inspect stack/ABI boundaries and warnings, and have
+  the supplier confirm signing, packaging, DFU, anti-rollback, and recovery
+  behavior for the correct board.
+- **GNU runtime measurements and diagnostics.** The candidate now has checked
+  `_sbrk`, task-local Newlib state, recursive scheduler locks and guarded ISR
+  call sites. Measure scheduler latency and actual stack/heap high-water use
+  on hardware. GNU stdout currently fails through `libnosys`; define a bounded
+  diagnostic transport before relying on UART stdout during qualification.
+- **Legacy-file migration.** The native candidate already reads baseline legacy
+  root files and exposes the virtual legacy filename bridge. Add a verified,
+  retryable custody migration before any deletion; retain old files
+  until that migration is proven and retryable.
+- **App capability/version coordination.** Validate the native protocol and
+  capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
+  Keep the factory `6.0.3.3Z62` identity distinct from the engineering
+  candidate `6.0.3.3S01` ten-byte build and do not let the app workaround imply
+  a release.
+- **Product decisions and historical requirements.** Keep the root/main
+  requirements aligned on a configurable default 10-second PTT limit and an
+  unlimited memo when `memo_limit_ms=0`. Resolve the historical conflicts in
+  [the requirements record](reference/ring-recording-and-ptt.md) explicitly
+  before changing defaults or app behavior.
+- **Complete keyboard dictation after host selection.** Long-press voice input
+  was a requested product behavior. The native app preview currently requires
+  Sudo in the foreground, so dictation into another app remains incomplete.
+  Select same-iPhone, Mac, or both, then implement the appropriate finite
+  background/host consumer. App text → Ring → HID is the related exploratory
+  transport question; no cross-host or arbitrary Unicode behavior is established.
+- **Physical specifications.** Close the [open specifications](reference/sudo-ring-hardware.md#open-specifications),
+  including battery cell and current ratings, fitted PMIC and haptic parts,
+  case/mechanical clearance, RF and antenna evidence, crystal/microphone data,
+  and supplier cost/BOM discrepancies.

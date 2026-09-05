@@ -310,6 +310,11 @@ uint8_t app_vibrate_start(vibrate_mode_t mode, uint8_t count)
     
     s_vibrate_mode = mode;
     
+#if defined(SUDO_VOICE_ONLY)
+    /* Invalidate and close any prior PWM before taking the new power lease. */
+    bc_linear_motor_stop();
+#endif
+
     /* 开启马达电源（与bc_linear_motor_start流程一致） */
     bc_ldo_motor_power_on();
     bc_delay_ms(20);
@@ -338,7 +343,11 @@ uint8_t app_vibrate_start(vibrate_mode_t mode, uint8_t count)
     {
         /* count>0: 震动count次，通过playback_count控制 */
         s_vibrate_pwm_config.pwm_parameter_config.playback_count = count;
+#if defined(SUDO_VOICE_ONLY)
+        s_vibrate_pwm_config.pwm_parameter_config.flags = PWM_FLAG_STOP;
+#else
         s_vibrate_pwm_config.pwm_parameter_config.flags = 0;  /* PWM_FLAG_STOP */
+#endif
     }
     
     bc_linear_motor_pwm_out(&s_vibrate_pwm_config);

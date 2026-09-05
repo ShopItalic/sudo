@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 
-/* Match the candidate's production 603V1.23.2 voice profile. */
-#define SUDO_VOICE_ONLY 1
+/* Preserve regression coverage for the standard supplier producer/parser.
+ * Sudo Voice routes recording commands to the separately tested owner. */
 #define HANDWARE_1_23_1 1
 #define HANDWARE_1_23_2 1
 #define HARDWARE_1231_ENABLED 1

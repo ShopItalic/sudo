@@ -1,19 +1,18 @@
 # Sudo Voice firmware candidate
 
-This is a source proposal for the production Bravechip **603V1.23.2** Ring.
-It contains an improved BLE sender and recording-file transfer path, plus a
-smaller build profile. It has passed host fault-injection tests and ARM object
-compilation. **It is not a linked, signed, or device-tested firmware release.**
-No ring was read, flashed, erased, or reset during this work. Transfer speed,
-battery use, radio behavior, and recovery on hardware remain unmeasured.
+The **6.0.3.3S01** engineering candidate implements local-first recording,
+hold/release push-to-talk, configurable double-tap memos, checked storage and
+resumable BLE for the production **603V1.23.2** Ring. The corresponding app
+adapter lives in [ShopItalic/app](https://github.com/ShopItalic/app).
 
-**Push-to-talk and connected recording remain open.** The
-[recording requirements review](ring-recording-and-ptt.md) preserves the earlier
-supplier briefs and current Chinese request, reconciles conflicting storage
-requirements, and defines hold/release, double-tap, LED/haptic, command-result
-and recovery acceptance. The BLE changes below do not create the missing Flash
-recording. The app also gates its existing workaround to exactly `6.0.3.3Z62`,
-so the engineering version needs coordinated app compatibility before use.
+Production source and host fault harnesses share the same recording, capture,
+gesture, storage and protocol logic. The integrated GNU target compiles and links
+all 225 sources with no undefined symbols. No candidate has been flashed,
+signed or released. Physical
+radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
+remain unmeasured. The [requirements matrix](ring-recording-and-ptt.md) separates
+implemented behavior from device acceptance; the [protocol](ring-voice-protocol.md)
+defines exact packets and error meanings.
 
 ## Preserved original
 
@@ -36,270 +35,244 @@ material and belongs outside Git. The candidate neither uses nor exports it.
 The source baseline is a factory distribution; it is not a backup of the
 physical ring's installed firmware, settings, bonds, calibration, or recordings.
 
-## Transfer changes
+## Recording and reliability changes
 
-| Before | Candidate behavior |
+| Area | Candidate behavior |
 | --- | --- |
-| Tight retry loop when `sd_ble_gatts_hvx` returns `NRF_ERROR_RESOURCES` | Retains the pending packet and blocks on an RTOS semaphore. Notification completion, CCCD changes, and MTU negotiation wake it; a bounded fallback wait handles missed/coalesced events. |
-| Concurrent file, command, and audio writers share global transmit scratch memory | Producers use one FIFO and one radio writer. Each queued packet carries an internal connection epoch that is never sent over the air. |
-| Buffered packets can outlive a connection | The sender and consumer reject old epochs, including reused connection handles. A fatal send or 10-second stall aborts that connection before later queued packets can appear to complete a damaged stream. |
-| Default one-entry notification queue | Requests six entries within the **existing linker RAM allocation**. Falls back to one on `NRF_ERROR_NO_MEM`; it restores the linker RAM base before retrying. The startup log identifies the selected window. Six entries are not a promise of six packets per event or a measured speedup. |
-| Reported MTU includes ATT overhead | Uses negotiated MTU minus three bytes; waits for a sufficient MTU without fragmenting the vendor packet format. PHY responses permit automatic 1M/2M selection. |
-| One-second sleep after every received command | The receive queue blocks when idle and drains immediately when work arrives. |
-| Audio packet and completion-event logs in hot paths | Removes those logs while retaining useful connection/error diagnostics. |
-| Resume subtracts the offset but seeks to zero | The shared reader validates the offset and seeks to it; packet numbering is relative to the remaining bytes, as the supplier protocol intended. |
-| Upload ignores read results or advances after a failed send | Accumulates short reads, stops on premature EOF/error, and waits for FIFO acceptance before reading another chunk. Failed transfers do not delete files or emit a fabricated completion. |
-| Missing upload file can be created; worker returns on error | Opens uploads read-only, closes resources, and returns to its request loop after failure. Counting notifications replace the resume/suspend wakeup race. |
-| A new request overwrites a busy transfer's global header | Checks ownership before copying the request. Busy responses use a separate packet. |
-| Parser treats a 250-byte buffer as a larger command struct | Copies into a zero-initialized command struct, checks lengths, and validates file-request and recording-control payload lengths before dispatch. RX callbacks never block waiting for queue capacity. |
-| Internal recording Start helpers declare four bytes for a five-byte packet | Preserves the Start byte. The stricter parser previously decoded these malformed internal Starts as Stops; the September 6 correction fixes both helpers and rejects truncated `0x71/0x05` and `0x71/0xFE` commands. |
+| Recording ownership | One firmware worker owns the microphone lifecycle, mounted LittleFS instance, recording identity and final state. Connected and standalone recordings use the same storage path; reconnect does not stop capture. |
+| Hold/release | IQS reports include validated contact/release. A separate capture guard enforces release/stale-touch/limit handling independently of a busy storage worker. Stop received during Start is retained. |
+| Memo mode | Double tap toggles a separately configurable memo. PTT defaults to ten seconds; memo/app recording defaults to unlimited. Limits, memo enable, LED and haptic enable persist. |
+| Capture tail | Eight bounded PDM buffers feed the encoder with recording IDs and sequence checks. Stop halts production and drains accepted complete blocks before finalizing. Overflow, missing sequence and stop timeout produce explicit partial/error outcomes. |
+| Storage | Checked opens, appends, checkpoints, close and metadata readback. No implicit format on mount failure, no unsynced reclamation, no invented accepted-byte count. Full storage rejects recording while retaining prior files. |
+| Restart recovery | LittleFS atomic attributes record identity, verified prefix, CRC, completion and receipt state. Fresh mount validates recoverable data; a reboot never restarts the microphone. Cold-cut tests cover recording, receipt and deletion. |
+| Final results | Versioned idempotent Start/Stop/query expose file identity, name, actual bytes/frames/CRC and complete/partial/delivered state. An accepted command and a finalized file are different outcomes. |
+| Live preview | Phone Ready lease and bounded live ACK window are independent from Flash recording. Stalled/missing live data affects preview diagnostics, not the only audio copy. |
+| File custody | Resume binds the exact recording identity, size, CRC, token and aligned offset. A persisted exact receipt and separately acknowledged deletion replace delete-on-send. |
+| Feedback | Recording owns green LED output. Finite bounded motor pulses replace unbounded legacy loops. Start, stop, error and optional enable/settings are consistent across trigger sources. |
+| Touch tuning | Persisted desired thresholds and hold/double-tap mask apply only in a valid no-contact sensor communication window. I2C write/readback yields explicit pending/applied/error status. |
+| Power failures | SFUD/LittleFS errors propagate. ADC failures report UNKNOWN; filtering uses actual initialized values and charging-phase-aware single-flight measurement. Hardware voltage table/cutoff policy is retained. |
 
-The on-air service identifiers, four-byte command header, 17-byte file-transfer
-metadata, 220-byte file chunks, and ADPCM recording format remain compatible
-with the supplier path. A full file packet is 241 bytes. The app-facing
-interpretation remains 8 kHz mono; validate it with a physical capture.
-`sd_ble_gatts_hvx` success means local stack acceptance, not durable phone receipt.
-The application must continue validating byte counts and issuing file deletion
-separately. The [client at app commit `60c37a3`](https://github.com/ShopItalic/app/blob/60c37a3dcfed32f80e7b615b57d089c1c9a8835b/apps/ios/Sudo/Services/BCLRingFileTransport.swift#L725)
-requests individual files with `getFileData(fileName:)` and accepts ADPCM file
-types 8/B/D. The candidate accepts those same file types. The client should
-continue its existing transfer flow;
-Empty files and resume offsets at/past EOF are rejected by closing the transfer
-connection, since the legacy protocol has no established zero-packet response.
-Fixed resume support is not an instruction to enable a previously disabled app
-resume path without end-to-end testing.
+Important defaults: checkpoint **1,000 ms or 4,096 raw bytes**, stop-drain timeout
+**500 ms**, stale-touch lease **750 ms**. These are software scheduling bounds;
+physical Flash/interrupt latency and the requested one-second release behavior
+still require measurement. The raw audio contract is **220 ADPCM bytes → 440
+PCM16 samples**, interpreted by the app as **8 kHz mono**. Source enum names and
+compiler success do not substitute for a physical audio-rate check.
 
-The retry contract follows the supplied S140 headers:
-[`ble_gatts.h`](../../firmware/BCL603S2X/app/components/softdevice/s140/headers/ble_gatts.h)
-and [`ble.h`](../../firmware/BCL603S2X/app/components/softdevice/s140/headers/ble.h).
-These define notification resource exhaustion, completion events, configuration,
-and the in/out RAM-base argument used by stack enablement.
+The candidate retains the supplier board pin map, S140/peer manager, radio
+services, DFU and existing ADPCM algorithm archive. It does not contain ASR,
+Opus, keyboard text injection, display, Wi-Fi or modem code. Shared motion,
+temperature, battery and charging support remains. Accidental phone/media,
+mouse, presentation and swipe actions are disabled. Manufacturing/reset/legacy
+configuration commands are denied where they could race recording; the native
+settings API gives checked persistence and truthful readback.
 
-## Recording-focused build
+## Bluetooth transfer and matching app
 
-Open [`sudo_voice.uvprojx`](../../firmware/BCL603S2X/app/project/mdk5/sudo_voice.uvprojx)
-and select **Sudo Voice 1.23.2**. Its generator reads the original project and
-preserves the supplier's Arm Compiler **5.06 update 7, build 960**, board,
-SoftDevice, pin definitions, and memory settings. The original `.uvprojx` is
-retained as provenance; use commit `102bfd2` to build the unmodified supplier
-source. The patched sources are intended for the generated Sudo target.
+The original transfer repair remains: a single radio writer owns all queued
+notifications; resource exhaustion waits on completion/wakeup rather than a
+spin loop. Packets carry an internal connection epoch. Stale epochs, fatal send
+errors and a ten-second stalled connection cannot masquerade as a successful
+stream. The sender requests six S140 notification entries within the original
+RAM allocation, falling back to one if the stack cannot allocate six. This is
+not a measured throughput multiplier.
 
-The candidate removes 236 project entries: 108 were already disabled by the
-supplier; 126 belong to the unused Opus implementation; two are the alternative
-encoder wrapper and factory BLE/Wi-Fi traffic generator. Two new transfer
-modules leave **217 entries** in the candidate project. This measures build
-inputs, not final flash savings—linker dead-code elimination may already have
-removed unused sections from the factory image.
+Negotiated payload is MTU minus three. Native commands/events have explicit
+fragment boundaries, message ID and CRC, with local connection-epoch checks,
+so the new protocol also works
+at small MTU. Legacy upload retains its established four-byte header, 17-byte
+metadata and 220-byte chunks (241-byte full packet); it waits for a sufficient
+MTU. Checked read-only open, exact resume seek, short-read handling, EOF bounds,
+cancellation and FIFO admission avoid lost chunks and false completion. The
+command queue no longer sleeps a second after every packet. The malformed
+internal Start packet lengths and bounded parser regression remain covered by
+99 actual producer/dispatcher checks.
 
-The profile also:
+The supplier S140 [GATTS header](../../firmware/BCL603S2X/app/components/softdevice/s140/headers/ble_gatts.h)
+and [BLE header](../../firmware/BCL603S2X/app/components/softdevice/s140/headers/ble.h)
+are the authority for notification resource errors, completion and RAM-base
+negotiation. Notification acceptance is neither phone receipt nor playback.
 
-- Uses one recording-file worker for ordinary and resumed uploads. Two redundant
-  1,024-word worker stacks are no longer allocated: **8,192 bytes of configured
-  stack allocation removed**, before TCB costs and new transport overhead.
-- Disables the vendor batch-upload worker; the app requests individual files.
-- Compiles out phone/media, presentation, mouse, touch-screen, and joystick HID
-  actions, including effects from persisted old settings. Keeps the HID service
-  and peer manager so service identity and pairing behavior remain available.
-- Retains recording, touch capture, motion support, haptics, battery/charging,
-  temperature support, flash/filesystem, bonds, and DFU. PPG was already disabled
-  in this board's factory target. Health code already excluded by that target is
-  absent from the generated project; shared motion/temperature dependencies are
-  retained pending supplier validation.
-- Uses an identifiable engineering version, `6.0.3.3-SUDO1`, without assigning a
-  release/anti-rollback counter. Disables build-time supplier packaging hooks.
+The matching iOS path requires the standard board, the exact ten-byte version
+**6.0.3.3S01**, and negotiated capabilities. It preserves the factory
+**6.0.3.3Z62** workaround on factory firmware. `RingVoiceConnection` observes
+the BCL SDK's public peripheral delegate without replacing its CoreBluetooth
+owner. Physical forwarding of those notifications remains a device gate.
 
-See [profile settings](../../firmware/bc_ros/bc_config/sudo_voice_profile.h) and
-[removal manifest](../../firmware/voice-profile.json). Regenerate deterministically
-with `python3 tools/firmware/make_voice_project.py`.
+`RingVoiceRecordingTransport` joins native catalog/resume with the existing
+sync pipeline. Complete offset-zero raw CRC proof, playable WAV, saved app
+identity and WAV SHA verification precede custody/delete. A resumed suffix
+cannot independently prove a whole file. Bounded buffering, epoch checks,
+immutable request IDs and scoped cancellation prevent a late old callback from
+marking or deleting a newer transfer. Factory root recordings can still be
+read but are not deleted by the native candidate until a custody migration
+contract exists.
+
+Optional foreground live preview claims the shared decoder once per attempted
+recording, accepts the READY-confirmed stream token, checks contiguous sequence,
+and sends separate flow ACKs. Terminal state can precede tail LIVE packets;
+a bounded tail drain handles that ordering. Gaps or ASR deadline/failure fall
+back to stored audio. Only a complete nonpartial transcript reaches the app's
+existing dictation store; preview never claims durable Ring custody or creates
+a second canonical memo. iOS suspension ends preview and relies on local Ring
+capture plus later archive sync.
+
+## Build profile and toolchain
+
+[`sudo_voice.uvprojx`](../../firmware/BCL603S2X/app/project/mdk5/sudo_voice.uvprojx)
+selects **Sudo Voice 1.23.2**. Its deterministic generator preserves the original
+board/SoftDevice/memory settings and original Arm Compiler **5.06 update 7,
+build 960** selection. It currently selects **227 project entries** and excludes
+**238** unrelated/replaced entries; those are project-entry counts, not linked
+object counts or flash savings. The original project and immutable import
+remain available for supplier baseline reproduction.
+
+The independent GNU driver uses official **Arm GNU 15.2.rel1** (GCC 15.2.1,
+Binutils 2.45.1), real vendor SDK headers, Nordic GCC startup and FreeRTOS port.
+It clears BSS and calls the actual `main`; it does not link the generic
+ARMv4T `crt0.o`. The linker script asserts app/SoftDevice, heap and stack bounds.
+GNU-only runtime ports are selected by this driver, not inserted into the Keil
+project. Generated unsigned `.elf`, `.map` and `.bin` stay in local/CI artifacts.
+
+The preserved `bc_algorithm.lib` is hash-locked. A build-only copy normalizes
+ArmCC archive symbol/relocation metadata needed by GNU Binutils; it does not
+change the factory file or algorithm instructions. Six normalizer regression
+tests cover this conversion. The GNU application and Newlib use four-byte
+`wchar_t`; the opaque supplier objects retain two-byte wchar attributes. Their
+reviewed ADPCM boundary uses bytes/shorts/integers rather than wide characters.
+The build records remaining ABI warnings and audits the exact archive hash;
+this is a bounded compatibility argument, not a claim to have audited opaque
+algorithm internals. A supplier compiler/image comparison is still required.
+
+The GNU `_sbrk` port enforces the linker-reserved heap bounds with checked
+arithmetic and a short interrupt-masked cursor update. The GNU profile enables
+FreeRTOS Newlib reentrancy and supplies allocation-free recursive retarget
+locks. The locks suspend task scheduling while leaving interrupts enabled;
+checked nesting prevents an unmatched release from consuming another caller's
+scheduler suspension. Calling those locks from an interrupt is a contract
+failure that resets the device. The two identified ISR stdout call sites are
+disabled for Sudo. GNU UART stdout is currently unavailable: `_write` retains
+the error-returning `libnosys` implementation. The original Keil profile is
+unchanged by these GNU runtime selections.
+Static section fit alone cannot establish FreeRTOS heap high-water marks,
+worst-case stack or physical timing. No warning is silently equated with a
+successful hardware qualification.
 
 ## Validation and reproduction
 
-From the repository root:
+From the firmware repository root:
 
 ```sh
 python3 tools/firmware/verify_baseline.py
+python3 tools/firmware/make_voice_project.py
 sh tools/firmware/test.sh
-python3 tools/firmware/prepare_headers.py
-python3 tools/firmware/check_arm.py
+python3 tools/firmware/build_gnu.py --toolchain /path/to/arm-gnu-toolchain/bin
+python3 tools/firmware/summarize_gnu_build.py --build-dir build/firmware/gnu/sudo_voice
 ```
 
-The host tests compile and execute the actual allocation-free retry and file
-transfer modules with AddressSanitizer and UndefinedBehaviorSanitizer. **462
-checks passed**: resource exhaustion, repeated early wakeups, cancellation,
-connection-epoch changes, fatal errors, finite deadlines, tick rollover, packet
-bounds/order, exact and partial final chunks, nonzero resume, short reads,
-premature EOF, send failure, invalid offsets, and empty remaining data.
+The host runner executes actual C production modules and actual worker/driver
+translation units under AddressSanitizer/UndefinedBehaviorSanitizer. Hardware
+and RTOS shims replace only their external boundaries. Coverage includes
+recording ownership, stale/session-tagged capture, hold/release, malformed
+wire fragments, idempotency, LED arbitration, motor failure, touch I2C readback,
+battery/ADC faults, Flash failures, transfer/custody and real LittleFS cold
+mounts. The cold-cut suite includes **147 simulated interruptions** across
+recording (109), receipt (33) and deletion (5), with no graceful unmount and
+checks that previous recording identities survive.
 
-The September 6 recording-command review adds **99 checks** under the same
-sanitizers, for **561 checks total**. It compiles byte-preserved function
-extractions of the seven packet producers, the actual bounded parser and PDM
-dispatcher using the checked-in packet headers. Queue and hardware effects
-are intercepted: this tests command meaning and bounds, not physical recording.
-The pre-fix candidate reproduces Start dispatching as Stop. Coverage includes
-ordinary/ISR Stop, payload-free internal commands, truncated recording controls,
-null/short/oversize input and valid legacy packets. Both changed production
-translation units also pass fresh ARM object compilation. The
-[recording-command validation](../../firmware/recording-command-validation.json)
-records exact source hashes and scope; the original validation record below
-remains the September 5 snapshot.
+The September 6 integrated host run passed **12,927 C checks across 24 suites**
+plus **6 archive-normalizer tests**. These are assertions and fault cases, not
+physical measurements. Baseline verification matched all **7,056** original
+files. The integrated Arm GNU 15.2.rel1 build compiled and linked **225/225
+sources**, with **zero undefined symbols** and passing startup/vector checks.
 
-ARM checks use `arm-none-eabi-gcc 16.2.0`, Cortex-M4 Thumb, hard-float, the actual
-supplier target defines and SDK headers, and the Nordic GCC FreeRTOS port.
-`__MODULE__` maps to `__FILE__` for the vendor diagnostic macro. C library headers
-come from pinned [Newlib 4.5.0](https://sourceware.org/pub/newlib/); the helper
-verifies its archive SHA-256 before extraction. No synthetic SDK types or
-hardware-driver stubs replace the headers in these checks.
+| Memory allocation | Integrated local build |
+| --- | --- |
+| App Flash load image, including initial `.data` | 308,404 / 757,760 bytes (40.70%) |
+| Static RAM, including the 140 KiB FreeRTOS heap array | 196,672 / 243,880 bytes |
+| Separate C-library heap reservation | 8,192 bytes, `0x20034798..0x20036798` |
+| Separate main/interrupt stack reservation | 8,192 bytes, `0x2003E000..0x20040000` |
+| Unassigned space between heap and main stack | 30,824 bytes |
 
-The ten originally selected baseline translation units compiled successfully
-from the untouched Git archive. The candidate's 13 changed/new units compile
-successfully, including service and command integration. Remaining compiler
-warnings are existing vendor pointer/integer comparisons in task creation and
-an unused HID helper. GitHub Actions runs baseline verification, profile reproducibility, and host
-fault-injection tests on pushes and pull requests. It does not build or sign
-production firmware. Compiler logs and objects are local build output;
-[validation evidence](../../firmware/validation.json) records the source hashes
-and results. Compiler object success does not establish a complete link, boot,
-stack headroom, production ABI compatibility, or physical behavior.
+The linker prints 301,088 bytes of FLASH before `.data` load bytes; that value
+alone understates the image footprint. GNU Newlib's target `_reent` is 512
+bytes per task: 13 startup tasks add 6,656 bytes from the existing FreeRTOS heap,
+falling to 6,144 after the temporary hardware-check task exits. Task stacks and
+other dynamic allocations also consume that heap. These static checks do not
+prove runtime heap or stack margin. The final map resolves the lock backend
+from `224_newlib_locks.o` and contains no single-threaded `libc_a-lock.o`.
+Two supplier wchar-attribute warnings and eight unsupported Newlib syscall
+warnings remain recorded; GNU stdout through `_write` fails as described above.
+
+Local MBA/Darwin artifacts (unsigned, not a DFU package):
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `sudo_voice.bin` | 308,404 | `f1fce0de71f5a5622d821f74f97175b14b130f261d94c4c2780c19fd2af80e0c` |
+| `sudo_voice.elf` | 1,235,980 | `8a994f0121005a5a2ec39bc02ad8a33801530134f02947701e8aee25df71e920` |
+| `sudo_voice.map` | 2,273,207 | `2e9930e0cef7c79a9d08b3ac100c56d42f76df76be0ced53e1fbdcb3d433ce2b` |
+
+CI uses the pinned Linux toolchain and records its own image hashes; this is
+not a claim that host-dependent paths/debug data produce identical artifacts.
+The older [validation.json](../../firmware/validation.json)
+and [recording-command-validation.json](../../firmware/recording-command-validation.json)
+are historical, source-hash-pinned checks, not claims about this new tree.
+The build emits `build-report.json`; the concise `build-summary.json` checks
+startup/vector bounds, actual ELF words, unresolved symbols, sections and ABI
+warnings. CI runs both baseline/profile/host checks and a full pinned Linux GNU
+build, with an unsigned artifact retained for review. Green CI on the final
+published head is required before this source handoff is considered complete.
+
+The matching app's integrated simulator selection passes **246 tests** for
+native wire/protocol/client/receiver/file transport and the existing Ring
+transport/sync pipeline. Actual-source preview and controller harnesses add
+eight and seven bounded fault suites. Cloud workspace tests, lint, typecheck
+and build pass as separate gates. A broader simulator run passed 546 of 547
+unit tests and both UI tests; the remaining Apple model test failed because
+this simulator lacks the safety model/prompt-template asset. That entire suite
+is not green, and its assertion was not weakened to hide the missing asset.
 
 ## Comparison with Caption
 
-Reviewed on September 6, 2026. Keep the Ring's production board support and
-current BLE sender. The most useful Caption work to adapt is its recording
-lifecycle, storage integrity checks, session rejoin, and fault-test harness.
-These are recommendations for a later source change; this comparison does not
-port them or change the Ring's wire format.
+The September 6 comparison used published Caption
+[`70ba7b4`](https://github.com/ShopItalic/caption/tree/70ba7b4b1627b24321f40a394a6f58e10760ffa8)
+and the newer development source/results in the referenced “Italic device
+firmware and emulator” task. That historical comparison included checked source
+blobs and task-reported integration results; it is not a new build or a current
+status claim about Caption. The published firmware job then failed fetching
+its private SDK before compilation.
 
-### Evidence and scope
+| Concept | Adaptation in this Ring candidate |
+| --- | --- |
+| Local acceptance before live delivery | Implemented with a bounded C owner and LittleFS; radio readiness never substitutes for local capture. |
+| Stop barrier and session-tagged tails | Implemented using Nordic PDM buffers and the retained ADPCM encoder. |
+| Checked recording/recovery/checkpoints | Implemented with Ring-sized buffers and LittleFS atomic attributes/CRC, without copying Caption's IPR2 container. |
+| Versioned state, readiness and ACK separation | Implemented in native Ring v1 and the matching app; durable custody is a separate operation. |
+| Fault harnesses | Adapted stale events, early Stop, storage failure, power cuts and transfer interruption cases to the actual Ring code. |
+| Saved-file catch-up | The Ring now has native catalog/resume/custody; Caption's catch-up was still open in the earlier comparison and was not copied as a finished implementation. |
 
-- Ring source: this candidate at `700f30748983ace445861b1e223e08776386d75b`.
-- Published Caption source: [commit `70ba7b4`](https://github.com/ShopItalic/caption/tree/70ba7b4b1627b24321f40a394a6f58e10760ffa8).
-  Twenty-three selected source/doc files were fetched at that ref and their Git
-  blob hashes verified. Its shared runtime is older than the current development
-  work. The emulator job passes; the [firmware job](https://github.com/ShopItalic/caption/actions/runs/33935778509/job/101223316772)
-  fails fetching `ShopItalic/freeink-sdk`, before any compiler step.
-- Newer Caption development: actual source diffs, read outputs, documentation
-  and completed checks retrieved from [Italic device firmware and emulator](thread://01a06f78-5f22-7d62-bf6e-e1bb10551a2e?hostId=remote-control%3Aenv_e_6a7a3ff7d2308326a8dd16323532bea4).
-  This includes wire v2, IPR2 recordings, recovery and checkpoints. That task
-  reports 74 Swift tests, 18 web tests, controller fault tests, 14 display
-  fixtures, and a successful JieLi integration compile/link on September 5.
-  MBP-M5 was unavailable over SSH during this comparison, so those are recorded
-  task results, not a fresh build or filesystem verification on that Mac.
+Ring uses nRF52840/S140 and 256 KiB SoC RAM; Caption uses JieLi AC791N and a
+much larger memory/storage platform. Firmware binaries, codec implementations,
+GPIO/radio drivers and update packages cannot be shared. Display, reader,
+speaker, Wi-Fi/modem and large C++ runtime buffers were not imported. Opus
+remains a separate measured/negotiated codec project. Caption-style automatic
+rollover is not needed for the current single-file memo contract; full storage
+stops visibly and preserves pending recordings.
 
-| Area | Production Ring candidate | Newer Caption development |
-| --- | --- | --- |
-| Platform | nRF52840, Nordic S140/FreeRTOS, supplier C code | JieLi AC791N/pi32v2, vendor RTOS/drivers, portable C++ runtime and separate HAL |
-| Resources | 256 KB SoC RAM; 16 MiB external recording flash | Board documentation records 8 MB SDRAM and internal SD-NAND storage; much larger buffer budgets |
-| Audio contract | Existing ADPCM packets; app interprets 8 kHz mono, pending physical confirmation | JieLi-framed Opus on the device adapter; desktop/WASM fixtures use 16 kHz PCM16 |
-| Recording | Offline recording and existing LittleFS synchronization; live backup is conditional on other board defines | Local storage accepts each complete encoded frame before live BLE; explicit drain before finalization |
-| Transfer | Single sender, bounded resource retries, connection epochs, checked file reads and corrected resume offsets | Versioned frames, session/sequence checks, live ACK window, same-session rejoin and phone-readiness lease; saved-file catch-up remains unfinished |
-| Integrity | Existing raw recording format; recording write-result propagation and low-space policy still need work | Checksummed IPR2 records, completion marker, bounded read-only recovery and checked file reopen/checkpoints |
-| Validation | 462 host checks and 13 ARM object compilations; production link pending | Shared core/controller/emulator tests and recorded successful integration ELF; no physical qualification |
+## Supplier and device acceptance before release
 
-The [Nordic specification](https://www.nordicsemi.com/Products/nRF52840) and
-[JieLi platform documentation](https://doc.zh-jieli.com/AC79/zh-cn/master/board_description/board_overview/index.html)
-confirm different processor architectures and resource envelopes. Firmware
-binaries, codec backends, GPIO drivers, radio APIs and update packages cannot be
-interchanged. Both modified firmwares still need physical acceptance testing.
+1. Reproduce the factory source with its exact toolchain and reconcile the
+   factory distribution, compiler/library boundary and candidate map.
+2. Read back a spare standard 603V1.23.2 unit and confirm bootloader, SoftDevice,
+   partition/Flash identity, fitted touch/motor/power parts and recovery access.
+3. Run the [physical matrix](ring-recording-and-ptt.md#physical-acceptance-matrix),
+   recording image/app hashes, audio, timings, radio parameters, memory and
+   current draw. Connected double tap must create and download a complete file.
+4. Verify BCL callbacks, real ADPCM rate/framing, background/resume, custody,
+   gestures/settings, battery/charge/thermal behavior, pairing and DFU.
+5. Supplier assigns the release counter, signs the package, and demonstrates
+   interrupted-update recovery and factory restore before updating a user ring.
 
-### What to adapt first
-
-1. **Store live recordings locally before sending them.**
-   The selected Ring target defines `HANDWARE_1_23_1` and `HANDWARE_1_23_2`,
-   without `HANDWARE_1_23_2_ONE_SEC`. In
-   [`app_pdm_handler.c`](../../firmware/bc_ros/bc_application/app_pdm_handler.c),
-   the online branch sends BLE at lines 659-680, while simultaneous flash writes
-   at lines 681-691 require `ONE_SEC` or `HANDWARE_1_23_3`. Caption's
-   `PocketRuntime::onEncodedAudioFrame` makes storage acceptance a prerequisite
-   for streaming. Adapt that policy using a bounded recording worker; a slow
-   radio must not prevent local capture. Storage acceptance still needs an
-   explicit flush and power-loss contract.
-2. **Drain captured audio and propagate recording failures.**
-   Ring `app_pdm_close` clears the capture queue before stopping PDM (lines
-   413-421). Offline Stop then uses a fixed 20 ms wait before closing the file.
-   Caption explicitly waits for the capture-stop callback after its queued
-   encoder tail. Adopt the barrier and session-tagged callbacks. In
-   [`app_ppg_file_data_handler.c`](../../firmware/bc_ros/bc_application/app_ppg_file_data_handler.c),
-   `app_ppg_file_write` ignores `ppg_file_write`'s result and advances its byte
-   counter anyway (lines 2251-2259). Propagate write/sync errors, stop visibly,
-   retain the partial file, and never finalize an uncertain tail as successful.
-3. **Adapt the IPR2 writer/scanner and checkpoint tests.**
-   Caption's `JournalWriter` stores header/record checksums, ordered sequences
-   and a checked End marker. `ArchiveScanner` returns only verified complete
-   audio before the first damaged tail and leaves the original intact.
-   `RecordingCheckpoint` checks after the header, periodically after 5 seconds
-   or 64 KiB of new data, and before final End. Its close/flush/reopen primitive
-   checks file identity, length and append position, then refuses further
-   appends after a failure. The Ring already calls `lfs_file_sync` periodically
-   (lines 736-750); use LittleFS semantics rather than copying JieLi's file-mode
-   and cache-flush implementation. Choose Ring-specific checkpoint intervals.
-   Preserve the existing app's raw ADPCM and logical resume-offset contract,
-   either through a separate integrity journal or an explicitly versioned
-   reader/export path. IPR2's 24-byte record prefix also needs a suitable block
-   size for the Ring's smaller flash and audio packets. Checksums and successful
-   reopen tests do not prove power-cut recovery or authenticate a recording.
-4. **Preserve recordings when storage fills.**
-   The Ring's selected `lk_app_ppg_file_open` path can invoke
-   `lk_ppg_space_reclamation`; that function can call `app_ppg_file_delete`
-   (lines 1793-1818 and 2657-2703). It does not check for a verified phone copy.
-   This is separate from the candidate's safe file-transfer completion behavior.
-   Caption's preservation policy is a better default: retain originals and
-   report full storage, or reclaim only after an explicitly defined durable
-   receipt/retention policy. Do not describe the current Ring candidate as
-   having no automatic deletion anywhere.
-5. **Reuse session rejoin, readiness and measurable counters.**
-   Caption's newer wire contract distinguishes radio connection, phone
-   processing readiness, flow-control ACK and durable receipt. It expires
-   readiness after 10 seconds, supports Hello/SessionSnapshot/SessionResume,
-   and recovers a stalled live ACK window after 2 seconds while preserving the
-   recording. Adapt the concepts with the iOS adapter and explicit protocol
-   negotiation; Sudo's existing internal connection epoch is not an on-air
-   recording identity. Keep separate counters for locally accepted audio,
-   live drops, retries/rejoins and phone-confirmed bytes. Caption's reported
-   queued-payload rate is not measured radio goodput.
-
-The shared desktop/WASM/controller tests are also worth adapting: stale
-callbacks, stop-time encoder tails, storage failures, every torn-record boundary,
-clock wrap, rejoin and preservation of existing recordings. The Ring's current
-portable transport tests provide a base for this work.
-
-### Keep the port small
-
-Do not copy Caption's display, reader, reply-speaker, Wi-Fi or modem layers into
-the Ring. The newer Caption controller's 16 event slots of up to 4,096 bytes and
-64,000-byte speaker buffer are inappropriate defaults for the Ring's RAM budget.
-Its current custom device profile already disables Wi-Fi/modem startup for a
-Bluetooth-first recorder; the Ring has no corresponding networking stack to
-remove. Keep the working ADPCM contract initially. Using Caption's Opus path
-would require a Nordic encoder, CPU/RAM/battery measurements, codec/framing
-negotiation and app decoding changes; it is not a drop-in speed improvement.
-
-Reuse can go the other direction too. The Ring's checked file reader, resume
-offset validation, cancellation/session checks and fault tests are useful
-references for Caption's still-unimplemented saved-file Bluetooth catch-up.
-The Ring also has vendor file rollover code; Caption's automatic rollover is
-still open. Adapt the rollover idea only after fixing the Ring's write-error
-and retention behavior. Neither device's update/recovery package can serve as
-the other's recovery mechanism.
-
-## Supplier acceptance before any release
-
-1. Rebuild the baseline with the exact Arm Compiler 5 toolchain and reconcile it
-   with the factory image; resolve any library/toolchain differences.
-2. Build the Sudo target and review its map, app/SoftDevice RAM boundaries, flash
-   boundaries, RTOS heap, and worst-case stack usage. Confirm whether the six-entry
-   window fits, or record the one-entry fallback. Verify no removed-module
-   references remain in the linked image.
-3. On a verified spare 603V1.23.2 ring, compare identical recording files and
-   phone/app versions. Record bytes, SHA-256, elapsed time, effective KiB/s, MTU,
-   PHY, connection interval, selected TX window, retries, and battery use. Test
-   weak signal, background/foreground, disconnect/reconnect, small MTU, stalled
-   CCCD, queue pressure, truncated file, resume offsets, and cancellation.
-4. Confirm capture, playback, ordering, delete-after-verification, touch/motion,
-   haptics, charging/thermal behavior, pairing, and persisted settings. Exercise
-   malformed requests and missing files without damaging stored recordings.
-5. Have the supplier assign the release counter, package and sign the candidate,
-   and demonstrate both interrupted-update recovery and the approved factory
-   restore procedure on a spare unit before updating the user's ring.
-
-No throughput multiplier, battery improvement, flash-size reduction, or tested
-recovery guarantee is claimed by this source proposal.
+The factory extraction is not a read-back of the user's installed ring. This
+candidate is reviewable source and an unsigned build, not an authorized OTA
+release or a tested recovery image.

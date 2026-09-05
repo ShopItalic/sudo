@@ -16,6 +16,14 @@
       "reason": "already disabled in supplier 1.23.2 target"
     },
     {
+      "path": "..\\..\\..\\..\\bc_ros\\bc_application\\app_ppg_file_data_handler.c",
+      "reason": "replaced by single Sudo recording/archive worker"
+    },
+    {
+      "path": "..\\..\\..\\..\\bc_ros\\bc_application\\app_pdm_handler.c",
+      "reason": "replaced by single Sudo recording/archive worker"
+    },
+    {
       "path": "..\\..\\..\\..\\bc_ros\\bc_application\\app_ble_speed_handler.c",
       "reason": "unused traffic generator or alternative audio encoder"
     },
@@ -948,6 +956,6 @@
       "reason": "already disabled in supplier 1.23.2 target"
     }
   ],
-  "remaining_entries": 217,
+  "remaining_entries": 227,
   "production_link_verified": false
 }

@@ -341,7 +341,17 @@ void bc_touch_button_irq_process(void)
 #endif	
 }
 
-
+#if defined(SUDO_VOICE_ONLY)
+bool bc_touch_button_touch_report_register_callback(bc_touch_report_callback_t callback)
+{
+#if(TOUCH_DEVIECE_TYPE == 1)
+	return IQS7211E_touch_report_register_callback(callback);
+#else
+	(void)callback;
+	return false;
+#endif
+}
+#endif
 
 
 bool bc_touch_button_config_flag_get(void)

@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "bc_delay.h"
 
 #include "nrf_gpio.h"
@@ -130,6 +131,13 @@ bool gesture_event_hold_register_callback(void *callback)
 	return false;
 }
 
+#if defined(SUDO_VOICE_ONLY)
+bool IQS7211E_touch_report_register_callback(bc_touch_report_callback_t callback)
+{
+	return bc_touch_report_register_callback(callback);
+}
+#endif
+
 bool error_register_callback(void *callback)
 {
 	if(callback != NULL)
@@ -245,15 +253,35 @@ bool alp_ati_error_register_callback(void *callback)
 
 
 
-void IQS_I2C_Write_Data(uint8_t slver_addr,uint8_t reg_addr,uint8_t *buff,uint8_t buff_length,uint8_t flag)
+bool IQS_I2C_Write_Data(uint8_t slver_addr,uint8_t reg_addr,uint8_t *buff,uint8_t buff_length,uint8_t flag)
 {
-	touch_i2c_write(reg_addr ,buff,buff_length);
+	(void)slver_addr;
+	(void)flag;
+	return touch_i2c_write(reg_addr ,buff,buff_length);
 }
 
-void IQS_I2C_Read_Data(uint8_t slver_addr,uint8_t reg_addr,uint8_t *buff,uint8_t buff_length,uint8_t flag)
+bool IQS_I2C_Read_Data(uint8_t slver_addr,uint8_t reg_addr,uint8_t *buff,uint8_t buff_length,uint8_t flag)
 {
-	touch_i2c_read(reg_addr,buff,buff_length);
+	(void)slver_addr;
+	(void)flag;
+	return touch_i2c_read(reg_addr,buff,buff_length);
 }
+
+#if defined(SUDO_VOICE_ONLY)
+static bool IQS7211E_touch_tuning_write(void *ctx, uint8_t reg,
+                                         uint8_t *data, uint8_t length)
+{
+    (void)ctx;
+    return IQS_I2C_Write_Data(IQS7211E_ADDR, reg, data, length, STOP_TRUE);
+}
+
+static bool IQS7211E_touch_tuning_read(void *ctx, uint8_t reg,
+                                        uint8_t *data, uint8_t length)
+{
+    (void)ctx;
+    return IQS_I2C_Read_Data(IQS7211E_ADDR, reg, data, length, STOP_TRUE);
+}
+#endif
 
 #define UNINIT_TRACKPAD_TOUCH_SET_THRESHOLD             0xFF
 #define UNINIT_TRACKPAD_TOUCH_CLEAR_THRESHOLD           0x14
@@ -263,6 +291,11 @@ void IQS_I2C_Read_Data(uint8_t slver_addr,uint8_t reg_addr,uint8_t *buff,uint8_t
 void IQS7211E_Init(void)
 {
     uint8_t buffer[40];
+
+#if defined(SUDO_VOICE_ONLY)
+    bc_touch_tuning_init((uint16_t)GESTURE_ENABLE_0 |
+                         ((uint16_t)GESTURE_ENABLE_1 << 8));
+#endif
 
     /* Change the ALP ATI Compensation */
 /* Memory Map Position 0x1F - 0x20 */
@@ -884,6 +917,11 @@ void Process_IQS7211E_Events(void)
 		static uint8_t Palm_state = 0;
 		static uint8_t Hold_state = 0;
 	  
+      bool status_read_ok = false;
+#if defined(SUDO_VOICE_ONLY)
+      bool report_consumer = false;
+      bc_touch_report_t touch_report;
+#endif
       uint8_t rdypin = touch_io_irq_status();
 //      log_info("\n RDY occurred******************:%d\r\n",rdypin);
 	  if(rdypin == 0)
@@ -893,6 +931,16 @@ void Process_IQS7211E_Events(void)
             enable_irq();
             if(touch_i2c_open()) {
                 BC_LOG_INFO("bc_touch_button_irq_process touch_i2c_open fail\r\n");
+#if defined(SUDO_VOICE_ONLY)
+                if(bc_touch_report_consumer_installed())
+                {
+                    (void)bc_touch_report_decode(0, 0, false, &touch_report);
+                    bc_touch_report_notify(&touch_report);
+                }
+#endif
+                disable_irq();
+                chip_is_busy = 0;
+                enable_irq();
                 return;
             }
 //            uint8_t pinst = nrf_gpio_pin_read(NRF_GPIO_PIN_MAP(0,17));
@@ -914,7 +962,24 @@ void Process_IQS7211E_Events(void)
 			  		
             memset(System_Data_buffer, 0, sizeof(System_Data_buffer));
             
-              IQS_I2C_Read_Data(IQS7211E_ADDR,0x0E,&System_Data_buffer[8],8,STOP_TRUE);//节省通讯数据量
+              status_read_ok = IQS_I2C_Read_Data(IQS7211E_ADDR,0x0E,&System_Data_buffer[8],8,STOP_TRUE);//节省通讯数据量
+
+#if defined(SUDO_VOICE_ONLY)
+              report_consumer = bc_touch_report_consumer_installed();
+              (void)bc_touch_report_decode(&System_Data_buffer[8],
+                                          BC_TOUCH_REPORT_STATUS_LENGTH,
+                                          status_read_ok,
+                                          &touch_report);
+              if(report_consumer)
+              {
+                  bc_touch_report_notify(&touch_report);
+              }
+#endif
+              if(!status_read_ok)
+              {
+                  BC_LOG_ERROR("IQS7211E status read failed\r\n");
+                  goto iqs7211e_event_cleanup;
+              }
             
             
 		    //0x0F Register Info Flags
@@ -1030,7 +1095,11 @@ void Process_IQS7211E_Events(void)
 								if(System_Data_buffer[8]&0x02)
 								{
 								    log_info("\n Double Tap");
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && double_tap_callback != NULL)
+#else
                   if(double_tap_callback != NULL)
+#endif
 									{
 										double_tap_callback();
 									}										
@@ -1067,7 +1136,11 @@ void Process_IQS7211E_Events(void)
                                             //if(filter_cnt%10==0)
                                             {
                                                 log_info("filter_cnt is 10 0\r\n");
+#if defined(SUDO_VOICE_ONLY)
+                                                if(!report_consumer && gesture_event_hold_callback != NULL)
+#else
                                                 if(gesture_event_hold_callback != NULL)
+#endif
                                                 {
                                                     log_info("gesture_event_hold_callback is not null\r\n");
                                                     gesture_event_hold_callback();
@@ -1177,6 +1250,18 @@ void Process_IQS7211E_Events(void)
 						
 				}
 				
+iqs7211e_event_cleanup:
+#if defined(SUDO_VOICE_ONLY)
+        if(status_read_ok)
+        {
+            bc_touch_tuning_on_sample(touch_report.valid,
+                                         touch_report.contact,
+                                         touch_report.reset_flags != 0U,
+                                         IQS7211E_touch_tuning_write,
+                                         IQS7211E_touch_tuning_read,
+                                         NULL);
+        }
+#endif
         IQS7211E_Stop_I2C_Comm_Window();
         //log_info("\n END RDY Comms");	
 #if 0			

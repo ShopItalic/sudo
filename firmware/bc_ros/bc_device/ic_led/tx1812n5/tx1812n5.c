@@ -14,6 +14,10 @@
 
 #include "bc_rtos.h"
 
+#if defined(__GNUC__)
+#define __nop() __NOP()
+#endif
+
 // P0 ºÍ P1 »ùµØÖ·
 #define GPIO_P0_BASE 0x50000000
 #define GPIO_P1_BASE 0x50000300

@@ -167,8 +167,23 @@ static void pwm_callback(nrfx_pwm_evt_type_t event_type)
 static nrf_pwm_values_common_t seq1_values[] = {10000,10000};//序列1，占空比90%
 
 //播放PWM
+#if defined(SUDO_VOICE_ONLY)
+static int pwm_play(void)
+#else
 static void pwm_play(void)
+#endif
 {
+#if defined(SUDO_VOICE_ONLY)
+	if(bsp_list.pwm_config.pwm_parameter.p_common == NULL ||
+		bsp_list.pwm_config.pwm_parameter.length == 0 ||
+		bsp_list.pwm_config.pwm_parameter.playback_count == 0 ||
+		bsp_list.pwm_config.pwm_parameter.top_value == 0 ||
+		(bsp_list.pwm_config.pwm_parameter.flags != PWM_FLAG_STOP &&
+		 bsp_list.pwm_config.pwm_parameter.flags != PWM_FLAG_LOOP))
+	{
+		return RESULT_CONFIG_NULL_ERR;
+	}
+#endif
     //定义PWM播放序列，播放序列包含了PWM序列的起始地址、大小和序列播放控制描述
 	  nrf_pwm_sequence_t  seq0 =
     {
@@ -200,6 +215,9 @@ static void pwm_play(void)
                                   bsp_list.pwm_config.pwm_parameter.flags);
 	}
    
+#if defined(SUDO_VOICE_ONLY)
+	return RESULT_OK;
+#endif
 }
 
 
@@ -251,7 +269,14 @@ static int bsp_pwm_open(q_device_t*dev)
 	 ret_code_t err_code;
 	err_code = nrfx_pwm_init(&bsp_list.pwm_config.pwm_hanler, &config0, bsp_list.pwm_callback_handler);
 	//Q_DEVICE_LOG_INFO("err_code:%d\r\n",err_code);
+#if defined(SUDO_VOICE_ONLY)
+	if(err_code != NRF_SUCCESS)
+	{
+		return (int)err_code;
+	}
+#else
     APP_ERROR_CHECK(err_code);
+#endif
 	
 	//Q_DEVICE_LOG_INFO("open %s start\r\n",bsp_list.name);			
 //    pwm_play();
@@ -357,7 +382,15 @@ static int bsp_pwm_ctrl(q_device_t *dev, int cmd, void *args)
 		case PWM_CTRL_START:
 		{
 			bsp_list.pwm_work_status = PWM_BUSY;
+#if defined(SUDO_VOICE_ONLY)
+			int result = pwm_play();
+			if(result != RESULT_OK)
+			{
+				return result;
+			}
+#else
 			pwm_play();
+#endif
 			break;
 		}
 		case PWM_CTRL_STOP:

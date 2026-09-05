@@ -132,10 +132,16 @@ static void app_ble_connect_callback(void)
   
 #elif (HARDWARE_1231_ENABLED == 1)	 
   //bc_ic_led_ble_connect();  
+#if defined(SUDO_VOICE_ONLY)
+    if (!app_pdm_work_status()) bc_ic_led_ble_connect_from_isr();
+#else
     bc_ic_led_ble_connect_from_isr();
+#endif
 #if defined(HANDWARE_1_23_2 )
     //app_pdm_mode_change_to_online();
+#if !defined(SUDO_VOICE_ONLY)
     app_package_mic_recording_stop_isr();
+#endif
 #endif
 #if defined(HANDWARE_1_23_3) || defined(HANDWARE_1_23_2_ONE_SEC)
     // 蓝牙重连后延迟PDM BLE发送，等GATT就绪避免SoftDevice断言
@@ -208,12 +214,20 @@ static void app_ble_disconnect_callback(void)
     else
     {
       /* 没有录音：正常闪烁蓝灯 */
-      bc_ic_led_ble_disconnect_from_isr();
+  #if defined(SUDO_VOICE_ONLY)
+    if (!app_pdm_work_status()) bc_ic_led_ble_disconnect_from_isr();
+#else
+    bc_ic_led_ble_disconnect_from_isr();
+#endif
     }
     app_package_pdm_key_flag_clear();
 #else
   //bc_ic_led_ble_disconnect();  
+#if defined(SUDO_VOICE_ONLY)
+    if (!app_pdm_work_status()) bc_ic_led_ble_disconnect_from_isr();
+#else
     bc_ic_led_ble_disconnect_from_isr();
+#endif
 #if defined(HANDWARE_1_23_2)
     //app_package_pdm_switch_online_to_offline();
     app_package_pdm_key_flag_clear();
@@ -336,6 +350,9 @@ static void app_ble_recv_handler_thread(void *thread_handler)
 	{
 		if(bc_queue_dequeue(BC_QUEUE_TYPE_BLE_RECV,(void*)&ble_recv_msg))
 		{
+#if defined(SUDO_VOICE_ONLY)
+            if (ble_recv_msg.session_id != bc_ble_session_id()) continue;
+#endif
 			BC_LOG_INFO("recv length:%d\r\n",ble_recv_msg.data_length);
 			BC_LOG_BLE("recv length:%d\r\n",ble_recv_msg.data_length);
 			BC_LOG_HEX_P("recv data:",ble_recv_msg.data,ble_recv_msg.data_length);

@@ -47,17 +47,37 @@ void do_init_call(void)
             (*fn)();
     }
 #elif defined (__GNUC__)
-    extern q_initcall_t __initcall_start[];
-    extern q_initcall_t __initcall_end[];
+    extern q_initcall_t __start_q_initcall0init[];
+    extern q_initcall_t __stop_q_initcall0init[];
+    extern q_initcall_t __start_q_initcall1init[];
+    extern q_initcall_t __stop_q_initcall1init[];
+    extern q_initcall_t __start_q_initcall2init[];
+    extern q_initcall_t __stop_q_initcall2init[];
 
-    initcall_t *start = __initcall_start;
-    initcall_t *end = __initcall_end;
-    initcall_t *fn;
+    q_initcall_t *fn;
 
-    for (fn = start; fn < end; fn++)
+    for (fn = __start_q_initcall0init;
+            fn < __stop_q_initcall0init;
+            fn++)
     {
-        printf("initcall fn 0x%x\r\n", fn);
-        (*fn)();
+        if (*fn)
+            (*fn)();
+    }
+
+    for (fn = __start_q_initcall1init;
+            fn < __stop_q_initcall1init;
+            fn++)
+    {
+        if (*fn)
+            (*fn)();
+    }
+
+    for (fn = __start_q_initcall2init;
+            fn < __stop_q_initcall2init;
+            fn++)
+    {
+        if (*fn)
+            (*fn)();
     }
  #endif // defined
 }
@@ -75,6 +95,18 @@ void do_app_init_call(void)
     {
         if(fn)
         (*fn)();
+    }
+#elif defined(__GNUC__)
+    extern q_initcall_t __start_q_initcall3init[];
+    extern q_initcall_t __stop_q_initcall3init[];
+
+    q_initcall_t *fn;
+    for (fn = __start_q_initcall3init;
+            fn < __stop_q_initcall3init;
+            fn++)
+    {
+        if (*fn)
+            (*fn)();
     }
 #endif
 }

@@ -235,7 +235,7 @@ static void bsp_rtc_set_date_time(struct tm *date_time)
 static void bsp_rtc_get_date_time(struct tm *ble_date_time)
 {
 	
-	uint32_t temp_time = unix_time ;//+ (8*60*60);
+	time_t temp_time = (time_t)unix_time ;//+ (8*60*60);
 	struct tm *p_real_time = localtime(&temp_time);
 	ble_date_time->tm_year = p_real_time->tm_year + 1900;
 	ble_date_time->tm_mon = p_real_time->tm_mon + 1;

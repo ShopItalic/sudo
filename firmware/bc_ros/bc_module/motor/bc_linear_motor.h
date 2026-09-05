@@ -4,6 +4,10 @@
 
 #include <stdint.h>
 
+#if defined(SUDO_VOICE_ONLY)
+#include <stdbool.h>
+#endif
+
 
 enum LINEAR_MOTOR_MODE
 {
@@ -15,6 +19,11 @@ enum LINEAR_MOTOR_MODE
 };
 
 void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode);
+
+#if defined(SUDO_VOICE_ONLY)
+/* Finite 1 MHz PWM pulse: strength 1..100, duration 20..400 ms in 20 ms steps. */
+bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms);
+#endif
 
 void bc_linear_motor_pwm_out(void *linear_motor_config);
 

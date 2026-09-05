@@ -69,6 +69,99 @@ static  struct pwm_config  continuous_vibration_pwm_config = {
 
 
 
+#if defined(SUDO_VOICE_ONLY)
+static bool linear_motor_pwm_stop_existing(void)
+{
+	int stop_result = RESULT_Q_DEVICE_OK;
+	int close_result = RESULT_Q_DEVICE_OK;
+
+	if(pwm_falsh.pwm_status == LINEAR_MOTOR_PWM_IDIE)
+	{
+		return true;
+	}
+
+	/*
+	 * Invalidate the old transfer before asking the driver to stop it. The
+	 * Nordic PWM uninit path disables its IRQ, so a late STOPPED event from
+	 * that transfer cannot tear down a later pulse.
+	 */
+	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
+	pwm_falsh.pwm_mode = PWM_STOP;
+	stop_result = q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
+	close_result = q_device_close(linear_motor_pwm_dev);
+	bc_ldo_motor_power_off();
+
+	return stop_result == RESULT_Q_DEVICE_OK &&
+		close_result == RESULT_Q_DEVICE_OK;
+}
+
+static void linear_motor_pwm_cleanup(void)
+{
+	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
+	pwm_falsh.pwm_mode = PWM_STOP;
+	if(linear_motor_pwm_dev != NULL)
+	{
+		(void)q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
+		(void)q_device_close(linear_motor_pwm_dev);
+	}
+	bc_ldo_motor_power_off();
+}
+
+static bool linear_motor_pwm_start(struct pwm_config *linear_motor_config)
+{
+	int result;
+
+	if(linear_motor_config == NULL || linear_motor_pwm_dev == NULL ||
+		linear_motor_config->pwm_parameter_config.p_common == NULL ||
+		linear_motor_config->pwm_parameter_config.length == 0 ||
+		linear_motor_config->pwm_parameter_config.length >
+			(sizeof(linear_motor_pwm_seq_values) / sizeof(linear_motor_pwm_seq_values[0])) ||
+		linear_motor_config->pwm_parameter_config.playback_count == 0 ||
+		(linear_motor_config->pwm_parameter_config.flags != PWM_FLAG_STOP &&
+		 linear_motor_config->pwm_parameter_config.flags != PWM_FLAG_LOOP))
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+
+	if(pwm_falsh.pwm_status != LINEAR_MOTOR_PWM_IDIE &&
+		!linear_motor_pwm_stop_existing())
+	{
+		return false;
+	}
+
+	result = q_device_close(linear_motor_pwm_dev);
+	if(result != RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+	result = q_device_cfg(linear_motor_pwm_dev, linear_motor_config, NULL);
+	if(result != RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+	result = q_device_open(linear_motor_pwm_dev);
+	if(result != RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+
+	/* Set STOP before starting so a prior LOOP cannot leave cleanup latched out. */
+	pwm_falsh.pwm_mode = (linear_motor_config->pwm_parameter_config.flags == PWM_FLAG_LOOP)
+		? PWM_LOOP : PWM_STOP;
+	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_BUSY;
+	result = q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_START, NULL);
+	if(result != RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+	return true;
+}
+#else
 static void linear_motor_pwm_start(struct pwm_config *linear_motor_config)
 {
 	if(pwm_falsh.pwm_status != LINEAR_MOTOR_PWM_IDIE)
@@ -91,8 +184,30 @@ static void linear_motor_pwm_start(struct pwm_config *linear_motor_config)
 	//BC_LOG_INFO("\r\n");
     q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_START, NULL);
 }
+#endif
 
-
+#if defined(SUDO_VOICE_ONLY)
+static void linear_motor_pwm_callback(void)
+{
+	if(pwm_falsh.pwm_status == LINEAR_MOTOR_PWM_BUSY &&
+		pwm_falsh.pwm_mode == PWM_STOP)
+	{
+		/* Mark idle first so a duplicate stopped event cannot power off twice. */
+		pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
+		pwm_falsh.pwm_mode = PWM_STOP;
+		if(q_device_close(linear_motor_pwm_dev) != RESULT_Q_DEVICE_OK)
+		{
+			BC_LOG_ERROR("LINEAR MOTOR PWM close failed\r\n");
+		}
+		bc_ldo_motor_power_off();
+		if(linear_motor_pwm_idie_callback != NULL)
+		{
+			linear_motor_pwm_idie_callback();
+		}
+	}
+	BC_LOG_INFO("LINEAR MOTOR PWM IDIE\r\n");
+}
+#else
 static void linear_motor_pwm_callback(void)
 {
 	if(pwm_falsh.pwm_mode == PWM_STOP)
@@ -107,9 +222,59 @@ static void linear_motor_pwm_callback(void)
 	}
 	BC_LOG_INFO("LINEAR MOTOR PWM IDIE\r\n");
 }
+#endif
+#if defined(SUDO_VOICE_ONLY)
+bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
+{
+	struct pwm_config pulse_config = {0};
+	uint32_t compare;
+
+	if(strength_percent < 1 || strength_percent > 100 ||
+		active_ms < 20 || active_ms > 400 || (active_ms % 20) != 0 ||
+		linear_motor_pwm_dev == NULL)
+	{
+		return false;
+	}
+
+	/* Stop and close the previous transfer before touching its DMA buffer or
+	 * taking the motor power lease for the replacement pulse. */
+	if(!linear_motor_pwm_stop_existing())
+	{
+		return false;
+	}
+
+	compare = 10000u - ((uint32_t)strength_percent * 68u);
+	linear_motor_pwm_seq_values[0] = (uint16_t)compare;
+	linear_motor_pwm_seq_values[1] = (uint16_t)compare;
+	linear_motor_pwm_seq_values[2] = 10000;
+	pulse_config.pwm_aisle0_enable_status = true;
+	pulse_config.pwm_aisle1_enable_status = false;
+	pulse_config.pwm_aisle2_enable_status = false;
+	pulse_config.pwm_aisle3_enable_status = false;
+	/* At 1 MHz with top 10000, the two active values schedule 20 ms
+	 * per repeat group; the final top value is the existing quiet tail.
+	 * Physical motor response for this schedule remains unmeasured. */
+	pulse_config.pwm_parameter_config.top_value = 10000;
+	pulse_config.pwm_parameter_config.p_common = linear_motor_pwm_seq_values;
+	pulse_config.pwm_parameter_config.length = 3;
+	pulse_config.pwm_parameter_config.repeats = (active_ms / 20) - 1;
+	pulse_config.pwm_parameter_config.playback_count = 1;
+	pulse_config.pwm_parameter_config.flags = PWM_FLAG_STOP;
+
+	bc_ldo_motor_power_on();
+	bc_delay_ms(20);
+	return linear_motor_pwm_start(&pulse_config);
+}
+#endif
 
 void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode)
 {
+#if defined(SUDO_VOICE_ONLY)
+	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+#endif
   bc_ldo_motor_power_on();
     bc_delay_ms(20);
   switch(mode)
@@ -198,10 +363,18 @@ void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode)
 
 void bc_linear_motor_pwm_out(void *linear_motor_config)
 {
+#if defined(SUDO_VOICE_ONLY)
+	if(pwm_falsh.pwm_status != LINEAR_MOTOR_PWM_IDIE &&
+		!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+#else
 	if(pwm_falsh.pwm_status != LINEAR_MOTOR_PWM_IDIE)
 	{
 		q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
 	}
+#endif
 	
 	struct pwm_config *cfg = (struct pwm_config *)linear_motor_config;
 	memcpy((uint8_t *)linear_motor_pwm_seq_values,(uint8_t*)cfg->pwm_parameter_config.p_common,cfg->pwm_parameter_config.length*2);
@@ -212,21 +385,37 @@ void bc_linear_motor_pwm_out(void *linear_motor_config)
 
 void bc_linear_motor_strong_vibration_start(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+#endif
 	bc_ldo_motor_power_on();
 	linear_motor_pwm_start(&strong_vibration_pwm_config);
 }
 
 void bc_linear_motor_continuous_vibration_start(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+#endif
 	bc_ldo_motor_power_on();
 	linear_motor_pwm_start(&continuous_vibration_pwm_config);
 }
 
 void bc_linear_motor_stop(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	(void)linear_motor_pwm_stop_existing();
+#else
 	bc_ldo_motor_power_off();
 	q_device_close(linear_motor_pwm_dev);
 	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
+#endif
 }
 
 void bc_linear_motor_pwm_idie_register_callback(void * register_callback)
@@ -255,7 +444,15 @@ void bc_linear_motor_device_find(void)
 	
 	linear_motor_pwm_dev = q_device_find("pwm0");
 	q_device_assert(linear_motor_pwm_dev);
+#if defined(SUDO_VOICE_ONLY)
+	if(linear_motor_pwm_dev == NULL ||
+		q_device_reg_callback(linear_motor_pwm_dev,PWM_REGISTER_STOPPED_CALLBACK,linear_motor_pwm_callback) != RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_pwm_dev = NULL;
+	}
+#else
 	q_device_reg_callback(linear_motor_pwm_dev,PWM_REGISTER_STOPPED_CALLBACK,linear_motor_pwm_callback);
+#endif
 	
 }
 

@@ -7,6 +7,10 @@
 
 void bc_spi_flash_device_open(void);
 
+#if defined(SUDO_VOICE_ONLY)
+bool bc_spi_flash_device_open_checked(void);
+#endif
+
 void bc_spi_flash_device_close(void);
 
 void bc_spi_flash_cs_high(void);

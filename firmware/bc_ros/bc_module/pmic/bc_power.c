@@ -10,6 +10,10 @@
 #include "bc_delay.h"
 #include "bc_ldo_switch.h"
 
+#if defined(SUDO_VOICE_ONLY)
+#include "bc_rtos.h"
+#endif
+
 extern void power_manage(void);
 
 typedef void (*power_adc_hardware_error_callback)(void); 
@@ -19,6 +23,32 @@ static power_adc_hardware_error_callback hardware_error_callback = NULL;
 static q_device_t *vbat_adc_device_handler;
 
 static uint8_t pre_bat_percent = 100;
+
+#if defined(SUDO_VOICE_ONLY)
+/* q_device and the LDO switch do not provide ownership for this nonblocking
+ * measurement.  Keep it at this module boundary so a failed/reentrant
+ * measurement never powers down another caller's divider. */
+static volatile bool vbat_adc_transaction_active;
+
+static bool bc_power_try_acquire_adc(void)
+{
+    bool acquired;
+
+    bc_rtos_taskENTER_CRITICAL();
+    acquired = !vbat_adc_transaction_active;
+    if (acquired)
+        vbat_adc_transaction_active = true;
+    bc_rtos_taskEXIT_CRITICAL();
+    return acquired;
+}
+
+static void bc_power_release_adc(void)
+{
+    bc_rtos_taskENTER_CRITICAL();
+    vbat_adc_transaction_active = false;
+    bc_rtos_taskEXIT_CRITICAL();
+}
+#endif
 
 /* 电池电压-电量映射表（多点分段线性） */
 typedef struct
@@ -102,6 +132,50 @@ static void check_power_status(void)
 
 uint16_t bc_power_get_adc_value(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	uint32_t total = 0U;
+	uint16_t adc_temp = 0U;
+	uint16_t value = BC_POWER_ADC_ERROR;
+	uint8_t i;
+	bool powered = false;
+	bool opened = false;
+	int result;
+
+	if(!bc_power_try_acquire_adc())
+		return BC_POWER_ADC_ERROR;
+
+	if(vbat_adc_device_handler != NULL)
+	{
+		bc_ldo_bat_power_on();
+		powered = true;
+		result = q_device_open(vbat_adc_device_handler);
+		if(result == RESULT_OK)
+		{
+			opened = true;
+			bc_delay_ms(10);
+			for(i = 0U; i < 3U; ++i)
+			{
+				adc_temp = 0U;
+				result = q_device_read(vbat_adc_device_handler, 0, &adc_temp, 1);
+				if(result != RESULT_OK || adc_temp > 4095U)
+					goto cleanup;
+				total += adc_temp;
+			}
+			value = (uint16_t)(total / 3U);
+		}
+	}
+
+cleanup:
+	if(opened && q_device_close(vbat_adc_device_handler) != RESULT_OK)
+		value = BC_POWER_ADC_ERROR;
+	if(powered)
+		bc_ldo_bat_power_off();
+	bc_power_release_adc();
+
+	if(value != BC_POWER_ADC_ERROR)
+		BC_LOG_INFO("bat temp:%d \r\n", value);
+	return value;
+#else
 	uint16_t temp = 0;
 	uint16_t adc_temp = 0;
 	bc_ldo_bat_power_on();
@@ -118,6 +192,7 @@ uint16_t bc_power_get_adc_value(void)
 	BC_LOG_INFO("bat temp:%d \r\n",temp);
 	bc_ldo_bat_power_off();
 	return temp ;	
+#endif
 }
 
 uint8_t bc_power_get_vbat_percen(void)
@@ -145,10 +220,14 @@ uint8_t bc_power_get_vbat_percen(void)
   float bat_adc_float = 0.0;
   float rect_voltag = 0.0;
   float vout_voltage = 0.0;
-  uint16_t voltage = 0;
-  float vout = 0.0;
-  bat_adc_float = bc_power_get_adc_value();
-  vout_voltage = (bat_adc_float*3.6)/4096;
+	uint16_t voltage = 0;
+	float vout = 0.0;
+	bat_adc_float = bc_power_get_adc_value();
+#if defined(SUDO_VOICE_ONLY)
+	if(bat_adc_float == BC_POWER_ADC_ERROR)
+		return BC_POWER_PERCENT_UNKNOWN;
+#endif
+	vout_voltage = (bat_adc_float*3.6)/4096;
 #if(HARDWARE_1181_ENABLED || HARDWARE_1191_ENABLED)
   vout_voltage += 0.025948;
 #elif(HARDWARE_1171_ENABLED || HARDWARE_1231x_ENABLED == 1)
@@ -244,6 +323,46 @@ uint8_t bc_power_get_vbat_percen(void)
 
 bool bc_power_check_vbat(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	uint16_t temp = 0U;
+	bool powered = false;
+	bool opened = false;
+	bool healthy = false;
+	bool report_hardware_error = false;
+	int result;
+
+	if(!bc_power_try_acquire_adc())
+		return false;
+
+	if(vbat_adc_device_handler != NULL)
+	{
+		bc_ldo_bat_power_on();
+		powered = true;
+		result = q_device_open(vbat_adc_device_handler);
+		if(result == RESULT_OK)
+		{
+			opened = true;
+			bc_delay_ms(10);
+			result = q_device_read(vbat_adc_device_handler, 0, &temp, 1);
+			if(result == RESULT_OK && temp <= 4095U)
+			{
+				BC_LOG_INFO("vbat_adc:%d", temp);
+				healthy = temp >= 100U;
+				report_hardware_error = !healthy;
+			}
+		}
+	}
+
+	if(opened && q_device_close(vbat_adc_device_handler) != RESULT_OK)
+		healthy = false;
+	if(powered)
+		bc_ldo_bat_power_off();
+	bc_power_release_adc();
+
+	if(report_hardware_error && !healthy && hardware_error_callback != NULL)
+		hardware_error_callback();
+	return healthy;
+#else
 	uint16_t temp = 0;
 	bc_ldo_bat_power_on();
 	q_device_open(vbat_adc_device_handler);
@@ -263,6 +382,7 @@ bool bc_power_check_vbat(void)
 	bc_ldo_bat_power_off();
 	q_device_close(vbat_adc_device_handler);
 	return true;
+#endif
 }
 
 bool bc_power_adc_hardware_error_register_callback(const void *error_callback)

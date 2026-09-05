@@ -105,7 +105,13 @@
 
 //1使能时间片调度(默认式使能的)
 #define configUSE_TIME_SLICING                                                    1
+#if defined(SUDO_GNU_RUNTIME)
+/* GNU candidate only: FreeRTOS switches _impure_ptr on every task switch. */
+#define configUSE_NEWLIB_REENTRANT                                                1
+#else
+/* Keil/factory builds retain their original single-reent configuration. */
 #define configUSE_NEWLIB_REENTRANT                                                0
+#endif
 #define configENABLE_BACKWARD_COMPATIBILITY                                       1
 
 /* Hook function related definitions. */
