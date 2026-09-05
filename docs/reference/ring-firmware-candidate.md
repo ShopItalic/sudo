@@ -139,6 +139,126 @@ production firmware. Compiler logs and objects are local build output;
 and results. Compiler object success does not establish a complete link, boot,
 stack headroom, production ABI compatibility, or physical behavior.
 
+## Comparison with Caption
+
+Reviewed on September 6, 2026. Keep the Ring's production board support and
+current BLE sender. The most useful Caption work to adapt is its recording
+lifecycle, storage integrity checks, session rejoin, and fault-test harness.
+These are recommendations for a later source change; this comparison does not
+port them or change the Ring's wire format.
+
+### Evidence and scope
+
+- Ring source: this candidate at `700f30748983ace445861b1e223e08776386d75b`.
+- Published Caption source: [commit `70ba7b4`](https://github.com/ShopItalic/caption/tree/70ba7b4b1627b24321f40a394a6f58e10760ffa8).
+  Twenty-three selected source/doc files were fetched at that ref and their Git
+  blob hashes verified. Its shared runtime is older than the current development
+  work. The emulator job passes; the [firmware job](https://github.com/ShopItalic/caption/actions/runs/33935778509/job/101223316772)
+  fails fetching `ShopItalic/freeink-sdk`, before any compiler step.
+- Newer Caption development: actual source diffs, read outputs, documentation
+  and completed checks retrieved from [Italic device firmware and emulator](thread://01a06f78-5f22-7d62-bf6e-e1bb10551a2e?hostId=remote-control%3Aenv_e_6a7a3ff7d2308326a8dd16323532bea4).
+  This includes wire v2, IPR2 recordings, recovery and checkpoints. That task
+  reports 74 Swift tests, 18 web tests, controller fault tests, 14 display
+  fixtures, and a successful JieLi integration compile/link on September 5.
+  MBP-M5 was unavailable over SSH during this comparison, so those are recorded
+  task results, not a fresh build or filesystem verification on that Mac.
+
+| Area | Production Ring candidate | Newer Caption development |
+| --- | --- | --- |
+| Platform | nRF52840, Nordic S140/FreeRTOS, supplier C code | JieLi AC791N/pi32v2, vendor RTOS/drivers, portable C++ runtime and separate HAL |
+| Resources | 256 KB SoC RAM; 16 MiB external recording flash | Board documentation records 8 MB SDRAM and internal SD-NAND storage; much larger buffer budgets |
+| Audio contract | Existing ADPCM packets; app interprets 8 kHz mono, pending physical confirmation | JieLi-framed Opus on the device adapter; desktop/WASM fixtures use 16 kHz PCM16 |
+| Recording | Offline recording and existing LittleFS synchronization; live backup is conditional on other board defines | Local storage accepts each complete encoded frame before live BLE; explicit drain before finalization |
+| Transfer | Single sender, bounded resource retries, connection epochs, checked file reads and corrected resume offsets | Versioned frames, session/sequence checks, live ACK window, same-session rejoin and phone-readiness lease; saved-file catch-up remains unfinished |
+| Integrity | Existing raw recording format; recording write-result propagation and low-space policy still need work | Checksummed IPR2 records, completion marker, bounded read-only recovery and checked file reopen/checkpoints |
+| Validation | 462 host checks and 13 ARM object compilations; production link pending | Shared core/controller/emulator tests and recorded successful integration ELF; no physical qualification |
+
+The [Nordic specification](https://www.nordicsemi.com/Products/nRF52840) and
+[JieLi platform documentation](https://doc.zh-jieli.com/AC79/zh-cn/master/board_description/board_overview/index.html)
+confirm different processor architectures and resource envelopes. Firmware
+binaries, codec backends, GPIO drivers, radio APIs and update packages cannot be
+interchanged. Both modified firmwares still need physical acceptance testing.
+
+### What to adapt first
+
+1. **Store live recordings locally before sending them.**
+   The selected Ring target defines `HANDWARE_1_23_1` and `HANDWARE_1_23_2`,
+   without `HANDWARE_1_23_2_ONE_SEC`. In
+   [`app_pdm_handler.c`](../../firmware/bc_ros/bc_application/app_pdm_handler.c),
+   the online branch sends BLE at lines 659-680, while simultaneous flash writes
+   at lines 681-691 require `ONE_SEC` or `HANDWARE_1_23_3`. Caption's
+   `PocketRuntime::onEncodedAudioFrame` makes storage acceptance a prerequisite
+   for streaming. Adapt that policy using a bounded recording worker; a slow
+   radio must not prevent local capture. Storage acceptance still needs an
+   explicit flush and power-loss contract.
+2. **Drain captured audio and propagate recording failures.**
+   Ring `app_pdm_close` clears the capture queue before stopping PDM (lines
+   413-421). Offline Stop then uses a fixed 20 ms wait before closing the file.
+   Caption explicitly waits for the capture-stop callback after its queued
+   encoder tail. Adopt the barrier and session-tagged callbacks. In
+   [`app_ppg_file_data_handler.c`](../../firmware/bc_ros/bc_application/app_ppg_file_data_handler.c),
+   `app_ppg_file_write` ignores `ppg_file_write`'s result and advances its byte
+   counter anyway (lines 2251-2259). Propagate write/sync errors, stop visibly,
+   retain the partial file, and never finalize an uncertain tail as successful.
+3. **Adapt the IPR2 writer/scanner and checkpoint tests.**
+   Caption's `JournalWriter` stores header/record checksums, ordered sequences
+   and a checked End marker. `ArchiveScanner` returns only verified complete
+   audio before the first damaged tail and leaves the original intact.
+   `RecordingCheckpoint` checks after the header, periodically after 5 seconds
+   or 64 KiB of new data, and before final End. Its close/flush/reopen primitive
+   checks file identity, length and append position, then refuses further
+   appends after a failure. The Ring already calls `lfs_file_sync` periodically
+   (lines 736-750); use LittleFS semantics rather than copying JieLi's file-mode
+   and cache-flush implementation. Choose Ring-specific checkpoint intervals.
+   Preserve the existing app's raw ADPCM and logical resume-offset contract,
+   either through a separate integrity journal or an explicitly versioned
+   reader/export path. IPR2's 24-byte record prefix also needs a suitable block
+   size for the Ring's smaller flash and audio packets. Checksums and successful
+   reopen tests do not prove power-cut recovery or authenticate a recording.
+4. **Preserve recordings when storage fills.**
+   The Ring's selected `lk_app_ppg_file_open` path can invoke
+   `lk_ppg_space_reclamation`; that function can call `app_ppg_file_delete`
+   (lines 1793-1818 and 2657-2703). It does not check for a verified phone copy.
+   This is separate from the candidate's safe file-transfer completion behavior.
+   Caption's preservation policy is a better default: retain originals and
+   report full storage, or reclaim only after an explicitly defined durable
+   receipt/retention policy. Do not describe the current Ring candidate as
+   having no automatic deletion anywhere.
+5. **Reuse session rejoin, readiness and measurable counters.**
+   Caption's newer wire contract distinguishes radio connection, phone
+   processing readiness, flow-control ACK and durable receipt. It expires
+   readiness after 10 seconds, supports Hello/SessionSnapshot/SessionResume,
+   and recovers a stalled live ACK window after 2 seconds while preserving the
+   recording. Adapt the concepts with the iOS adapter and explicit protocol
+   negotiation; Sudo's existing internal connection epoch is not an on-air
+   recording identity. Keep separate counters for locally accepted audio,
+   live drops, retries/rejoins and phone-confirmed bytes. Caption's reported
+   queued-payload rate is not measured radio goodput.
+
+The shared desktop/WASM/controller tests are also worth adapting: stale
+callbacks, stop-time encoder tails, storage failures, every torn-record boundary,
+clock wrap, rejoin and preservation of existing recordings. The Ring's current
+portable transport tests provide a base for this work.
+
+### Keep the port small
+
+Do not copy Caption's display, reader, reply-speaker, Wi-Fi or modem layers into
+the Ring. The newer Caption controller's 16 event slots of up to 4,096 bytes and
+64,000-byte speaker buffer are inappropriate defaults for the Ring's RAM budget.
+Its current custom device profile already disables Wi-Fi/modem startup for a
+Bluetooth-first recorder; the Ring has no corresponding networking stack to
+remove. Keep the working ADPCM contract initially. Using Caption's Opus path
+would require a Nordic encoder, CPU/RAM/battery measurements, codec/framing
+negotiation and app decoding changes; it is not a drop-in speed improvement.
+
+Reuse can go the other direction too. The Ring's checked file reader, resume
+offset validation, cancellation/session checks and fault tests are useful
+references for Caption's still-unimplemented saved-file Bluetooth catch-up.
+The Ring also has vendor file rollover code; Caption's automatic rollover is
+still open. Adapt the rollover idea only after fixing the Ring's write-error
+and retention behavior. Neither device's update/recovery package can serve as
+the other's recovery mechanism.
+
 ## Supplier acceptance before any release
 
 1. Rebuild the baseline with the exact Arm Compiler 5 toolchain and reconcile it

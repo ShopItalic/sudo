@@ -25,6 +25,9 @@ sender, correct file resume, transfer error handling, and a recording-focused
 Keil target. Host fault-injection tests and ARM object checks pass. A production
 link, signed update package, measured throughput, and hardware validation remain
 pending. Start with that document for the changes and reproduction commands.
+Its [Caption comparison](docs/reference/ring-firmware-candidate.md#comparison-with-caption)
+identifies recording-safety, recovery and session features to adapt next,
+including inherited Ring capture and storage issues outside the transfer patch.
 
 The separate
 [`botnetai/ring-firmware`](https://github.com/botnetai/ring-firmware) repository
