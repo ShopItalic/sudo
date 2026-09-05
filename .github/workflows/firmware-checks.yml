@@ -37,8 +37,6 @@ jobs:
       ARM_GNU_ARCHIVE: arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
       ARM_GNU_SHA256: 597893282ac8c6ab1a4073977f2362990184599643b4c5ee34870a8215783a16
       ARM_GNU_URL: https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
-      ARM_GNU_CACHE_DIR: ${{ runner.temp }}/arm-gnu-toolchain-cache
-      ARM_GNU_TOOLCHAIN_ROOT: ${{ runner.temp }}/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi
       GNU_BUILD_DIR: build/firmware/gnu/sudo_voice
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -50,6 +48,12 @@ jobs:
 
       - name: Verify Linux runner architecture
         run: test "$(uname -m)" = x86_64
+
+      - name: Set runtime toolchain paths
+        shell: bash
+        run: |
+          printf 'ARM_GNU_CACHE_DIR=%s/arm-gnu-toolchain-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ARM_GNU_TOOLCHAIN_ROOT=%s/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
 
       - name: Cache pinned Arm GNU archive
         uses: actions/cache@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
