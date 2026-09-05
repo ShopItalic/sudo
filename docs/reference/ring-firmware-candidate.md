@@ -108,14 +108,23 @@ marking or deleting a newer transfer. Factory root recordings can still be
 read but are not deleted by the native candidate until a custody migration
 contract exists.
 
-Optional foreground live preview claims the shared decoder once per attempted
+Optional live preview claims the shared decoder once per attempted
 recording, accepts the READY-confirmed stream token, checks contiguous sequence,
-and sends separate flow ACKs. Terminal state can precede tail LIVE packets;
+and sends separate flow ACKs. The Ring retains up to 32 locally accepted raw
+frames while waiting for initial READY, preserving the prefix across token
+confirmation, then drains through its four-message live ACK window. A missing
+prefix, overflow or expired/cancelled preview fails explicitly until the next
+recording; it cannot reset the ADPCM predictor into the middle of a clip.
+Terminal state can precede tail LIVE packets;
 a bounded tail drain handles that ordering. Gaps or ASR deadline/failure fall
 back to stored audio. Only a complete nonpartial transcript reaches the app's
 existing dictation store; preview never claims durable Ring custody or creates
-a second canonical memo. iOS suspension ends preview and relies on local Ring
-capture plus later archive sync.
+a second canonical memo. Memo/app preview requires the foreground. PTT can use
+a finite UIKit background assertion, capped by the app at 25 seconds, to feed
+the existing same-iPhone keyboard. That keyboard admits a fresh complete final
+only into the same visible document with no later user edit. Denial, expiration
+or app death ends preview and relies on local Ring capture plus later sync.
+The cap is not an iOS execution guarantee; Mac/HID forwarding is not implemented.
 
 ## Build profile and toolchain
 
@@ -180,7 +189,7 @@ mounts. The cold-cut suite includes **147 simulated interruptions** across
 recording (109), receipt (33) and deletion (5), with no graceful unmount and
 checks that previous recording identities survive.
 
-The September 6 integrated host run passed **12,927 C checks across 24 suites**
+The September 6 integrated host run passed **13,174 C checks across 24 suites**
 plus **6 archive-normalizer tests**. These are assertions and fault cases, not
 physical measurements. Baseline verification matched all **7,056** original
 files. The integrated Arm GNU 15.2.rel1 build compiled and linked **225/225
@@ -188,13 +197,14 @@ sources**, with **zero undefined symbols** and passing startup/vector checks.
 
 | Memory allocation | Integrated local build |
 | --- | --- |
-| App Flash load image, including initial `.data` | 308,404 / 757,760 bytes (40.70%) |
-| Static RAM, including the 140 KiB FreeRTOS heap array | 196,672 / 243,880 bytes |
-| Separate C-library heap reservation | 8,192 bytes, `0x20034798..0x20036798` |
+| App Flash load image, including initial `.data` | 309,364 / 757,760 bytes (40.83%) |
+| Static RAM, including the 140 KiB FreeRTOS heap array | 203,856 / 243,880 bytes |
+| Separate C-library heap reservation | 8,192 bytes, `0x200363A8..0x200383A8` |
 | Separate main/interrupt stack reservation | 8,192 bytes, `0x2003E000..0x20040000` |
-| Unassigned space between heap and main stack | 30,824 bytes |
+| Static RAM plus both reservations | 220,240 / 243,880 bytes (90.31%) |
+| Unassigned space between heap and main stack | 23,640 bytes |
 
-The linker prints 301,088 bytes of FLASH before `.data` load bytes; that value
+The linker prints 302,048 bytes of FLASH before `.data` load bytes; that value
 alone understates the image footprint. GNU Newlib's target `_reent` is 512
 bytes per task: 13 startup tasks add 6,656 bytes from the existing FreeRTOS heap,
 falling to 6,144 after the temporary hardware-check task exits. Task stacks and
@@ -208,9 +218,9 @@ Local MBA/Darwin artifacts (unsigned, not a DFU package):
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `sudo_voice.bin` | 308,404 | `f1fce0de71f5a5622d821f74f97175b14b130f261d94c4c2780c19fd2af80e0c` |
-| `sudo_voice.elf` | 1,235,980 | `8a994f0121005a5a2ec39bc02ad8a33801530134f02947701e8aee25df71e920` |
-| `sudo_voice.map` | 2,273,207 | `2e9930e0cef7c79a9d08b3ac100c56d42f76df76be0ced53e1fbdcb3d433ce2b` |
+| `sudo_voice.bin` | 309,364 | `c9cf7c24ccc4171ede41726a00d74c6a1f1b701ef44b7819dd606f2d8d9308aa` |
+| `sudo_voice.elf` | 1,236,140 | `871144a5cb06e360a9d65333d96277c486843e62691f2c5eb1175441e6fd074b` |
+| `sudo_voice.map` | 2,273,709 | `409e30f907d64d224d5d129207a7a94d51ab7c9c2d79fb908e516e8b2203c9d0` |
 
 CI uses the pinned Linux toolchain and records its own image hashes; this is
 not a claim that host-dependent paths/debug data produce identical artifacts.
@@ -222,11 +232,17 @@ startup/vector bounds, actual ELF words, unresolved symbols, sections and ABI
 warnings. CI runs both baseline/profile/host checks and a full pinned Linux GNU
 build, with an unsigned artifact retained for review. Green CI on the final
 published head is required before this source handoff is considered complete.
+The Linux host job skips the one normalizer probe that needs an installed Arm
+toolchain; its five portable normalizer tests run there, and the separate GNU
+job performs the real archive normalization, target compilation and link.
+The local run exercises all six normalizer tests.
 
-The matching app's integrated simulator selection passes **246 tests** for
+The matching [app candidate](https://github.com/ShopItalic/app/pull/10) at
+`064c265356e32ea9819a8eaa57929ebc17f66f0a` passes **267 simulator tests** for
 native wire/protocol/client/receiver/file transport and the existing Ring
-transport/sync pipeline. Actual-source preview and controller harnesses add
-eight and seven bounded fault suites. Cloud workspace tests, lint, typecheck
+transport/sync pipeline, background-window policy and keyboard admission.
+Actual-source preview, controller and connection harnesses add eleven, seven
+and two bounded suites respectively. Cloud workspace tests, lint, typecheck
 and build pass as separate gates. A broader simulator run passed 546 of 547
 unit tests and both UI tests; the remaining Apple model test failed because
 this simulator lacks the safety model/prompt-template asset. That entire suite

@@ -32,6 +32,13 @@ typedef struct {
     bc_rec_result (*settings)(void *ctx, const bc_voice_settings *settings);
 } bc_voice_service_port;
 
+#define BC_VOICE_LIVE_PREFIX_SLOTS 32U
+
+typedef struct {
+    uint32_t sequence;
+    uint8_t data[BC_REC_FRAME_MAX];
+} bc_voice_live_frame;
+
 typedef struct {
     bc_recording *recording;
     bc_rec_store *store;
@@ -56,6 +63,12 @@ typedef struct {
     uint32_t token_counter, live_token, live_ack;
     uint32_t live_ends[4];
     uint8_t live_count;
+    /* Raw local-accepted frames remain here until READY and the normal four
+     * message ACK window can drain them. The service worker is the sole owner. */
+    bc_voice_live_frame live_prefix[BC_VOICE_LIVE_PREFIX_SLOTS];
+    uint8_t live_prefix_read, live_prefix_count;
+    uint32_t live_sequence;
+    bool live_disabled;
     bc_voice_message stop_request;
     uint64_t stop_id;
     bool stop_pending;

@@ -22,8 +22,10 @@ dump or an approved release. No ring was dumped or flashed.
 The [Sudo Voice firmware candidate](docs/reference/ring-firmware-candidate.md)
 implements hold/release push-to-talk, configurable double-tap memos, local Flash
 recording while connected or standalone, explicit final-file results, checked
-recovery and resumable Bluetooth delivery. The matching client is in
-[ShopItalic/app](https://github.com/ShopItalic/app). Candidate version
+recovery and resumable Bluetooth delivery. The matching
+[app candidate](https://github.com/ShopItalic/app/pull/10) adds verified live
+transcription and bounded PTT dictation through the existing iPhone keyboard.
+Candidate version
 **6.0.3.3S01** is distinct from factory **6.0.3.3Z62**.
 
 The integrated host tests pass, and the GNU target compiles and links all

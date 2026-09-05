@@ -34,12 +34,12 @@ product decisions:
   unlimited memo when `memo_limit_ms=0`. Resolve the historical conflicts in
   [the requirements record](reference/ring-recording-and-ptt.md) explicitly
   before changing defaults or app behavior.
-- **Complete keyboard dictation after host selection.** Long-press voice input
-  was a requested product behavior. The native app preview currently requires
-  Sudo in the foreground, so dictation into another app remains incomplete.
-  Select same-iPhone, Mac, or both, then implement the appropriate finite
-  background/host consumer. App text → Ring → HID is the related exploratory
-  transport question; no cross-host or arbitrary Unicode behavior is established.
+- **Qualify keyboard dictation and settle additional hosts.** The provisional
+  same-iPhone path now has finite background PTT and final-only keyboard
+  admission. Verify BLE wake, model execution, actual host-field insertion,
+  expiration and force-quit on an iPhone. Mac forwarding and app text → Ring →
+  HID remain separate scope choices; no cross-host or arbitrary Unicode
+  contract is established.
 - **Physical specifications.** Close the [open specifications](reference/sudo-ring-hardware.md#open-specifications),
   including battery cell and current ratings, fitted PMIC and haptic parts,
   case/mechanical clearance, RF and antenna evidence, crystal/microphone data,

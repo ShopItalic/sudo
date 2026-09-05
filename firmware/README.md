@@ -47,7 +47,7 @@ The test script remains the entry point:
 sh tools/firmware/test.sh
 ```
 
-The integrated host run passes 12,927 C checks and six archive-normalizer
+The integrated host run passes 13,174 C checks and six archive-normalizer
 tests. Arm GNU 15.2.rel1 compiles and links all 225 sources with zero undefined
 symbols and passing startup/vector checks. See the [candidate record](../docs/reference/ring-firmware-candidate.md)
 for memory use, runtime locking, ABI warnings and local artifact hashes.

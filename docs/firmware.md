@@ -82,13 +82,13 @@ replace the supplier pin map or adapt the older Nordic prototype by assumption.
 The recording, capture, protocol, touch-tuning, battery, and LittleFS fault tests
 have recorded sanitizer-backed host runs, including RAM-NOR erase/program
 semantics and bounded power-cut cases. `sh tools/firmware/test.sh` remains the
-host validation entry point. The September 6 integrated run passed 12,927 C
+host validation entry point. The September 6 integrated run passed 13,174 C
 checks across 24 suites and six archive-normalizer tests; baseline verification
 matched all 7,056 original files.
 
 The integrated Arm GNU 15.2.rel1 target compiles and links all 225 sources with
 zero undefined symbols and passing startup/vector checks. The load image is
-308,404 bytes; static RAM is 196,672 bytes plus separate 8 KiB C-heap and 8 KiB
+309,364 bytes; static RAM is 203,856 bytes plus separate 8 KiB C-heap and 8 KiB
 main-stack reservations. The [candidate record](reference/ring-firmware-candidate.md)
 documents runtime locking, ABI warnings and exact local artifact hashes.
 Vendor Arm Compiler 5.06 update 7 (build 960) reproduction, physical stack/heap

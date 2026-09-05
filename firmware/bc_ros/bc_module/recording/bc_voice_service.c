@@ -56,6 +56,71 @@ static void simple_reply(bc_voice_service *s, const bc_voice_message *request,
     (void)queue(s, &response);
 }
 
+static void live_prefix_clear(bc_voice_service *s)
+{
+    s->live_prefix_read = 0U;
+    s->live_prefix_count = 0U;
+}
+
+static bool live_prefix_push(bc_voice_service *s, uint32_t sequence,
+                             const uint8_t *data)
+{
+    uint8_t index;
+    if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
+        return false;
+    index = (uint8_t)((s->live_prefix_read + s->live_prefix_count) %
+                      BC_VOICE_LIVE_PREFIX_SLOTS);
+    s->live_prefix[index].sequence = sequence;
+    memcpy(s->live_prefix[index].data, data, BC_REC_FRAME_MAX);
+    ++s->live_prefix_count;
+    return true;
+}
+
+static bool live_prefix_push_front(bc_voice_service *s, uint32_t sequence,
+                                   const uint8_t *data)
+{
+    if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
+        return false;
+    s->live_prefix_read = (uint8_t)((s->live_prefix_read == 0U) ?
+        BC_VOICE_LIVE_PREFIX_SLOTS - 1U : s->live_prefix_read - 1U);
+    s->live_prefix[s->live_prefix_read].sequence = sequence;
+    memcpy(s->live_prefix[s->live_prefix_read].data, data, BC_REC_FRAME_MAX);
+    ++s->live_prefix_count;
+    return true;
+}
+
+static void live_transport_clear(bc_voice_service *s)
+{
+    live_prefix_clear(s);
+    s->live_pending = false;
+    s->live_count = 0U;
+    s->live_ack = 0U;
+    if (s->tx_active && s->tx.kind == BC_VOICE_LIVE) {
+        s->tx_active = false;
+        s->tx_offset = 0U;
+    }
+}
+
+static void live_preview_disable(bc_voice_service *s)
+{
+    s->ready = false;
+    s->live_disabled = true;
+    live_transport_clear(s);
+}
+
+static bool live_requeue_active_tx(bc_voice_service *s)
+{
+    if (!s->tx_active || s->tx.kind != BC_VOICE_LIVE)
+        return true;
+    if (s->tx.length != 8U + BC_REC_FRAME_MAX ||
+        !live_prefix_push_front(s, bc_voice_get32(s->tx.payload + 4U),
+                                s->tx.payload + 8U))
+        return false;
+    s->tx_active = false;
+    s->tx_offset = 0U;
+    return true;
+}
+
 static void encode_snapshot(bc_voice_message *out, const bc_rec_snapshot *r,
                               uint32_t token)
 {
@@ -177,17 +242,32 @@ bc_rec_result bc_voice_service_cancel_archive(bc_voice_service *s)
 
 void bc_voice_service_link(bc_voice_service *s, uint32_t epoch, bool connected)
 {
+    bool prefix_at_risk = false;
+    const bc_rec_snapshot *snapshot;
     if (!s || (s->epoch == epoch && s->connected == connected)) return;
+    snapshot = bc_recording_snapshot(s->recording);
+    if (snapshot != NULL) {
+        /* Any physical link/epoch change can lose a locally accepted prefix,
+         * including a terminal file whose prior wire window was drained. */
+        prefix_at_risk = snapshot->accepted_frames != 0U ||
+                         s->live_prefix_count != 0U || s->live_pending ||
+                         s->live_count != 0U ||
+                         (s->tx_active && s->tx.kind == BC_VOICE_LIVE);
+        if (prefix_at_risk)
+            s->live_disabled = true;
+    }
     s->connected = false;
     (void)bc_voice_service_cancel_archive(s);
     s->epoch = epoch; s->connected = connected; s->ready = false;
     s->control_read = 0; s->control_count = 0; s->tx_active = false;
-    s->live_pending = false; s->live_count = 0; s->live_ack = 0;
+    live_transport_clear(s);
     s->stop_pending = false; s->stop_ready = false;
     s->state_pending = connected; s->state_urgent = connected;
     s->transfer_token = 0;
     memset(&s->receiver, 0, sizeof(s->receiver));
-    bc_recording_link(s->recording, false);
+    /* The recording owner needs the physical BLE link before the READY
+     * preview lease exists, so it can enqueue locally accepted frames. */
+    bc_recording_link(s->recording, connected);
 }
 
 void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
@@ -204,10 +284,14 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
     }
     if (r->start.id != s->token_recording) {
         s->token_recording = r->start.id;
+        s->ready = false;
+        s->ready_ms = s->now_ms;
         /* Exhaustion disables live for this boot instead of aliasing tokens. */
         if (s->token_counter < UINT32_MAX - 1U) s->live_token = ++s->token_counter;
-        else { s->live_token = 0; s->ready = false; }
-        s->live_count = 0; s->live_ack = 0; s->live_pending = false;
+        else { s->live_token = 0; s->ready = false; s->live_disabled = true; }
+        live_transport_clear(s);
+        s->live_disabled = s->live_token == 0U ? true : false;
+        s->live_sequence = 1U;
         s->live_progress_ms = s->now_ms;
     }
 }
@@ -215,18 +299,16 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
 bool bc_voice_service_live(bc_voice_service *s, uint64_t id, uint32_t sequence,
                             const uint8_t *data, uint16_t length)
 {
-    if (!s || !s->connected || !s->ready || s->live_token == 0 ||
+    if (!s || !s->connected || s->live_disabled || s->live_token == 0U ||
         id != s->token_recording || !data || length != BC_REC_FRAME_MAX ||
-        sequence == 0U || sequence == UINT32_MAX || s->live_pending ||
-        s->live_count + (s->tx_active && s->tx.kind == BC_VOICE_LIVE ? 1U : 0U) >= 4U)
+        sequence == 0U || sequence == UINT32_MAX)
         return false;
-    memset(&s->live, 0, sizeof(s->live));
-    s->live.message_id = message_id(s); s->live.kind = BC_VOICE_LIVE;
-    s->live.direction = BC_VOICE_EVENT; s->live.length = 8U + length;
-    bc_voice_put32(s->live.payload, s->live_token);
-    bc_voice_put32(s->live.payload + 4, sequence);
-    memcpy(s->live.payload + 8, data, length);
-    s->live_pending = true;
+    if (s->live_sequence == 0U || sequence != s->live_sequence ||
+        !live_prefix_push(s, sequence, data)) {
+        live_preview_disable(s);
+        return false;
+    }
+    ++s->live_sequence;
     return true;
 }
 
@@ -340,23 +422,60 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         return;
     case BC_VOICE_READY:
         if (m->length != 5 || p[4] > 1) break;
-        if (p[4] && !s->ready) {
+        if (!p[4]) {
+            s->ready_ms = s->now_ms;
+            if (s->token_recording != 0U)
+                s->live_disabled = true;
+            live_preview_disable(s);
+            if (s->token_recording == 0U)
+                s->live_disabled = false;
+            /* READY(false) only disables the preview lease. The recording
+             * owner remains linked to BLE and continues Flash capture. */
+            bc_recording_link(s->recording, s->connected);
+            reply_init(&response, m, BC_REC_OK);
+            bc_voice_put32(response.payload + 5, s->live_token);
+            bc_voice_put64(response.payload + 9, s->token_recording);
+            response.length = 17U; (void)queue(s, &response); return;
+        }
+        if (s->live_disabled) {
+            s->ready = false;
+            live_transport_clear(s);
+            bc_recording_link(s->recording, s->connected);
+            simple_reply(s, m, BC_REC_INTERRUPTED);
+            return;
+        }
+        if (!s->ready) {
+            /* A renewed READY must not discard a frame that was already
+             * accepted locally. If a previous token's message is mid-fragment,
+             * put its raw frame back before rotating the token. */
+            if (!live_requeue_active_tx(s)) {
+                live_preview_disable(s);
+                bc_recording_link(s->recording, s->connected);
+                simple_reply(s, m, BC_REC_INTERRUPTED);
+                return;
+            }
             if (s->token_counter < UINT32_MAX - 1U) s->live_token = ++s->token_counter;
             else s->live_token = 0;
-            s->live_count = 0; s->live_ack = 0; s->live_pending = false;
+            s->live_count = 0U; s->live_ack = 0U; s->live_pending = false;
             s->live_progress_ms = s->now_ms;
             s->state_pending = true; s->state_urgent = true;
         }
-        s->ready = p[4] != 0 && s->live_token != 0;
+        s->ready = s->live_token != 0U;
         s->ready_ms = s->now_ms;
-        if (!s->ready) s->live_pending = false;
-        bc_recording_link(s->recording, s->ready);
+        if (!s->ready) {
+            live_preview_disable(s);
+            bc_recording_link(s->recording, s->connected);
+            simple_reply(s, m, BC_REC_INTERRUPTED);
+            return;
+        }
+        bc_recording_link(s->recording, s->connected);
         reply_init(&response, m, BC_REC_OK);
         bc_voice_put32(response.payload + 5, s->live_token);
         bc_voice_put64(response.payload + 9, s->token_recording);
         response.length = 17; (void)queue(s, &response); return;
     case BC_VOICE_LIVE_ACK:
-        if (m->length != 12 || bc_voice_get32(p + 4) != s->live_token) break;
+        if (m->length != 12 || !s->ready || s->live_disabled ||
+            bc_voice_get32(p + 4) != s->live_token) break;
         id = s->live_ack;
         result = acknowledge(s->live_ends, &s->live_count, &s->live_ack, bc_voice_get32(p + 8));
         if (result == BC_REC_OK && s->live_ack != id) s->live_progress_ms = s->now_ms;
@@ -539,7 +658,10 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
     s->now_ms = now_ms;
     if (s->ready && ((uint32_t)(now_ms - s->ready_ms) >= BC_VOICE_READY_MS ||
         (s->live_count && (uint32_t)(now_ms - s->live_progress_ms) >= BC_VOICE_LIVE_STALL_MS))) {
-        s->ready = false; s->live_pending = false; bc_recording_link(s->recording, false);
+        live_preview_disable(s);
+        /* A lease timeout stops preview delivery only; local capture remains
+         * linked to the physical BLE connection and continues into Flash. */
+        bc_recording_link(s->recording, s->connected);
     }
     if (!s->connected) return false;
     if (s->stop_pending && (s->stop_ready || !bc_recording_active(s->recording)) &&
@@ -558,13 +680,23 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
             s->control_read = (uint8_t)((s->control_read + 1) % BC_VOICE_CONTROL_SLOTS);
             --s->control_count;
         } else if (s->state_pending && (s->state_urgent ||
-                       (!s->live_pending && (uint32_t)(now_ms - s->state_sent_ms) >= 500U))) {
+                       (s->live_prefix_count == 0U && !s->live_pending &&
+                        (uint32_t)(now_ms - s->state_sent_ms) >= 500U))) {
             s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_STATE;
             s->tx.direction = BC_VOICE_EVENT;
             encode_snapshot(&s->tx, &s->latest, s->live_token);
             s->state_pending = false; s->state_urgent = false; s->state_sent_ms = now_ms;
-        } else if (s->live_pending) {
-            s->tx = s->live; s->live_pending = false;
+        } else if (s->ready && !s->live_disabled && s->live_count < 4U &&
+                   s->live_prefix_count != 0U) {
+            bc_voice_live_frame *frame = &s->live_prefix[s->live_prefix_read];
+            s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_LIVE;
+            s->tx.direction = BC_VOICE_EVENT; s->tx.length = 8U + BC_REC_FRAME_MAX;
+            bc_voice_put32(s->tx.payload, s->live_token);
+            bc_voice_put32(s->tx.payload + 4U, frame->sequence);
+            memcpy(s->tx.payload + 8U, frame->data, BC_REC_FRAME_MAX);
+            s->live_prefix_read = (uint8_t)((s->live_prefix_read + 1U) %
+                                            BC_VOICE_LIVE_PREFIX_SLOTS);
+            --s->live_prefix_count;
         } else if (s->transferring && !bc_recording_active(s->recording) &&
                     s->transfer_count < BC_VOICE_TRANSFER_WINDOW &&
                     s->transfer_next < s->archive_file.bytes) {
@@ -588,8 +720,8 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
     if (length == 0 || !s->port.send(s->port.ctx, packet, length, s->epoch)) return false;
     s->tx_offset = next;
     if (next == s->tx.length + 4U) {
-        if (s->tx.kind == BC_VOICE_LIVE && bc_voice_get32(s->tx.payload) == s->live_token &&
-            s->live_count < 4U) {
+        if (s->tx.kind == BC_VOICE_LIVE && s->ready && !s->live_disabled &&
+            bc_voice_get32(s->tx.payload) == s->live_token && s->live_count < 4U) {
             if (s->live_count == 0) s->live_progress_ms = now_ms;
             s->live_ends[s->live_count++] = bc_voice_get32(s->tx.payload + 4) + 1U;
         } else if (s->tx.kind == BC_VOICE_FILE && s->transferring &&

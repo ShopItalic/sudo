@@ -168,6 +168,7 @@ typedef struct worker_fixture {
     unsigned loop_count;
     unsigned max_loops;
     bool stop_run;
+    bool fresh_ready_queued;
     unsigned script_stage;
     void (*yield_hook)(struct worker_fixture *fixture);
     jmp_buf stop_jump;
@@ -1410,8 +1411,13 @@ static void worker_script(worker_fixture *fixture)
         response = find_response(fixture, BC_VOICE_READY, 101U);
         if (response != NULL) {
             uint8_t flash_id_command[] = {0U, 0U, CMD_TOOL_TEST, 40U};
-            CHECK(response->payload[4] == BC_REC_OK);
-            CHECK(response->length == 17U);
+            /* The offline PTT already accepted audio before this link/epoch
+             * change. READY cannot promise a contiguous live prefix from the
+             * old connection, so the service disables that preview until a
+             * new recording establishes a fresh token. */
+            CHECK(response->payload[4] == BC_REC_INTERRUPTED);
+            CHECK(response->length == 5U);
+            CHECK(count_kind(fixture, BC_VOICE_LIVE) == 0U);
             CHECK(fixture->hardware.conn_audio_set_calls != 0U);
             fixture->flash_open_calls_before = fixture->hardware.open_calls;
             fixture->flash_close_calls_before = fixture->hardware.close_calls;
@@ -1429,6 +1435,7 @@ static void worker_script(worker_fixture *fixture)
         if (fixture->capture.start_calls == 2U) {
             uint8_t flash_id_reply[] = {0U, 0U, CMD_TOOL_TEST, 40U,
                                         0x78U, 0x56U, 0x34U, 0x12U};
+            uint8_t enabled = 1U;
             uint8_t led_off[] = {0U, 0U, CMD_LED, 7U};
             uint8_t motor_pulse[] = {0U, 0U, CMD_MOTOR, 4U, 1U};
             uint8_t touch_test[] = {0U, 0U, CMD_TOOL_TEST, 37U};
@@ -1448,6 +1455,19 @@ static void worker_script(worker_fixture *fixture)
                 fixture->hardware.led_set_calls;
             fixture->active_control_led_stop_before =
                 fixture->hardware.led_stop_calls;
+            /* Start 102 has admitted a new recording and therefore cleared
+             * the prior interrupted prefix fence. Send READY in a separate
+             * worker turn so its two ATT20 fragments cannot be lost while
+             * the following duplicate and legacy-control pressure fills the
+             * bounded command queue. */
+            if (!fixture->fresh_ready_queued) {
+                CHECK(enqueue_native(BC_VOICE_READY, 139U, &enabled, 1U,
+                                     fixture->epoch));
+                fixture->fresh_ready_queued = true;
+                break;
+            }
+            if (find_response(fixture, BC_VOICE_READY, 139U) == NULL)
+                break;
             encode_start(extra, fixture->app_id, BC_REC_APP, 0U);
             /* Same recording ID and exact parameters is an idempotent Start;
              * it must not open storage or start capture again. */
@@ -1469,7 +1489,13 @@ static void worker_script(worker_fixture *fixture)
         break;
     case 6:
         response = find_response(fixture, BC_VOICE_START, 103U);
-        if (response != NULL) {
+        {
+            const bc_voice_message *ready =
+                find_response(fixture, BC_VOICE_READY, 139U);
+            if (response == NULL || ready == NULL)
+                break;
+            CHECK(ready->payload[4] == BC_REC_OK);
+            CHECK(ready->length == 17U);
             CHECK(response->payload[4] == BC_REC_INVALID);
             CHECK(fixture->capture.start_calls == 2U);
             encode_id(extra, fixture->app_id);
@@ -1489,6 +1515,21 @@ static void worker_script(worker_fixture *fixture)
             uint8_t touch_test_reply[] = {0U, 0U, CMD_TOOL_TEST, 37U, 0U};
             uint8_t ship_mode_reply[] = {0U, 0U, CMD_TOOL_TEST, 5U, 0U};
             uint8_t reboot_reply[] = {0U, 0U, CMD_TOOL_TEST, 9U, 0U};
+            /* Legacy replies are worker-owned and can trail the initial Stop
+             * dispatch under the bounded control queue. Wait until all five
+             * replies have actually reached the sink before asserting their
+             * contents, rather than sampling an intermediate iteration. */
+            if (find_legacy_reply(fixture, led_off_reply,
+                                  sizeof(led_off_reply)) == NULL ||
+                find_legacy_reply(fixture, motor_pulse_reply,
+                                  sizeof(motor_pulse_reply)) == NULL ||
+                find_legacy_reply(fixture, touch_test_reply,
+                                  sizeof(touch_test_reply)) == NULL ||
+                find_legacy_reply(fixture, ship_mode_reply,
+                                  sizeof(ship_mode_reply)) == NULL ||
+                find_legacy_reply(fixture, reboot_reply,
+                                  sizeof(reboot_reply)) == NULL)
+                break;
             CHECK(find_response(fixture, BC_VOICE_STOP, 104U) == NULL);
             CHECK(find_legacy_reply(fixture, led_off_reply,
                                     sizeof(led_off_reply)) != NULL);

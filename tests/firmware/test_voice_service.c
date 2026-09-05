@@ -946,8 +946,8 @@ static void test_ready_live_ack_lease_and_disconnect(void)
     CHECK(pump(&f, 71U, 244U) != 0U);
     CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 2U);
 
-    /* Four unacknowledged events fill the bounded live window. Storage keeps
-     * accepting frames; the fifth event is a diagnostic drop only. */
+    /* Four unacknowledged events fill the wire window. Storage and the bounded
+     * prefix FIFO keep accepting frames while the client catches up. */
     for (i = 3U; i <= 7U; ++i) {
         fill_pattern(frame, sizeof(frame), (uint8_t)(0x30U + i));
         CHECK(bc_recording_frame(&f.recording, start.id, i, frame,
@@ -955,12 +955,14 @@ static void test_ready_live_ack_lease_and_disconnect(void)
         CHECK(pump(&f, 80U + i, 244U) != 0U || i >= 6U);
     }
     CHECK(f.service.live_count == 4U);
+    CHECK(f.service.live_prefix_count == 2U);
     CHECK(f.recording.snapshot.accepted_frames == 7U);
-    CHECK(f.recording.snapshot.live_dropped_frames > 0U);
+    CHECK(f.recording.snapshot.live_dropped_frames == 0U);
 
-    /* A lease expiry unlinks live delivery while local append remains valid. */
+    /* A lease expiry disables live delivery while local append remains valid;
+     * link_ready still represents the physical BLE connection. */
     (void)pump(&f, f.service.ready_ms + BC_VOICE_READY_MS, 244U);
-    CHECK(!f.service.ready && !f.recording.link_ready);
+    CHECK(!f.service.ready && f.service.live_disabled && f.recording.link_ready);
     fill_pattern(frame, sizeof(frame), 0xa0U);
     CHECK(bc_recording_frame(&f.recording, start.id, 8U, frame,
                              sizeof(frame), f.service.now_ms + 1U) == BC_REC_OK);
@@ -975,6 +977,342 @@ static void test_ready_live_ack_lease_and_disconnect(void)
     CHECK(bc_recording_stop(&f.recording, start.id, f.service.now_ms + 3U) ==
           BC_REC_OK);
     CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
+    fixture_destroy(&f);
+}
+
+static void test_live_prefix_delayed_ready_and_backpressure(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x7301U, BC_REC_PTT, 0U);
+    bc_rec_start replacement = start_value(0x7302U, BC_REC_PTT, 0U);
+    uint8_t frames[12U][BC_REC_FRAME_MAX];
+    uint8_t extra[8];
+    uint32_t old_token;
+    uint32_t token;
+    uint32_t replacement_old_token;
+    unsigned before;
+    unsigned i;
+    unsigned live_seen;
+    const bc_voice_message *response;
+
+    CHECK(fixture_setup(&f));
+    old_token = f.service.live_token;
+    CHECK(bc_recording_start(&f.recording, &start, 10U) == BC_REC_OK);
+    for (i = 0U; i < 5U; ++i) {
+        fill_pattern(frames[i], sizeof(frames[i]), (uint8_t)(0x90U + i));
+        CHECK(bc_recording_frame(&f.recording, start.id, i + 1U, frames[i],
+                                 sizeof(frames[i]), 20U + i) == BC_REC_OK);
+    }
+    CHECK(f.recording.link_ready && f.service.live_prefix_count == 5U &&
+          f.recording.snapshot.live_sent_frames == 5U &&
+          f.recording.snapshot.live_dropped_frames == 0U);
+
+    /* Local capture can precede the app's first READY, but no LIVE event may
+     * escape until the token/lease has been confirmed. */
+    clear_messages(&f);
+    (void)pump(&f, 30U, 244U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
+
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7302U, (const uint8_t[]){1U}, 1U,
+                       244U, 100U, false));
+    CHECK(pump(&f, 100U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7302U);
+    CHECK(response != NULL && response->length == 17U &&
+          response->payload[4] == BC_REC_OK);
+    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
+    CHECK(token != 0U && token != old_token && f.service.ready);
+
+    live_seen = 0U;
+    for (i = 0U; i < f.sink.message_count; ++i) {
+        const bc_voice_message *message = &f.sink.messages[i];
+        if (message->kind != BC_VOICE_LIVE)
+            continue;
+        CHECK(message->length == 8U + BC_REC_FRAME_MAX);
+        CHECK(bc_voice_get32(message->payload) == token);
+        CHECK(bc_voice_get32(message->payload + 4U) == live_seen + 1U);
+        CHECK(memcmp(message->payload + 8U, frames[live_seen],
+                     BC_REC_FRAME_MAX) == 0);
+        ++live_seen;
+    }
+    CHECK(live_seen == 4U && f.service.live_count == 4U &&
+          f.service.live_prefix_count == 1U);
+
+    /* ACKing the four-message window releases the fifth buffered frame. */
+    encode_ack(extra, token, 5U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_LIVE_ACK, 7303U, extra, sizeof(extra),
+                       244U, 110U, false));
+    CHECK(pump(&f, 110U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_LIVE_ACK, 7303U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    live_seen = 0U;
+    for (i = before; i < f.sink.message_count; ++i) {
+        const bc_voice_message *message = &f.sink.messages[i];
+        if (message->kind == BC_VOICE_LIVE) {
+            CHECK(bc_voice_get32(message->payload) == token);
+            CHECK(bc_voice_get32(message->payload + 4U) == 5U);
+            CHECK(memcmp(message->payload + 8U, frames[4],
+                         BC_REC_FRAME_MAX) == 0);
+            ++live_seen;
+        }
+    }
+    CHECK(live_seen == 1U && f.service.live_count == 1U &&
+          f.service.live_prefix_count == 0U);
+
+    /* A small ATT limit fragments the same 228-byte logical LIVE message;
+     * the raw frame and token remain unchanged. */
+    fill_pattern(frames[5], sizeof(frames[5]), 0x95U);
+    CHECK(bc_recording_frame(&f.recording, start.id, 6U, frames[5],
+                             sizeof(frames[5]), 120U) == BC_REC_OK);
+    clear_messages(&f);
+    CHECK(pump(&f, 120U, 20U) != 0U);
+    CHECK(f.sink.packet_count > 4U && count_kind(&f, 0U, BC_VOICE_LIVE) == 1U);
+    for (i = 0U; i < f.sink.message_count; ++i) {
+        const bc_voice_message *message = &f.sink.messages[i];
+        if (message->kind == BC_VOICE_LIVE) {
+            CHECK(message->length == 8U + BC_REC_FRAME_MAX);
+            CHECK(bc_voice_get32(message->payload) == token);
+            CHECK(bc_voice_get32(message->payload + 4U) == 6U);
+            CHECK(memcmp(message->payload + 8U, frames[5],
+                         BC_REC_FRAME_MAX) == 0);
+        }
+    }
+
+    /* Backpressure is bounded at four unacknowledged wire messages, while
+     * later locally accepted frames remain in the 32-frame prefix FIFO. */
+    for (i = 6U; i < 12U; ++i) {
+        fill_pattern(frames[i], sizeof(frames[i]), (uint8_t)(0x95U + i - 5U));
+        CHECK(bc_recording_frame(&f.recording, start.id, i + 1U, frames[i],
+                                 sizeof(frames[i]), 130U + i) == BC_REC_OK);
+        (void)pump(&f, 130U + i, 244U);
+    }
+    CHECK(f.service.live_count == 4U && f.service.live_prefix_count == 4U &&
+          f.recording.snapshot.accepted_frames == 12U &&
+          f.recording.snapshot.live_dropped_frames == 0U);
+
+    CHECK(bc_recording_stop(&f.recording, start.id, 160U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
+
+    /* Starting a new recording invalidates the prior READY lease. Its first
+     * locally accepted frames wait for the new recording's READY response. */
+    replacement_old_token = token;
+    CHECK(bc_recording_start(&f.recording, &replacement, 170U) == BC_REC_OK);
+    CHECK(!f.service.ready && !f.service.live_disabled &&
+          f.service.live_prefix_count == 0U && f.service.live_sequence == 1U &&
+          f.service.live_token != replacement_old_token);
+    fill_pattern(frames[0], sizeof(frames[0]), 0xa6U);
+    CHECK(bc_recording_frame(&f.recording, replacement.id, 1U, frames[0],
+                             sizeof(frames[0]), 171U) == BC_REC_OK);
+    CHECK(f.service.live_prefix_count == 1U &&
+          f.recording.snapshot.live_sent_frames == 1U);
+    clear_messages(&f);
+    (void)pump(&f, 172U, 244U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7304U, (const uint8_t[]){1U}, 1U,
+                       244U, 180U, false));
+    CHECK(pump(&f, 180U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7304U);
+    CHECK(response != NULL && response->length == 17U &&
+          response->payload[4] == BC_REC_OK && f.service.ready);
+    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
+    CHECK(token != 0U && token != replacement_old_token);
+    live_seen = 0U;
+    for (i = before; i < f.sink.message_count; ++i) {
+        const bc_voice_message *message = &f.sink.messages[i];
+        if (message->kind != BC_VOICE_LIVE)
+            continue;
+        CHECK(message->length == 8U + BC_REC_FRAME_MAX);
+        CHECK(bc_voice_get32(message->payload) == token);
+        CHECK(bc_voice_get32(message->payload + 4U) == 1U);
+        CHECK(memcmp(message->payload + 8U, frames[0], BC_REC_FRAME_MAX) == 0);
+        ++live_seen;
+    }
+    CHECK(live_seen == 1U && f.service.live_count == 1U);
+    CHECK(bc_recording_stop(&f.recording, replacement.id, 190U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, replacement.id) == BC_REC_OK);
+    fixture_destroy(&f);
+}
+
+static void test_live_prefix_overflow_cancel_timeout_and_reconnect(void)
+{
+    fixture f;
+    bc_rec_start overflow = start_value(0x7401U, BC_REC_PTT, 0U);
+    bc_rec_start reset = start_value(0x7402U, BC_REC_PTT, 0U);
+    bc_rec_start timeout = start_value(0x7403U, BC_REC_PTT, 0U);
+    bc_rec_start reconnect = start_value(0x7404U, BC_REC_PTT, 0U);
+    bc_rec_start retry = start_value(0x7405U, BC_REC_PTT, 0U);
+    bc_rec_start offline = start_value(0x7406U, BC_REC_PTT, 0U);
+    uint8_t frame[BC_REC_FRAME_MAX];
+    unsigned before;
+    unsigned i;
+    const bc_voice_message *response;
+
+    CHECK(fixture_setup(&f));
+    CHECK(bc_recording_start(&f.recording, &overflow, 10U) == BC_REC_OK);
+    for (i = 1U; i <= BC_VOICE_LIVE_PREFIX_SLOTS; ++i) {
+        fill_pattern(frame, sizeof(frame), (uint8_t)(0x10U + i));
+        CHECK(bc_recording_frame(&f.recording, overflow.id, i, frame,
+                                 sizeof(frame), 10U + i) == BC_REC_OK);
+    }
+    CHECK(f.service.live_prefix_count == BC_VOICE_LIVE_PREFIX_SLOTS &&
+          !f.service.live_disabled &&
+          f.recording.snapshot.accepted_frames == BC_VOICE_LIVE_PREFIX_SLOTS &&
+          f.recording.snapshot.live_dropped_frames == 0U);
+
+    /* The 33rd local frame remains durable even though preview has no bounded
+     * space left. Overflow fails only the live callback and clears its FIFO. */
+    fill_pattern(frame, sizeof(frame), 0x40U);
+    CHECK(bc_recording_frame(&f.recording, overflow.id,
+                             BC_VOICE_LIVE_PREFIX_SLOTS + 1U, frame,
+                             sizeof(frame), 50U) == BC_REC_OK);
+    CHECK(f.service.live_prefix_count == 0U && f.service.live_disabled &&
+          !f.service.ready && f.recording.link_ready &&
+          f.recording.snapshot.accepted_frames == BC_VOICE_LIVE_PREFIX_SLOTS + 1U &&
+          f.recording.snapshot.accepted_bytes ==
+              (BC_VOICE_LIVE_PREFIX_SLOTS + 1U) * BC_REC_FRAME_MAX &&
+          f.recording.snapshot.live_dropped_frames == 1U);
+
+    clear_messages(&f);
+    (void)pump(&f, 51U, 244U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7402U, (const uint8_t[]){1U}, 1U,
+                       244U, 60U, false));
+    CHECK(pump(&f, 60U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7402U);
+    CHECK(response != NULL && response->length == 5U &&
+          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
+          f.recording.link_ready);
+    CHECK(bc_recording_stop(&f.recording, overflow.id, 70U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, overflow.id) == BC_REC_OK);
+    CHECK(f.recording.snapshot.file.bytes ==
+              (BC_VOICE_LIVE_PREFIX_SLOTS + 1U) * BC_REC_FRAME_MAX);
+
+    /* A new recording clears the failed preview generation and may establish
+     * a fresh READY lease. */
+    CHECK(bc_recording_start(&f.recording, &reset, 80U) == BC_REC_OK);
+    CHECK(!f.service.live_disabled && f.service.live_sequence == 1U &&
+          f.service.live_prefix_count == 0U);
+    fill_pattern(frame, sizeof(frame), 0x61U);
+    CHECK(bc_recording_frame(&f.recording, reset.id, 1U, frame,
+                             sizeof(frame), 81U) == BC_REC_OK);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7403U, (const uint8_t[]){1U}, 1U,
+                       244U, 82U, false));
+    CHECK(pump(&f, 82U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7403U);
+    CHECK(response != NULL && response->length == 17U &&
+          response->payload[4] == BC_REC_OK && f.service.ready);
+
+    /* Explicit READY(false) clears pending live state without unlinking local
+     * recording from a connected transport. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7404U, (const uint8_t[]){0U}, 1U,
+                       244U, 90U, false));
+    CHECK(pump(&f, 90U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7404U);
+    CHECK(response != NULL && response->length == 17U &&
+          response->payload[4] == BC_REC_OK && !f.service.ready &&
+          f.service.live_disabled && f.service.live_prefix_count == 0U &&
+          f.recording.link_ready);
+    fill_pattern(frame, sizeof(frame), 0x62U);
+    CHECK(bc_recording_frame(&f.recording, reset.id, 2U, frame,
+                             sizeof(frame), 91U) == BC_REC_OK);
+    CHECK(f.recording.snapshot.live_dropped_frames == 1U);
+    CHECK(bc_recording_stop(&f.recording, reset.id, 100U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, reset.id) == BC_REC_OK);
+
+    /* A live ACK/ready lease timeout has the same preview-only effect. */
+    CHECK(bc_recording_start(&f.recording, &timeout, 110U) == BC_REC_OK);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7405U, (const uint8_t[]){1U}, 1U,
+                       244U, 111U, false));
+    CHECK(pump(&f, 111U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7405U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK &&
+          f.service.ready);
+    fill_pattern(frame, sizeof(frame), 0x70U);
+    CHECK(bc_recording_frame(&f.recording, timeout.id, 1U, frame,
+                             sizeof(frame), 112U) == BC_REC_OK);
+    (void)pump(&f, 112U, 244U);
+    CHECK(f.service.live_count == 1U);
+    CHECK(pump(&f, f.service.ready_ms + BC_VOICE_LIVE_STALL_MS + 1U, 244U) == 0U);
+    CHECK(!f.service.ready && f.service.live_disabled &&
+          f.service.live_prefix_count == 0U && f.recording.link_ready);
+    fill_pattern(frame, sizeof(frame), 0x71U);
+    CHECK(bc_recording_frame(&f.recording, timeout.id, 2U, frame,
+                             sizeof(frame), f.service.now_ms + 1U) == BC_REC_OK);
+    CHECK(f.recording.snapshot.live_dropped_frames == 1U);
+    CHECK(bc_recording_stop(&f.recording, timeout.id, 120U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, timeout.id) == BC_REC_OK);
+
+    /* A link loss after a local prefix has been accepted makes the next READY
+     * fail explicitly; the partial prefix is never presented as sequence 1. */
+    CHECK(bc_recording_start(&f.recording, &reconnect, 130U) == BC_REC_OK);
+    fill_pattern(frame, sizeof(frame), 0x80U);
+    CHECK(bc_recording_frame(&f.recording, reconnect.id, 1U, frame,
+                             sizeof(frame), 131U) == BC_REC_OK);
+    bc_voice_service_link(&f.service, 2U, false);
+    CHECK(!f.service.connected && !f.recording.link_ready &&
+          f.service.live_prefix_count == 0U && f.service.live_disabled);
+    bc_voice_service_link(&f.service, 3U, true);
+    CHECK(f.service.connected && f.recording.link_ready && !f.service.ready &&
+          f.service.live_disabled);
+    clear_messages(&f);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7406U, (const uint8_t[]){1U}, 1U,
+                       244U, 140U, false));
+    CHECK(pump(&f, 140U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7406U);
+    CHECK(response != NULL && response->length == 5U &&
+          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
+          f.recording.link_ready);
+    CHECK(bc_recording_stop(&f.recording, reconnect.id, 150U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, reconnect.id) == BC_REC_OK);
+
+    /* The first sequence after a clean new recording is accepted again. */
+    CHECK(bc_recording_start(&f.recording, &retry, 160U) == BC_REC_OK);
+    CHECK(!f.service.live_disabled && f.service.live_sequence == 1U);
+    fill_pattern(frame, sizeof(frame), 0x90U);
+    CHECK(bc_recording_frame(&f.recording, retry.id, 1U, frame,
+                             sizeof(frame), 161U) == BC_REC_OK);
+    CHECK(f.service.live_prefix_count == 1U);
+
+    /* A recording made while disconnected has no resumable live prefix. The
+     * first reconnect rejects READY even after the file is terminal, while
+     * the durable bytes remain available for the normal archive path. */
+    CHECK(bc_recording_stop(&f.recording, retry.id, 170U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, retry.id) == BC_REC_OK);
+    bc_voice_service_link(&f.service, 4U, false);
+    CHECK(!f.service.connected && !f.recording.link_ready);
+    CHECK(bc_recording_start(&f.recording, &offline, 180U) == BC_REC_OK);
+    fill_pattern(frame, sizeof(frame), 0xa0U);
+    CHECK(bc_recording_frame(&f.recording, offline.id, 1U, frame,
+                             sizeof(frame), 181U) == BC_REC_OK);
+    fill_pattern(frame, sizeof(frame), 0xa1U);
+    CHECK(bc_recording_frame(&f.recording, offline.id, 2U, frame,
+                             sizeof(frame), 182U) == BC_REC_OK);
+    CHECK(!f.recording.link_ready && f.service.live_prefix_count == 0U &&
+          f.recording.snapshot.accepted_frames == 2U &&
+          f.recording.snapshot.live_sent_frames == 0U);
+    CHECK(bc_recording_stop(&f.recording, offline.id, 190U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, offline.id) == BC_REC_OK);
+    CHECK(f.recording.snapshot.file.bytes == 2U * BC_REC_FRAME_MAX);
+    bc_voice_service_link(&f.service, 5U, true);
+    CHECK(f.service.connected && f.recording.link_ready &&
+          !f.service.ready && f.service.live_disabled &&
+          f.service.live_prefix_count == 0U);
+    clear_messages(&f);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 7407U, (const uint8_t[]){1U}, 1U,
+                       244U, 200U, false));
+    CHECK(pump(&f, 200U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 7407U);
+    CHECK(response != NULL && response->length == 5U &&
+          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
+          f.recording.snapshot.file.bytes == 2U * BC_REC_FRAME_MAX);
     fixture_destroy(&f);
 }
 
@@ -1688,6 +2026,8 @@ int main(void)
     test_pending_stop_snapshot_and_queue_reservation();
     test_empty_start_retry_query_and_remount();
     test_ready_live_ack_lease_and_disconnect();
+    test_live_prefix_delayed_ready_and_backpressure();
+    test_live_prefix_overflow_cancel_timeout_and_reconnect();
     test_resume_window_retry_and_crc();
     test_query_catalog_receipt_and_id_custody();
     test_settings_errors_and_archive_cancellation();

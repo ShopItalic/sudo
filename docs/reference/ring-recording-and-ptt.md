@@ -28,7 +28,7 @@ exact packets, errors and compatibility gates.
 | TOUCH-01 | Reduce swipes, configure thresholds and optional gestures. R1, R2 §3.4, R3 B4. | Sensor mask admits hold and optional double tap only. Desired thresholds persist; I2C writes occur in a valid no-contact communication window and require register readback. Pending/applied/error is explicit. | Establish comfortable thresholds and verify release/no-contact semantics on the fitted IQS revision. |
 | LINK-01 | Bounded live/file flow, resume, errors and stable connected use. R2 §3.5, R3 B5. | One BLE writer, bounded retry/deadline, epochs, fragment CRC, Ready lease, live/file windows, offset validation and checked cancellation. Local storage survives preview failure. | Measure goodput, MTU/PHY/window behavior, weak signal, ten-minute mixed use and iOS suspension. |
 | POWER-01 | Stable, truthful battery and charging reporting. R2/R3 power list. | Checked ADC open/read/close and a single-flight status/measurement transaction. Trimmed filter resets across charging phases; invalid readings are UNKNOWN, not empty battery. Existing voltage table/cutoff and charging values remain. | Calibrate actual cells, charge/full states, thermal behavior and recording/standby current. |
-| HID-01 | Long press for voice-to-text input in keyboard mode. R3 B1.7; phone ASR in R2 §1. | The Ring supplies hold/release capture and audio; the app's optional foreground preview publishes complete transcripts to its existing shared dictation store. | **Incomplete:** native live ASR does not run while another app is foregrounded. The keyboard extension has no BLE/model engine. The intended same-phone or Mac host must be selected before completing the text-input path. |
+| HID-01 | Long press for voice-to-text input in keyboard mode. R3 B1.7; phone ASR in R2 §1. | Provisional same-iPhone host: Ring hold/release and live audio feed phone ASR within a finite background window. Complete finals carry session/admission time; the visible Sudo keyboard checks document, presentation, edits, age and duplicates before insertion. | Physical BLE wake, model execution and keyboard insertion in another app; UIKit may deny or end the window. Force-quit/expiry retains Ring audio for sync instead of promising immediate text. Mac forwarding is not implemented. |
 | HID-02 | Related supplier feasibility question: accept UTF-8 over BLE and emit HID keyboard reports. R3 B1.7/B4.16. | No UTF-8-to-HID command is implemented. Existing app transcript → shared store → iPhone keyboard-extension insertion is a different path. | Define host, keyboard layout, Unicode and acknowledgement behavior if this route is selected. The exploratory transport question does not remove the HID-01 product requirement. |
 
 The implemented recording, storage, transfer, gesture and feedback paths are
@@ -46,13 +46,14 @@ software behavior under the modeled failures, not physical qualification.
 | April asks for white recording LED; June asks for green in every mode. | Use the later green requirement, with persisted LED enable/disable. |
 | April specifies a ten-second clip; later requests include memos and a ten-minute stability test. | Provisional default: PTT is ten seconds, configurable to another supported limit or until release; memo/app recording defaults to no duration limit. The ten-minute test is a connection/use test. User selection can change the defaults without a protocol change. |
 | April requests 16 kHz mono Opus; current firmware and app use vendor ADPCM. | Preserve 220 encoded bytes → 440 PCM16 samples, interpreted as 8 kHz mono. An Opus/rate change requires measured codec, CPU/RAM/power and negotiated app support. |
-| Optional media/HID actions are unwanted; June requests keyboard dictation and explores a Ring HID transport. | Keep media/swipe side effects disabled. Long-press keyboard dictation remains a product requirement; the host is unresolved and its background text-input path is incomplete. Ring UTF-8-to-HID forwarding is a related feasibility question. |
+| Optional media/HID actions are unwanted; June requests keyboard dictation and explores a Ring HID transport. | Keep media/swipe side effects disabled. Implement long-press dictation through the existing same-iPhone keyboard with bounded background execution. Ring UTF-8-to-HID/Mac forwarding remains a separate feasibility question. |
 
-The two product questions—preferred PTT default and intended keyboard host—were
-raised during this work. Until answered, the defaults above preserve the old
-short-PTT requirement without imposing it on long memos. The keyboard exploration
-and its unfinished text-input path remain visible rather than being declared
-removed or finished.
+The preferred PTT default and intended keyboard host were raised during this
+work. Pending a different selection, ten-second PTT preserves the historical
+short-clip requirement without limiting memos, and the existing same-iPhone
+keyboard is the provisional text-input host. Its software path is implemented
+and fault-tested. Mac or arbitrary UTF-8-to-HID input requires a separate host,
+layout, Unicode and acknowledgement contract.
 
 ## Recording lifecycle and durability
 
@@ -94,12 +95,19 @@ whole memo into RAM. A full file download starting at offset zero proves raw
 CRC; a resumed suffix alone cannot authorize deletion.
 
 The optional phone preview requires a verified account, exact candidate version
-and capabilities, active foreground app, valid connection epoch and exclusive
-transport/decoder leases. A gap, stale token, stalled ASR or partial result falls
+and capabilities, valid connection epoch and exclusive transport/decoder
+leases. Memo/app preview runs in the foreground; PTT can request a finite
+background assertion capped by the app at 25 seconds, with earlier UIKit denial
+or expiration handled. This permits short dictation into the existing iPhone
+keyboard when iOS grants execution. Native partials remain app display only;
+the keyboard admits a complete final only into its still-visible, unchanged
+document. A gap, stale token, stalled ASR or partial result falls
 back to stored-file sync. READY confirmation is distinct from first decoded
 PCM, stream ACK is distinct from durable custody, and preview does not create a
-second canonical memo. iOS background assertions are finite; checkpoint/resume
-handles the next permitted connection or execution opportunity.
+second canonical memo. The 25-second cap is not a system guarantee; see Apple's
+[background execution model](https://developer.apple.com/documentation/uikit/extending-your-app-s-background-execution-time).
+Denial, expiration and force-quit leave Ring capture and local audio intact;
+checkpoint/resume handles the next permitted connection or execution opportunity.
 
 ## Configuration contract
 
@@ -167,6 +175,7 @@ file list, timing logs and resulting audio. Do not substitute a `one_sec` board.
 | Settings and feedback | Boundary values persist through power cycle; pending sensor settings become verified only after actual readback; no unwanted swipe/media behavior. |
 | Power and charging | Calibrate percentage and unknown handling, charge/full presentation, battery current, temperature and case interaction with real cells. |
 | Ten-minute mixed use | Record/stop/sync permitted clips under weak signal and foreground/background changes; record goodput, memory/stack, errors and current draw. |
+| Same-iPhone keyboard dictation | With the Sudo keyboard visible in another app, hold/speak/release and insert the complete final once into that document. Changed fields, manual edits, reopened keyboard and stale finals reject insertion. Exercise background denial/expiration, force-quit and missing models; Ring audio stays recoverable. |
 | Update and recovery | Supplier reconciles the baseline/compiler, reviews GNU ABI/map, assigns/signs a release and demonstrates interrupted-update recovery before any user-ring update. |
 
 ## Evidence retained in this repository
