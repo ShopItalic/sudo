@@ -1,0 +1,1572 @@
+11> 
+11> [INFO:68227;test.c(237)] lllllll 1
+11> 
+11> [INFO:100995;test.c(237)] lllllll 1
+11> 
+11> [INFO:123085;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:123095;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x0b 0x03 0x80 0x00 0x00 0x04 0x71 0x01 0xc0 0x01 0xc7 0x01 0xc7 0x01 0xba 0x01 0xb9 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:123698;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:127085;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:127095;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xb0 0x01 0xc0 0x01 0xc6 0x01 0xc6 0x01 0xba 0x01 0xb9 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:133763;test.c(237)] lllllll 1
+11> 
+11> [INFO:153660;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:153670;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0xaf 0x01 0xc0 0x01 0xc7 0x01 0xc6 0x01 0xba 0x01 0xb9 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:154273;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:158208;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:158218;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xb0 0x01 0xc0 0x01 0xc6 0x01 0xc6 0x01 0xb9 0x01 0xb9 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:166531;test.c(237)] lllllll 1
+11> 
+11> [INFO:199221;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:199231;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> 
+11> [INFO:199299;test.c(237)] lllllll 0
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x0b 0x03 0x80 0x00 0xf4 0x03 0x67 0x01 0xbf 0x01 0xc3 0x01 0xc5 0x01 0xb7 0x01 0xb8 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:199844;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:204316;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:204327;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xaf 0x01 0xbf 0x01 0xc3 0x01 0xc3 0x01 0xb6 0x01 0xb7 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:219273;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:219283;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0x97 0x01 0xbc 0x01 0xc2 0x01 0xc3 0x01 0xb4 0x01 0xb5 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:219886;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:224646;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:224656;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xaf 0x01 0xbc 0x01 0xc2 0x01 0xc2 0x01 0xb5 0x01 0xb5 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:232067;test.c(237)] lllllll 1
+11> 
+11> [INFO:248918;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:248928;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0x65 0x01 0xbb 0x01 0xc2 0x01 0xc2 0x01 0xb4 0x01 0xb4 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:249531;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:254000;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:254010;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xae 0x01 0xbb 0x01 0xc2 0x01 0xc1 0x01 0xb4 0x01 0xb4 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:264835;test.c(237)] lllllll 1
+11> 
+11> [INFO:297603;test.c(237)] lllllll 1
+11> 
+11> [INFO:299598;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:299608;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x0b 0x03 0x80 0x00 0xf4 0x03 0x67 0x01 0xbc 0x01 0xc1 0x01 0xc2 0x01 0xb3 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:300212;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:305811;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:305821;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xad 0x01 0xbc 0x01 0xc1 0x01 0xc0 0x01 0xb2 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:314532;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:314542;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0x8c 0x01 0xbb 0x01 0xc1 0x01 0xc1 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:315145;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:320739;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:320749;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xac 0x01 0xbb 0x01 0xc0 0x01 0xbf 0x01 0xb3 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:330371;test.c(237)] lllllll 1
+11> 
+11> [INFO:331918;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:331928;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0x7d 0x01 0xbb 0x01 0xc1 0x01 0xc1 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:332531;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:336444;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:336454;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xac 0x01 0xbb 0x01 0xc1 0x01 0xc0 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:357088;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:357098;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbc 0x01 0xbc 0x01 0xa5 0x01 0xc1 0x01 0xb4 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:357702;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:361876;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:361886;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbb 0x01 0xbb 0x01 0xb2 0x01 0xc1 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:363139;test.c(237)] lllllll 1
+11> 
+11> [Q_DEVICE_INFO bsp_adc.c(223)] open vbat_adc adc init  
+11> 
+11> [Q_DEVICE_INFO bsp_adc.c(341)] close vbat_adc adc init  
+11> 
+11> [INFO:365467;app_pmic_handler.c(106)] pmic poer precent:44 
+11> 
+11> [INFO:375072;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:375082;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x18 0x00 0xbc 0x01 0xbb 0x01 0x6e 0x01 0xc0 0x01 0xb2 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:375687;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:375733;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:375894;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3c 0x80 0x00 0xdd 0x00 0xbb 0x01 0xbb 0x01 0x23 0x01 0xc0 0x01 0xa0 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:376503;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:376517;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:378791;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:378801;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x1c 0x80 0x00 0xef 0x00 0xbb 0x01 0xbb 0x01 0x58 0x01 0xc0 0x01 0xa5 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:379406;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:380724;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:380734;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xb1 0x01 0xc0 0x01 0xb1 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:392911;app_touch_button_handler.c(101)] button click press 1
+11> 
+11> [INFO:395907;test.c(237)] lllllll 1
+11> 
+11> [INFO:396196;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:396206;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x0d 0x00 0xbb 0x01 0xbc 0x01 0x75 0x01 0xc0 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:396811;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:400986;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:400996;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbb 0x01 0xba 0x01 0xb3 0x01 0xc0 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:412751;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:412761;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x5a 0x00 0xbc 0x01 0xbb 0x01 0x69 0x01 0xc0 0x01 0xaf 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:413366;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:413409;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:413573;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3c 0x80 0x00 0x6c 0x02 0xbb 0x01 0xbb 0x01 0x1f 0x01 0xc0 0x01 0x6d 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:414178;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:414190;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:416445;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:416455;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x1c 0x80 0x00 0x94 0x01 0xbb 0x01 0xbb 0x01 0x8c 0x01 0xc0 0x01 0xa6 0x01 0xb3 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:417060;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:417843;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:417853;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xb3 0x01 0xc0 0x01 0xb0 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:428675;test.c(237)] lllllll 1
+11> 
+11> [INFO:430464;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:430474;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbc 0x01 0xbc 0x01 0x69 0x01 0xc0 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:431077;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:434981;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:434991;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xb0 0x01 0xc0 0x01 0xb2 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:446741;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:446751;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbc 0x01 0xbb 0x01 0xa9 0x01 0xc0 0x01 0xb3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:447355;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:447501;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:447562;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3c 0x80 0x00 0x1d 0x01 0xbb 0x01 0xbb 0x01 0x0d 0x01 0xc0 0x01 0x95 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:448168;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:448180;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:449352;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:449362;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x1c 0x80 0x00 0xa3 0x00 0xbb 0x01 0xbb 0x01 0x35 0x01 0xc0 0x01 0xa6 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:449968;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:451556;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:451566;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xb1 0x01 0xc0 0x01 0xb1 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:461443;test.c(237)] lllllll 1
+11> 
+11> [INFO:468472;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:468482;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbd 0x01 0xbc 0x01 0xc1 0x01 0xc0 0x01 0x74 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:469089;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:472982;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:472992;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x10 0x00 0x00 0xff 0xff 0xbd 0x01 0xbc 0x01 0xc1 0x01 0xc0 0x01 0xa6 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:486278;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:486288;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbd 0x01 0xbc 0x01 0xc2 0x01 0xc1 0x01 0x9b 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:486895;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:489428;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:489438;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x06 0x10 0x41 0x00 0xff 0xff 0xbd 0x01 0xbc 0x01 0xc2 0x01 0xc1 0x01 0xa3 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:494211;test.c(237)] lllllll 1
+11> 
+11> [INFO:500895;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:500905;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0xe9 0x07 0xbd 0x01 0xbc 0x01 0xc0 0x01 0xc1 0x01 0x57 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:501513;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:501556;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:501718;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3c 0x80 0x00 0x52 0x06 0xb4 0x01 0xbc 0x01 0x99 0x01 0xc1 0x01 0x10 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:502324;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:502336;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:502475;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:502541;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3f 0x80 0x00 0xb2 0x05 0xa8 0x01 0xbc 0x01 0x5f 0x01 0xc1 0x01 0xb1 0x00 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:503145;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_in_Touch
+11> [INFO:503157;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:503169;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:503221;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:503375;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x3d 0x80 0x00 0xb3 0x05 0xad 0x01 0xbc 0x01 0x77 0x01 0xc1 0x01 0xef 0x00 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:503980;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:503992;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:505044;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:505054;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x34 0x80 0x00 0xb3 0x05 0xba 0x01 0xbb 0x01 0xb3 0x01 0xc1 0x01 0x8e 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:505661;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:506167;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:506177;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x10 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xbc 0x01 0xc1 0x01 0xa6 0x01 0xb2 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:515324;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:515334;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbc 0x01 0xbb 0x01 0xc1 0x01 0xc0 0x01 0x5c 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:515941;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:519539;app_touch_button_handler.c(101)] button click press 1
+11> 
+11> [INFO:520391;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:520401;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x10 0x00 0x00 0xff 0xff 0xbd 0x01 0xbc 0x01 0xc0 0x01 0xc0 0x01 0xa3 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:526979;test.c(237)] lllllll 1
+11> 
+11> [INFO:533288;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:533298;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbc 0x01 0xbc 0x01 0xc0 0x01 0xc0 0x01 0x55 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:533912;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:533952;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:534117;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3f 0x80 0x00 0x33 0x06 0x83 0x01 0xbc 0x01 0xa5 0x01 0xc0 0x01 0x0e 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:534720;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_in_Touch
+11> [INFO:534733;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:534745;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:535356;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:535366;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x37 0x80 0x00 0xd2 0x06 0x8f 0x01 0xbc 0x01 0xb2 0x01 0xc0 0x01 0xf4 0x00 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:535970;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:535985;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:536492;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:536502;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x31 0x80 0x00 0xd0 0x06 0xae 0x01 0xbc 0x01 0xbb 0x01 0xc0 0x01 0x74 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:537110;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:538159;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:538169;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x10 0x00 0x00 0xff 0xff 0xba 0x01 0xbc 0x01 0xc0 0x01 0xbf 0x01 0xa5 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:546471;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:546481;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbd 0x01 0xbc 0x01 0xc1 0x01 0xc0 0x01 0x59 0x01 0xb0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:547087;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:550974;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:550985;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x10 0x00 0x00 0xff 0xff 0xbd 0x01 0xbc 0x01 0xc0 0x01 0xc0 0x01 0xa4 0x01 0xb0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:552365;app_touch_button_handler.c(106)] button double press  2
+11> 
+11> [INFO:559288;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:559298;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x30 0x80 0x00 0x00 0x08 0xbd 0x01 0xbc 0x01 0xc1 0x01 0xc0 0x01 0x67 0x01 0xaf 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11> [INFO:559747;test.c(237)] lllllll 0
+11> 
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:559912;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [INFO:559957;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:560118;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x3c 0x80 0x00 0xaa 0x06 0xbd 0x01 0xbc 0x01 0xa3 0x01 0xc0 0x01 0x1e 0x01 0xaf 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:560723;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_in_Touch
+11> [INFO:560735;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:562175;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:562185;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x34 0x80 0x00 0x11 0x07 0xbd 0x01 0xbc 0x01 0xb1 0x01 0xc0 0x01 0x3c 0x01 0xaf 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_in_Touch
+11> [INFO:562792;app_touch_button_handler.c(194)] app CH2_in_touch!! 
+11> write:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:564114;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:564124;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x10 0x00 0x00 0xff 0xff 0xbd 0x01 0xbc 0x01 0xbf 0x01 0xbf 0x01 0xa1 0x01 0xaf 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:577853;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:577863;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbc 0x01 0xbc 0x01 0x72 0x01 0xc0 0x01 0xb1 0x01 0xb0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:578467;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:582358;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:582368;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbc 0x01 0xb2 0x01 0xc0 0x01 0xb1 0x01 0xb0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:592515;test.c(237)] lllllll 1
+11> 
+11> [INFO:593534;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:593544;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbc 0x01 0xbc 0x01 0x6c 0x01 0xc0 0x01 0xb1 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:594148;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:598143;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:598153;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbc 0x01 0xbb 0x01 0xb3 0x01 0xc0 0x01 0xb1 0x01 0xaf 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:609323;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:609333;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x0c 0x80 0x00 0x00 0x00 0xbb 0x01 0xbb 0x01 0xa4 0x01 0xbf 0x01 0xb2 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_in_Touch
+11> [INFO:609937;app_touch_button_handler.c(187)] app CH1_in_touch!! 
+11> 
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:614122;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:614133;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x04 0x00 0x00 0xff 0xff 0xbb 0x01 0xbb 0x01 0xb1 0x01 0xbf 0x01 0xb2 0x01 0xb0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:621579;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:621589;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x00 0x04 0xa0 0x01 0xbb 0x01 0xbf 0x01 0xbe 0x01 0xb2 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:622192;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:625283;test.c(237)] lllllll 1
+11> 
+11> [INFO:626482;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:626492;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x02 0x01 0x00 0x00 0xff 0xff 0xad 0x01 0xbb 0x01 0xbf 0x01 0xbd 0x01 0xb1 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:636229;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:636239;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x03 0x03 0x80 0x00 0x1c 0x04 0x97 0x01 0xba 0x01 0xbf 0x01 0xbe 0x01 0xb0 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_in_Touch
+11> [INFO:636843;app_touch_button_handler.c(180)] app CH0_in_touch!! 
+11> 
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:637708;app_touch_button_handler.c(164)] touch irq 2 
+11> 
+11> [INFO:637719;app_touch_button_handler.c(151)] touch process handler 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(253)] open i2c_0 
+11> write:0xe0 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:e0 
+11> recv:0x52 0x04 0x01 0x00 0x03 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:00recv:0x06 0x01 0x41 0x00 0xff 0xff 0xad 0x01 0xba 0x01 0xc0 0x01 0xbe 0x01 0xb1 0x01 0xb1 0x01 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(203)] reg addr:10
+11>  IQS323_CH0_Release
+11>  IQS323_CH1_Release
+11>  IQS323_CH2_Releasewrite:0xff 0x00 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(110)] write addr:ff 
+11> 
+11> [Q_DEVICE_INFO bsp_i2c0.c(287)] close i2c_0 
+11> 
+11> [INFO:644619;bc_gsensor.c(33)] bc_g_sensor_int_callback sport_num:0 
+11> 
+11> [INFO:644629;app_model_handler.c(156)] app enter silence model timer update 
+11> 
+11> [INFO:658051;test.c(237)] lllllll 1
+11> 
+11> [INFO:690819;test.c(237)] lllllll 1
+11> 
+11> [INFO:723587;test.c(237)] lllllll 1
+11> 
+11> [INFO:726549;bc_gsensor.c(48)] sport_count_timer_callback
+11> [INFO:756355;test.c(237)] lllllll 1

@@ -4,3 +4,6 @@
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/BCL603S2P_6.0.3.3Z62.hex -whitespace
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/ota-manifest.json -whitespace
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/licenses/** -whitespace
+
+# Retain supplier source encodings and CRLF bytes for baseline provenance.
+/firmware/** -text -whitespace
