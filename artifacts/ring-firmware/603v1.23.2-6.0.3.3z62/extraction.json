@@ -1,0 +1,576 @@
+{
+  "schema_version": 1,
+  "extracted_on": "2026-09-05",
+  "product": "Italic Ring (formerly Sudo Ring)",
+  "hardware_reference": "603V1.23.2",
+  "factory_version": "6.0.3.3Z62",
+  "method": "Read-only extraction of factory archive; strict Intel HEX record checksums and duplicate-address validation; original OTA payload preserved; no device readback, build, flash, or erase.",
+  "source": {
+    "root": "SUDO_DRIVE",
+    "path": "Firmware/1.23.2_6033固件SDK.zip",
+    "bytes": 69437016,
+    "sha256": "ea3db9a85e153a49f77e716cd60c4127463484792235e91311b281f05a111d15"
+  },
+  "application": {
+    "load_address": "0x27000",
+    "end_exclusive": "0x53f44",
+    "bytes": 184132,
+    "sha256": "96f1186e20f09ea2b97f48090626965437fb5e8cc4ff8b87679294cea8d853bf",
+    "crc32": "15da5709",
+    "initial_stack_pointer": "0x2003be28",
+    "reset_handler_thumb": "0x27465",
+    "byte_identical_to_combined_hex": true,
+    "known_identifier_offsets": {
+      "603V1.23.2": [
+        "0x5154",
+        "0x5328"
+      ],
+      "6.0.3.3Z62": [
+        "0x5148",
+        "0x531c"
+      ],
+      "GD25WQ128HQIGR": [
+        "0x2a738"
+      ],
+      "IQS7211E": [
+        "0x26ac",
+        "0x26ee",
+        "0x270a",
+        "0x273a",
+        "0x2766",
+        "0x2792",
+        "0x27ba"
+      ],
+      "lsm6sdo_port.c": [
+        "0x1a414",
+        "0x1a4f0"
+      ],
+      "yhm2712": []
+    }
+  },
+  "combined_hex": {
+    "record_counts": {
+      "4": 8,
+      "0": 22774,
+      "1": 1
+    },
+    "entry_records": [],
+    "populated_bytes": 364336,
+    "internal_flash_populated_bytes": 364328,
+    "regions": [
+      {
+        "start": "0x00000000",
+        "end_exclusive": "0x00000b00",
+        "bytes": 2816,
+        "file": "regions/00000000-00000aff.bin"
+      },
+      {
+        "start": "0x00001000",
+        "end_exclusive": "0x00026634",
+        "bytes": 153140,
+        "file": "regions/00001000-00026633.bin"
+      },
+      {
+        "start": "0x00027000",
+        "end_exclusive": "0x00053f44",
+        "bytes": 184132,
+        "file": "regions/00027000-00053f43.bin"
+      },
+      {
+        "start": "0x000f8000",
+        "end_exclusive": "0x000fddf8",
+        "bytes": 24056,
+        "file": "regions/000f8000-000fddf7.bin"
+      },
+      {
+        "start": "0x000fe000",
+        "end_exclusive": "0x000fe05c",
+        "bytes": 92,
+        "file": "regions/000fe000-000fe05b.bin"
+      },
+      {
+        "start": "0x000ff000",
+        "end_exclusive": "0x000ff05c",
+        "bytes": 92,
+        "file": "regions/000ff000-000ff05b.bin"
+      },
+      {
+        "start": "0x10001014",
+        "end_exclusive": "0x1000101c",
+        "bytes": 8,
+        "file": "regions/10001014-1000101b.bin"
+      }
+    ]
+  },
+  "dfu_init_packet": {
+    "signed_command_present": true,
+    "signature_type": 0,
+    "signature_bytes": 64,
+    "signature_verified": true,
+    "firmware_version_counter": 1,
+    "hardware_version_code": 52,
+    "softdevice_requirements": [
+      "0x100"
+    ],
+    "image_type": "application",
+    "application_size": 184132,
+    "hash_type": "SHA256",
+    "hash_byte_order": "Nordic little-endian digest bytes",
+    "embedded_application_hash_matches": true,
+    "is_debug": false,
+    "verification_scope": "Public key supplied in factory SDK; no external trust-anchor attestation",
+    "public_key_source_member": "BCL603S2X/boot/nRF5_SDK_17.0.2_d674dde/examples/dfu/dfu_public_key.c",
+    "public_key_source_sha256": "a3cdb280352498e52111047fe0ad2e7e875b1c2db482b524b6fcafb29f2dce0e",
+    "public_key_sha256": "683fa54cd2a9377ac5699b648447cbe18168b1b3211b0906de31de8de011689d",
+    "public_key_found_in_combined_bootloader": true,
+    "public_key_bootloader_offset": "0x5720",
+    "signature_algorithm": "ECDSA P-256 with SHA-256",
+    "signed_payload": "serialized InitCommand, not enclosing Command",
+    "signed_payload_bytes": 64,
+    "signed_payload_sha256": "6fa0348a716c38e7235f9bbc8b503b2e39c1960c4d5a3cd29eb36970b7e35799"
+  },
+  "component_comparisons": [
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/app.hex",
+      "sha256": "8f71080a2c3e793840185938c289eded7daedeb6eddc34d92c0ca4216bed2ac9",
+      "populated_bytes": 252624,
+      "ranges": [
+        {
+          "start": "0x27000",
+          "end_exclusive": "0x64ad0"
+        }
+      ],
+      "bytes_overlapping_combined_image": 184132,
+      "equal_overlapping_bytes": 4746,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/boot.hex",
+      "sha256": "26703716788d9b49c6f4854206352944d4235a0d63948e2cf6e759c7dc576dcf",
+      "populated_bytes": 23076,
+      "ranges": [
+        {
+          "start": "0x78000",
+          "end_exclusive": "0x7da1c"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 8,
+      "equal_overlapping_bytes": 6,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/boot_s2l_fds3.hex",
+      "sha256": "cf4e8a71b75851501d246a254becddce9cc229160ac969cc0a93da7054f57e68",
+      "populated_bytes": 23076,
+      "ranges": [
+        {
+          "start": "0x78000",
+          "end_exclusive": "0x7da1c"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 8,
+      "equal_overlapping_bytes": 6,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/boot_s2p_fds3.hex",
+      "sha256": "2751bd9516fcd90d38a0c7c722a2d5fc501956066bd67964e10aaba03d8ea139",
+      "populated_bytes": 24160,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfde58"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 7880,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/boot_s2p_fds3_no_reset.hex",
+      "sha256": "1362cffb16cbe4758ba36ecbe3539e61de9c9a6a3d40d1a8a4fb63d9bd551af5",
+      "populated_bytes": 24064,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfddf8"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 10536,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s132_nrf52_7.2.0_softdevice.hex",
+      "sha256": "b5b345052d160ddbc5dcf7aacfe0da6ecba52902cceaf91bae0b7a23955356fa",
+      "populated_bytes": 152684,
+      "ranges": [
+        {
+          "start": "0x0",
+          "end_exclusive": "0xb00"
+        },
+        {
+          "start": "0x1000",
+          "end_exclusive": "0x2596c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 152684,
+      "equal_overlapping_bytes": 15912,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s2p_diy_mac_boot.hex",
+      "sha256": "8768a5a761e65555113ea3d73167f89dcb3c71e463ab16e421a271195448b98f",
+      "populated_bytes": 24128,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfde38"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 11402,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s2p_mac_fd3_boot-pinreset.hex",
+      "sha256": "06d76ce315e78cd836eb6e6f152a895a1ba5cc55a76e16a744c38317a9ae89f8",
+      "populated_bytes": 24176,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfde68"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 7820,
+      "all_candidate_bytes_present_and_equal": false
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s2p_mac_fd3_boot.hex",
+      "sha256": "17539c27e09a613ed8277fd63e02302ab5131c9da436a2925f9e11e6ae13df1e",
+      "populated_bytes": 24064,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfddf8"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 24064,
+      "all_candidate_bytes_present_and_equal": true
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s2p_mac_fd3_boot_no_reset.hex",
+      "sha256": "17539c27e09a613ed8277fd63e02302ab5131c9da436a2925f9e11e6ae13df1e",
+      "populated_bytes": 24064,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfddf8"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 24064,
+      "all_candidate_bytes_present_and_equal": true
+    },
+    {
+      "archive_member": "BCL603S2X/dfu/softdevice_boot/s2p_mac_fd3_boot_no_reset_nfc.hex",
+      "sha256": "417baf1a9c1ce5ad334cd9dd4f1adaecc88fba95dfd2b18576c0c2cb64017e3c",
+      "populated_bytes": 24160,
+      "ranges": [
+        {
+          "start": "0xf8000",
+          "end_exclusive": "0xfde58"
+        },
+        {
+          "start": "0x10001014",
+          "end_exclusive": "0x1000101c"
+        }
+      ],
+      "bytes_overlapping_combined_image": 24064,
+      "equal_overlapping_bytes": 7894,
+      "all_candidate_bytes_present_and_equal": false
+    }
+  ],
+  "outputs": [
+    {
+      "path": "BCL603S2P_6.0.3.3Z62.hex",
+      "bytes": 1024883,
+      "sha256": "73e65ce8bc47ea85dbfd472b5d7ccdea97098437ef934a27eb76dec08e4e3dc6",
+      "kind": "original_combined_intel_hex",
+      "archive_member": "BCL603S2X/dfu/ota_output/BCL603S2P_6.0.3.3Z62.hex"
+    },
+    {
+      "path": "BCL603S2P_6.0.3.3Z62.zip",
+      "bytes": 184715,
+      "sha256": "3e928afdfcb402450aea7a527093dba102d08650cc9ffed52cf41cd9f8d1a38f",
+      "kind": "original_ota_distribution",
+      "archive_member": "BCL603S2X/dfu/ota_output/BCL603S2P_6.0.3.3Z62.zip"
+    },
+    {
+      "path": "application.bin",
+      "bytes": 184132,
+      "sha256": "96f1186e20f09ea2b97f48090626965437fb5e8cc4ff8b87679294cea8d853bf",
+      "kind": "original_raw_application",
+      "archive_member": "BCL603S2X/dfu/ota_output/BCL603S2P_6.0.3.3Z62.zip!app.bin"
+    },
+    {
+      "path": "application.dat",
+      "bytes": 141,
+      "sha256": "87faabcff25c1b3fa99546c5ee62e17c2daa1867b7b2da07ec047fc393cf313c",
+      "kind": "original_signed_dfu_init_packet",
+      "archive_member": "BCL603S2X/dfu/ota_output/BCL603S2P_6.0.3.3Z62.zip!app.dat"
+    },
+    {
+      "path": "ota-manifest.json",
+      "bytes": 138,
+      "sha256": "d4ef4fccf8dd251e9a2af724c75643395bf81e2d90ef349e342a0640bc101ed6",
+      "kind": "original_ota_manifest",
+      "archive_member": "BCL603S2X/dfu/ota_output/BCL603S2P_6.0.3.3Z62.zip!manifest.json"
+    },
+    {
+      "path": "regions/00000000-00000aff.bin",
+      "bytes": 2816,
+      "sha256": "1bc875feba5eb16d68022068cb252598f9bf0f9835e93a632bc2e72828a4aa9e",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x00000000",
+      "end_exclusive": "0x00000b00"
+    },
+    {
+      "path": "regions/00001000-00026633.bin",
+      "bytes": 153140,
+      "sha256": "192af010d0c5ca2111e14e644c02f79ac149f980c5ce7c729b006b1cf70eafd2",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x00001000",
+      "end_exclusive": "0x00026634"
+    },
+    {
+      "path": "regions/00027000-00053f43.bin",
+      "bytes": 184132,
+      "sha256": "96f1186e20f09ea2b97f48090626965437fb5e8cc4ff8b87679294cea8d853bf",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x00027000",
+      "end_exclusive": "0x00053f44"
+    },
+    {
+      "path": "regions/000f8000-000fddf7.bin",
+      "bytes": 24056,
+      "sha256": "712ce5dab2037ed3dc2d51f846a93059f58e236f9d8e9be59f75f075d90eda67",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x000f8000",
+      "end_exclusive": "0x000fddf8"
+    },
+    {
+      "path": "regions/000fe000-000fe05b.bin",
+      "bytes": 92,
+      "sha256": "d63fe753806854545b192906a0975e0c6934225dcd0f3fc97076a38ae736d32e",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x000fe000",
+      "end_exclusive": "0x000fe05c"
+    },
+    {
+      "path": "regions/000ff000-000ff05b.bin",
+      "bytes": 92,
+      "sha256": "d63fe753806854545b192906a0975e0c6934225dcd0f3fc97076a38ae736d32e",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x000ff000",
+      "end_exclusive": "0x000ff05c"
+    },
+    {
+      "path": "regions/10001014-1000101b.bin",
+      "bytes": 8,
+      "sha256": "c77a3311d47c5885bad2cb5f0d499628fb88bed31835a57a01cdd5f3e754354c",
+      "kind": "exact_contiguous_hex_region",
+      "load_address": "0x10001014",
+      "end_exclusive": "0x1000101c"
+    },
+    {
+      "path": "internal-flash-1mib-ff-padded.bin",
+      "bytes": 1048576,
+      "sha256": "1210d20278aaab7a64e8d191b41c7fef66432f034ea17ecd1c074fdb563c002f",
+      "kind": "derived_sparse_flash_image",
+      "load_address": "0x00000000",
+      "fill_byte": "0xff",
+      "populated_bytes": 364328,
+      "caution": "Unspecified addresses are synthesized 0xff, not read from a device. UICR is separate. Not a device backup."
+    },
+    {
+      "path": "verification/dfu-public-key.pem",
+      "bytes": 178,
+      "sha256": "269e5772c38932674fe868416b5fc55b4d2a372dd75cc7e3390ca2551e75771f",
+      "kind": "derived_public_signature_verification_material"
+    },
+    {
+      "path": "verification/dfu-init-command.bin",
+      "bytes": 64,
+      "sha256": "6fa0348a716c38e7235f9bbc8b503b2e39c1960c4d5a3cd29eb36970b7e35799",
+      "kind": "derived_public_signature_verification_material"
+    },
+    {
+      "path": "verification/dfu-signature.der",
+      "bytes": 72,
+      "sha256": "4fd62d53bd6efc90821607bda6efdc9de2830140f96e3ed6fbbfc57f333d44fb",
+      "kind": "derived_public_signature_verification_material"
+    },
+    {
+      "path": "licenses/s140_nrf52_7.2.0_licence-agreement.txt",
+      "bytes": 1952,
+      "sha256": "8e1113e1345d80f0673b06c94dad665a4f6e81637bc7c9a69359e618c57570f8",
+      "kind": "original_vendor_license_notice",
+      "archive_member": "BCL603S2X/app/components/softdevice/s140/hex/s140_nrf52_7.2.0_licence-agreement.txt"
+    },
+    {
+      "path": "licenses/mbr_nrf52_2.4.1_licence-agreement.txt",
+      "bytes": 1952,
+      "sha256": "8e1113e1345d80f0673b06c94dad665a4f6e81637bc7c9a69359e618c57570f8",
+      "kind": "original_vendor_license_notice",
+      "archive_member": "BCL603S2X/app/components/softdevice/mbr/hex/mbr_nrf52_2.4.1_licence-agreement.txt"
+    },
+    {
+      "path": "licenses/nRF5_Nordic_license.txt",
+      "bytes": 1956,
+      "sha256": "106541ecdaf59d2bbb4c453b4180dd13fa0b2ec92b583e20b36ab6fc1c13ce2c",
+      "kind": "original_vendor_license_notice",
+      "archive_member": "BCL603S2X/boot/nRF5_SDK_17.0.2_d674dde/documentation/nRF5_Nordic_license.txt"
+    }
+  ],
+  "not_extracted": [
+    "No live ring internal-flash readout",
+    "No external GD25WQ128HQIGR recording-flash dump",
+    "No per-device FICR, runtime bonds, calibration or settings readback",
+    "No rebuilt ELF or debug-symbol output present in inspected archive"
+  ],
+  "limitations": [
+    "ECDSA signature verifies against the SDK public key, which is also present in the matching bootloader. This establishes package/key consistency, not independent attestation of factory key ownership.",
+    "Combined image coverage is sparse. Synthesized 0xff padding is not evidence of actual device contents.",
+    "Other-family app/boot/SoftDevice files in the SDK are compared, not substituted into the production image."
+  ],
+  "bootloader_settings": {
+    "layout_version": 1,
+    "application_version_counter": 1,
+    "bootloader_version_counter": 1,
+    "bank0_image_size": 184132,
+    "bank0_image_crc32": "15da5709",
+    "bank0_code": 1,
+    "settings_crc32": "5363681e",
+    "settings_crc_verified": true,
+    "application_crc_and_size_verified": true,
+    "backup_and_primary_identical": true,
+    "primary_address": "0x000ff000",
+    "backup_address": "0x000fe000"
+  },
+  "uicr": {
+    "populated_range": "0x10001014-0x1000101b",
+    "bootloader_start_address": "0x000f8000",
+    "mbr_parameter_page_address": "0x000fe000",
+    "other_uicr_words_present": false
+  },
+  "device_probe_check": {
+    "host": "mba",
+    "checked_on": "2026-09-05",
+    "usb_debug_or_nordic_matches": 0,
+    "interpretation": "No matching USB debug probe enumerated; no BLE connection or physical dump attempted."
+  },
+  "softdevice": {
+    "identity_source": "Embedded SoftDevice information structure decoded using the SDK nrf_sdm.h offsets",
+    "info_address": "0x00003000",
+    "info_size_bytes": 44,
+    "softdevice_id": 140,
+    "family": "S140",
+    "firmware_id": "0x100",
+    "version_integer": 7002000,
+    "version": "7.2.0",
+    "reserved_size": 159744,
+    "application_start_matches": true,
+    "header_archive_member": "BCL603S2X/app/components/softdevice/s140/headers/nrf_sdm.h"
+  },
+  "supporting_archive_members": [
+    {
+      "path": "BCL603S2X/dfu/ota_bat/creat_1232_dfu.bat",
+      "sha256": "36f755f42ff7525d5eaaf009a992e82dc107079b869cf7fa6cf043e2918205c2"
+    },
+    {
+      "path": "BCL603S2X/app/components/libraries/bootloader/dfu/dfu-cc.proto",
+      "sha256": "6e9ed16a942c6dfb7bb2588d35dfe3283ae91f32450d2824a26efda61b37b44d"
+    },
+    {
+      "path": "BCL603S2X/app/components/libraries/bootloader/dfu/nrf_dfu_types.h",
+      "sha256": "1ed15ee11f85d0af9ca6b0e8feb2c019c974cfc5bbc6a4a3f602fe5075068cb2"
+    },
+    {
+      "path": "BCL603S2X/app/components/libraries/bootloader/dfu/nrf_dfu_settings.c",
+      "sha256": "11a3e936903fbfdedf8cd560ae5d15f209d05aec99f009d94c1b49ce4f0454e4"
+    },
+    {
+      "path": "BCL603S2X/app/components/softdevice/s140/headers/nrf_sdm.h",
+      "sha256": "bea3a4221f75c560a93e924e97ace8eb1bbf91ecc787b831cd14e9c5d50dd895"
+    }
+  ],
+  "independent_validation": {
+    "intel_hex_library": "IntelHex 2.3.0",
+    "regions_match": true,
+    "raw_application_matches": true,
+    "ff_padded_image_matches": true,
+    "cryptography_signature_verified": true,
+    "openssl_signature_verified": true
+  },
+  "external_references": [
+    {
+      "url": "https://raw.githubusercontent.com/NordicSemiconductor/pc-nrfutil/master/nordicsemi/dfu/dfu-cc.proto",
+      "purpose": "Nordic DFU protobuf schema"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/NordicSemiconductor/pc-nrfutil/master/nordicsemi/dfu/package.py",
+      "purpose": "InitCommand signing target and reversed SHA256 digest"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/NordicSemiconductor/pc-nrfutil/master/nordicsemi/dfu/signing.py",
+      "purpose": "P256 signature and public-key coordinate byte order"
+    },
+    {
+      "url": "https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/uicr.html",
+      "purpose": "UICR register memory region"
+    }
+  ],
+  "license_preservation": {
+    "note": "Original S140, MBR and Nordic SDK notices retained from the same factory archive. This is not a complete linked-component license inventory or a source SDK import; file-level notices and third-party licenses remain part of the pending SDK/build review.",
+    "paths": [
+      "licenses/s140_nrf52_7.2.0_licence-agreement.txt",
+      "licenses/mbr_nrf52_2.4.1_licence-agreement.txt",
+      "licenses/nRF5_Nordic_license.txt"
+    ]
+  }
+}

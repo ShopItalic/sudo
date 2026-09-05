@@ -1,0 +1,6 @@
+# Preserve original firmware, notices and checksum inputs byte for byte.
+/artifacts/ring-firmware/** -text
+# Original factory text retains CRLF and vendor whitespace; hashes check it.
+/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/BCL603S2P_6.0.3.3Z62.hex -whitespace
+/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/ota-manifest.json -whitespace
+/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/licenses/** -whitespace

@@ -6,6 +6,13 @@ dist/
 *.hex
 *.bin
 *.map
+# Reviewed factory images and reproducible extracts requested for preservation.
+# Locally compiled output remains ignored outside this exact evidence snapshot.
+!/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/BCL603S2P_6.0.3.3Z62.hex
+!/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/application.bin
+!/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/internal-flash-1mib-ff-padded.bin
+!/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/regions/*.bin
+!/artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/verification/dfu-init-command.bin
 .env
 .env.*
 __pycache__/

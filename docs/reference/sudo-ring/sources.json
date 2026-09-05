@@ -1,0 +1,526 @@
+{
+  "schema_version": 1,
+  "extracted_on": "2026-09-05",
+  "roots": {
+    "SUDO_REPO": "Root of ShopItalic/app checkout (formerly botnetai/sudo)",
+    "SUDO_DRIVE": "Sudo folder in the connected Google Drive, with paths relative to that folder",
+    "RING_FIRMWARE_REPO": "Root of botnetai/ring-firmware checkout"
+  },
+  "source_precedence": "Use each source only for its revision and purpose. Later explicit corrections supersede earlier analyses. Quotes and product requirements do not prove as-built hardware.",
+  "repository_verification": "For SUDO_REPO entries, SHA-256 values and line references use the listed git_revision. Verify original bytes in the ShopItalic/app checkout with git show <git_revision>:<path>, not this firmware repository or the app working-tree contents.",
+  "scope": "Read-only extraction. No live ring teardown/readback, factory release, purchase, shipment, or certification verified.",
+  "sources": [
+    {
+      "id": "D1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Bravechip【DS60328】BCL603M3 1.23.2 Datasheet V1.0 (5).pdf",
+      "title": "Bravechip BCL603M3 1.23.2 module datasheet V1.0, 2026-05-05",
+      "sha256": "6dd0bb2dc3bf961160c2119cd7b9979ede9646a99d6f5136cbb4095676886eb8",
+      "bytes": 944150,
+      "evidence_locator": "PDF pp. 1, 4, 5, 7; component table visually checked",
+      "applicability": "Manufacturer module specification; not an as-built BOM"
+    },
+    {
+      "id": "D2",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Bravchip CHARGER【DS7011】BCL701 Datasheet V2.0.pdf",
+      "title": "Bravechip BCL701 charger module V2.0, 2026-05-22",
+      "sha256": "3cb5845c347a70fead8e2488a3940262829c94a35cf77253de2c9cb5fa8228c8",
+      "bytes": 839265,
+      "evidence_locator": "PDF pp. 1, 4, 5, 6",
+      "applicability": "Reference charging-case module; supplied-case identity not verified"
+    },
+    {
+      "id": "B1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Fit Ring录音戒指成本BOM.xls",
+      "title": "Fit Ring录音戒指成本BOM.xls",
+      "sha256": "d45be7274ffb2685bbe217cfcb16377d371ea1f46ec8e78a412e0a129353368b",
+      "bytes": 64000,
+      "evidence_locator": "Sheet1!B9:J11; A12; A14; quote K8",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "B1E",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Fit Ring BOM - English.xls",
+      "title": "Fit Ring BOM - English.xls",
+      "sha256": "4d235f9d33994102beb5c624546c4f3f0a98fe293b5b55d024e0848322d51f8c",
+      "bytes": 9728,
+      "evidence_locator": "Sheet1!B9:J11; A12; A14",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "B2",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Fit Ring录音戒指成本BOM更新.xls",
+      "title": "Fit Ring录音戒指成本BOM更新.xls",
+      "sha256": "60763ac3aae4c46dfa7bf8bf2f8581d6c6923a92b911189b7845db1c3e654ab8",
+      "bytes": 64000,
+      "evidence_locator": "Sheet1!B9:I11; A12; A14; quote J8",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "B2E",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Fit Ring Cost BOM Update - English.xls",
+      "title": "Fit Ring Cost BOM Update - English.xls",
+      "sha256": "20b1b378032ae301b689cef7d8d3ff0bf6ee07a0291d0a14970c9542463053fe",
+      "bytes": 9728,
+      "evidence_locator": "Sheet1!B9:I11; A12; A14",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "B3",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Feiwang BOM UP Negotiation Comparison - 2026-05-12.xlsx",
+      "title": "Feiwang BOM UP Negotiation Comparison - 2026-05-12.xlsx",
+      "sha256": "2b9689d26096657e50b2a7fc29e4159842b9ca07e846bb4c9b96cc10beb78fcf",
+      "bytes": 11831,
+      "evidence_locator": "May 14 Updated BOM!A10:H20 and A30:C39 (203/210RMB discrepancy); Comparison!A8:F16",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "Q1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/FIT RING录音戒指报价.xlsx",
+      "title": "FIT RING录音戒指报价.xlsx",
+      "sha256": "cec4eb9dcc9d9a523140653bc5cab71c7fa75ba06b4c2f26627d23f93c288f66",
+      "bytes": 140901,
+      "evidence_locator": "Sheet1!A9:K13; A17",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "Q1E",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/FIT RING Recording Ring Quotation - English.xlsx",
+      "title": "FIT RING Recording Ring Quotation - English.xlsx",
+      "sha256": "7e40c9912ed598ee81ff104a5fd6b93dd178aa7a2885727eec38f4a3a8b5678e",
+      "bytes": 137243,
+      "evidence_locator": "Sheet1!A9:K13; A17",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "P1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Bonet LLC - FEIYANG PO 052026_400_0618.xlsx",
+      "title": "Bonet LLC - FEIYANG PO 052026_400_0618.xlsx",
+      "sha256": "19ca2d33990079525affacb79327bc5b1da1e9f676a7e43ca69577797e88b65a",
+      "bytes": 76491,
+      "evidence_locator": "Revision!A3:A8; PO 采购订单!E10:I12; B35; B37:B40",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "T1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Firmware Call Agenda & Change Requests - 2026-06-13.md",
+      "title": "Firmware Call Agenda & Change Requests - 2026-06-13.md",
+      "sha256": "dc13855013de0c617055455713ee675f22c7746fc372f4bc81df1262ae0fa848",
+      "bytes": 14226,
+      "evidence_locator": "Hardware context; Battery and power",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "T2",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fit Feiyang Fitwatch/Sudo Firmware Requirements - Pre-Read for 2026-06-13 Call.md",
+      "title": "Sudo Firmware Requirements - Pre-Read for 2026-06-13 Call.md",
+      "sha256": "e0232c0c82188c22c46f8cb3a1d57c148a787febfdbcccf2ca0a173063480db8",
+      "bytes": 17626,
+      "evidence_locator": "Test setup; section 3.6",
+      "applicability": "Dated supplier/commercial or internal working record; not proof of fulfillment"
+    },
+    {
+      "id": "M1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/ID & CMF/CAD/Fit Watch FTY Adjustment - 2026/弧面陶瓷戒指配格瑞普电池.stp",
+      "title": "Grepow size 10-12 STEP revision",
+      "sha256": "93540b045e24f5e2f6c032523ce6b5cd50eb6052b8246fa91a6000751a67b227",
+      "bytes": 39999425,
+      "evidence_locator": "PRODUCT and NEXT_ASSEMBLY_USAGE_OCCURRENCE records",
+      "applicability": "Supplier mechanical model; final fit unresolved"
+    },
+    {
+      "id": "M2",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "artifacts/sudo-ring-fty-adjustment-2026-06-02/verification/grepow-10-12-2026-06-17/grepow-10-12-inspection.json",
+      "title": "June 17 recorded FreeCAD inspection",
+      "sha256": "dc120eb43732d4a13f2a8735af4a9df39951f1eb9076e682a9f3674ad526da9b",
+      "bytes": 371849,
+      "evidence_locator": "product_metadata; component_candidates; top_real_objects_by_volume",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Raw bbox width superseded by M6 July 1 correction"
+    },
+    {
+      "id": "M3",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "artifacts/sudo-ring-fty-adjustment-2026-06-02/verification/grepow-10-12-2026-06-17/grepow-10-12-review.md",
+      "title": "June 17 Grepow review",
+      "sha256": "08f317938c29e7bb5517c6eb05b1978029b16eb18134821b3677ab52547dc74c",
+      "bytes": 3056,
+      "evidence_locator": "Battery / Motor Metadata; Remaining Gates",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Width claim superseded by M6 July 1 correction"
+    },
+    {
+      "id": "M4",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/ID & CMF/CAD/Fit Watch FTY Adjustment - 2026/curved-ceramic-ring-reply-v3-6-13.en.md",
+      "title": "English transcription of June 13 factory V3 reply",
+      "sha256": "f1f29af8d99cb5b5e753b6cbc8530b208cdaa9e3cf3ea1e1ac4360d4a64157dd",
+      "bytes": 2357,
+      "evidence_locator": "Slides 1-2",
+      "applicability": "Translation; original is M5"
+    },
+    {
+      "id": "M5",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/ID & CMF/CAD/Fit Watch FTY Adjustment - 2026/弧面陶瓷戒指回复V3-6-13.pptx",
+      "title": "June 13 factory V3 reply",
+      "sha256": "1fc4d2fe6409f7d5ce31e11459d7737fa5620fd54e1aa11881f691f2483e0cde",
+      "bytes": 153118,
+      "evidence_locator": "Slides 1-2",
+      "applicability": "Factory response, motor correction and size-9 fit issue"
+    },
+    {
+      "id": "M6",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/ID & CMF/CAD/Fit Watch FTY Adjustment - 2026/Evaluation 9-12 - 2026-06-12/EVALUATION.md",
+      "title": "Cumulative mechanical evaluation through July 1",
+      "sha256": "40663ef9404afad04fca654670d6bae6c414ec5a5bfdf76706d5d36e43711877",
+      "bytes": 12899,
+      "evidence_locator": "June 12 part-ID correction; June 17 Grepow fit; July 1 dimension correction",
+      "applicability": "Recorded analysis; later corrections supersede early mislabeled parts and raw widths"
+    },
+    {
+      "id": "V1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/ID & CMF/CMF/Sudo CMF v1.pdf",
+      "title": "Silver CMF v0.01, 2026-04-02",
+      "sha256": "c058437a16ee81c86e6966c1912aa74b91ce8f48cd9a7e01049cca8d157db65b",
+      "bytes": 316857,
+      "evidence_locator": "PDF p.1 visually checked",
+      "applicability": "Historical stainless-inner-ring proposal"
+    },
+    {
+      "id": "PK1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/Packaging/Artwork v1/DESIGN-SPEC.md",
+      "title": "Packaging artwork v1",
+      "sha256": "fd41daf3218f453eee0e612c5c571ee0ec95fb1efcbcb2744755c50218a149f3",
+      "bytes": 3982,
+      "evidence_locator": "Stock; box panels; manual",
+      "applicability": "Packaging design reference; factory registration and final specifications pending"
+    },
+    {
+      "id": "H1",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Fenda/2nd negotiation/Sudo Bom_Fenda 03112026.xlsx",
+      "title": "Fenda March 11 BOM",
+      "sha256": "8d3d68cbcbdbb19e503491742e63032cf4d52fea7e28d3b82bdb4f355a553a72",
+      "bytes": 372291,
+      "evidence_locator": "整机预估报价汇总-031026 rows 3-25; ATE row 4",
+      "applicability": "Historical Fenda architecture, not current Fitwatch BOM"
+    },
+    {
+      "id": "H2",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Cosonic/Cosonic- Italic ring Reference BOM 2026.2.27.xlsx",
+      "title": "Cosonic February 27 reference BOM",
+      "sha256": "e1a71a601124a634373e3525abf2c7c1a675c0a10c01f8460c8a2ccee9ed4ab8",
+      "bytes": 4378624,
+      "evidence_locator": "BOM reference rows 3-11; actual legacy XLS despite extension",
+      "applicability": "Historical category-level commercial model"
+    },
+    {
+      "id": "H3",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Sourcing/Factories/Cosonic/fr Lemon -D Italic Sudo Ring Cost breakdown  V1.0 -20260426.xlsx",
+      "title": "Cosonic/Lemon April 26 cost model",
+      "sha256": "ba556534f58bc85c4f45571231181645856344f788ab33a746121ad305dfc02e",
+      "bytes": 5649526,
+      "evidence_locator": "BOM COST rows 3-13; Quote Brief",
+      "applicability": "Historical category-level commercial model"
+    },
+    {
+      "id": "H4",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/PRD & Specs/Sudo PRD - 2026-04-29.xlsx",
+      "title": "Sudo PRD April 29",
+      "sha256": "d00d0a4b80cd55dd82d32eb2b31695afb8c43ab7a159be054bbee9acb0aa8721",
+      "bytes": 5549057,
+      "evidence_locator": "PRD rows 3-42; Version row 4",
+      "applicability": "Requirements and alternatives predating Bravechip selection"
+    },
+    {
+      "id": "H5",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "PD/Sudo Ring/PRD & Specs/Sudo Ring Master Feature Spec - 2026-04-13.md",
+      "title": "April 13 master feature alignment",
+      "sha256": "03d10fbb38c2ed13e38474694291ea08a50d85ec4ef682a84a534f36eb70f81f",
+      "bytes": 6778,
+      "evidence_locator": "Audio Capture and Storage; Haptics; LED matrix",
+      "applicability": "Historical behavior requirements, not production hardware/codec proof"
+    },
+    {
+      "id": "SW1",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "apps/ios/Sudo/Services/RingProductionBoard.swift",
+      "title": "Production hardware identity gate",
+      "sha256": "0080f1f03e540db288e821798172d508873689b094086f52636d1795ebd19fe6",
+      "bytes": 9129,
+      "evidence_locator": "supportedHardwareVersion; firmwarePackagePrefix",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Sudo HEAD 5d6bd07ab69303b886a732144b0311d9b5c857f7; file checked locally"
+    },
+    {
+      "id": "SW1A",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "apps/ios/README.md",
+      "title": "Production iOS SDK selection",
+      "sha256": "924e873bb5b4f8d00b555ddad43c22a2031598f9cdc0fa11a39029889b4fa468",
+      "bytes": 6072,
+      "evidence_locator": "Production pairing paragraph near end",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Sudo HEAD 5d6bd07ab69303b886a732144b0311d9b5c857f7"
+    },
+    {
+      "id": "SW2",
+      "kind": "file",
+      "root": "SUDO_DRIVE",
+      "path": "Firmware/1.23.2_6033固件SDK.zip",
+      "title": "Factory 1.23.2 firmware SDK archive",
+      "sha256": "ea3db9a85e153a49f77e716cd60c4127463484792235e91311b281f05a111d15",
+      "bytes": 69437016,
+      "evidence_locator": "Factory firmware evidence section; target 1.23.2; component configuration, storage, audio, PMIC, haptic and clock interfaces",
+      "applicability": "Vendor source snapshot; not proof of flashed device firmware",
+      "archive_members": [
+        {
+          "path": "BCL603S2X/app/project/mdk5/bc_ring_app.uvprojx",
+          "sha256": "e466fc9ee051db3541fc5edcb8266332c07bd1910174e93a5f5fd83d9e199d95",
+          "evidence_locator": "Target 1.23.2; line 20409 target defines"
+        },
+        {
+          "path": "bc_ros/bc_config/ring_config.h",
+          "sha256": "3e60813be72cbdcdac7ed415f53e54b82ac804fbcad3a3fa2945316f7f8a5e93",
+          "evidence_locator": "Lines 12884-12888, 12916-12923, 13134-13167, 13366-13379, 13570-13582"
+        },
+        {
+          "path": "bc_ros/bc_application/app_pdm_handler.c",
+          "sha256": "f69072832a584caa2ddaea7c26880a5aacbd319fd1614726072879606f596500",
+          "evidence_locator": "Lines 324-379, 512-570"
+        },
+        {
+          "path": "bc_ros/bc_device/touch_button/IQS7211E/IQS7211E.h",
+          "sha256": "c62375c26a01d12e7fe258ba662c4f2aedb5e6ded93d1da897124073f98a4bf7",
+          "evidence_locator": "Lines 8-27; init table and address"
+        },
+        {
+          "path": "bc_ros/bc_device/lsm6dsow/lsm6dso_reg.h",
+          "sha256": "54c472b5111f42949c0276091ac2f15271db77fe1b70d006e936cb48bcd9347c",
+          "evidence_locator": "Lines 189-204; address convention and device ID"
+        },
+        {
+          "path": "bc_ros/bc_module/spi_flash/sfud/inc/sfud_cfg.h",
+          "sha256": "2426f61276f40cab65831d3e80368e89a354f1b6a7176cf5176bda21267e1473",
+          "evidence_locator": "Lines 88-109; HANDWARE_1_23_2 flash selection and QSPI support"
+        },
+        {
+          "path": "bc_ros/bc_module/spi_flash/sfud/inc/sfud_flash_def.h",
+          "sha256": "daf17666f8e3c6582d5f2a0ebd7faf8b6a1426de8f0fdc04250326c164c0736b",
+          "evidence_locator": "Line 150; GD25WQ128HQIGR geometry"
+        },
+        {
+          "path": "bc_ros/bc_module/pdm/bc_pdm.h",
+          "sha256": "624a134466c58b1a4b082393c67b851649bd3a9ae34e7477f035ae6d97a90ce5",
+          "evidence_locator": "Lines 7-12, 29-39; non-Opus payload and sample counts"
+        },
+        {
+          "path": "bc_ros/bc_module/pmic/bc_pmic.c",
+          "sha256": "27562b0f0881ca39b424e0f414a1859698bde5bf4b6330c53d0d31feac4edca3",
+          "evidence_locator": "Lines 240-264, 286-314; PMIC type 2 selection and ID check"
+        },
+        {
+          "path": "bc_ros/bc_device/yhm2712/yhm2712.c",
+          "sha256": "b107d2649324c265b9cc82526cc7b5afdc5dd63031935af1735b32856a5e38e6",
+          "evidence_locator": "Lines 51-62, 68-141; YHM2710 function naming, ID and register comments"
+        },
+        {
+          "path": "bc_ros/bc_module/pmic/bc_power.c",
+          "sha256": "10687b46357237ccfc5d298d44cff30efcc378e66471be512f9c6af03445c50c",
+          "evidence_locator": "Lines 123-170; battery ADC divider assumptions and correction"
+        },
+        {
+          "path": "bc_ros/bc_application/app_linear_motor_handler.c",
+          "sha256": "8f0e234e1d97aa344dd46b9ab423fb0572dae2b3ea7fc0b1f2b91445f4b35f74",
+          "evidence_locator": "Lines 109-114, 256-355; 1.23.2 PWM branch versus later variants"
+        },
+        {
+          "path": "bc_ros/bc_module/motor/bc_linear_motor.c",
+          "sha256": "da99bb1912d913fe457d6429f3dbc6e4ddcc51c5e34839ce2995588fc3a62b41",
+          "evidence_locator": "Lines 38-68; PWM sequences"
+        },
+        {
+          "path": "BCL603S2X/app/user/inc/sdk_config.h",
+          "sha256": "3c12aea61cded08b4af508b290ea8227996b519117d2825f47cb7cbcb48fbac9",
+          "evidence_locator": "Lines 1758-1773, 2487-2495; LF crystal and PDM clock defaults"
+        }
+      ]
+    },
+    {
+      "id": "SW3",
+      "kind": "file",
+      "root": "RING_FIRMWARE_REPO",
+      "path": "README.md",
+      "title": "Nordic/Seeed development firmware README",
+      "sha256": "c41efc6aedad909af9f1c8469f1b26542769a07607f02076a9d6177ecd22e188",
+      "bytes": 7253,
+      "evidence_locator": "Important notice and Devkit pin map",
+      "git_revision": "6153245f27bc1cfbbc40e165c9e3a8c50d3104e6",
+      "applicability": "HEAD 6153245f27bc1cfbbc40e165c9e3a8c50d3104e6; prototype only"
+    },
+    {
+      "id": "SW4",
+      "kind": "file",
+      "root": "RING_FIRMWARE_REPO",
+      "path": "docs/sudo-ring-hardware-revision.md",
+      "title": "June 17 mechanical reference",
+      "sha256": "037dc7c113d594540e4c7765752926af5f697f3fad9a2c4a667bb53c400432a7",
+      "bytes": 2427,
+      "evidence_locator": "Battery Plan; Motor Baseline; Manufacturing Notes",
+      "git_revision": "6153245f27bc1cfbbc40e165c9e3a8c50d3104e6",
+      "applicability": "Mechanical context only; width statement superseded by M6"
+    },
+    {
+      "id": "D3",
+      "kind": "web",
+      "title": "Bravechip BCL603S2P SiP datasheet",
+      "url": "https://27189930.s21i.faiusr.com/61/ABUIABA9GAAg1_O7wAYo-uSulwI.pdf",
+      "checked_on": "2026-09-05",
+      "revision": "V1.3, 2025-04-27",
+      "evidence_locator": "pp.1,5-7; SiP integration, package, pin list",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E1",
+      "kind": "web",
+      "title": "Nordic nRF52840",
+      "url": "https://www.nordicsemi.com/Products/nRF52840",
+      "checked_on": "2026-09-05",
+      "revision": "Live product page",
+      "evidence_locator": "64 MHz Cortex-M4F; 1 MB flash; 256 KB RAM",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E2",
+      "kind": "web",
+      "title": "Azoteq IQS7211E",
+      "url": "https://www.azoteq.com/product/iqs7211e/",
+      "checked_on": "2026-09-05",
+      "revision": "Live product page",
+      "evidence_locator": "Capacitive touch/proximity; I2C; package variants",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E3",
+      "kind": "web",
+      "title": "ST MP23DB01HP datasheet",
+      "url": "https://www.st.com/resource/en/datasheet/dm00706099.pdf",
+      "checked_on": "2026-09-05",
+      "revision": "DS13336 Rev4, March2022",
+      "evidence_locator": "pp.1-2; MP23DB01HPTR; 5-lead RHLGA; PDM",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E3P",
+      "kind": "web",
+      "title": "ST MP23DB01HP product lifecycle",
+      "url": "https://www.st.com/en/mems-and-sensors/mp23db01hp.html?id=BR2311MEMSSENSQR&rt=br",
+      "checked_on": "2026-09-05",
+      "revision": "Live product page",
+      "evidence_locator": "NRND label; ongoing-production description",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E4",
+      "kind": "web",
+      "title": "ST LSM6DSO",
+      "url": "https://www.st.com/en/mems-and-sensors/lsm6dso.html",
+      "checked_on": "2026-09-05",
+      "revision": "Live product page",
+      "evidence_locator": "Six-axis IMU; LGA14; family only, does not confirm factory W suffix",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "E5",
+      "kind": "web",
+      "title": "GigaDevice GD25WQ128H",
+      "url": "https://www.gigadevice.com.cn/product/flash/spi-nor-flash/gd25wq128h",
+      "checked_on": "2026-09-05",
+      "revision": "DS-01138-GD25WQ128H-Rev1.2 listed, 2025-07-09",
+      "evidence_locator": "128Mb, 1.65-3.6V, serial NOR; single/dual/quad SPI",
+      "applicability": "Manufacturer product-family corroboration, not fitted-part proof"
+    },
+    {
+      "id": "SW5",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "apps/ios/Sudo/Services/RingRecording.swift",
+      "title": "Production recording audio format",
+      "sha256": "229ac00c2ada8e4409ee69b221b60d2554b88898abba62cd585e99ccb90303e7",
+      "bytes": 1323,
+      "evidence_locator": "Lines 3-24; RingRecordingAudioFormat",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Sudo HEAD 5d6bd07ab69303b886a732144b0311d9b5c857f7; file inspected locally; no runtime validation in this extraction"
+    },
+    {
+      "id": "SW6",
+      "kind": "file",
+      "root": "SUDO_REPO",
+      "path": "apps/ios/Vendor/BCLRingSDK.PROVENANCE.md",
+      "title": "Vendored BCLRingSDK provenance",
+      "sha256": "c78e5e028bc47bad2cd3dc156b16923dbbfcd8cf2fd8701cecaac267ea166f39",
+      "bytes": 1926,
+      "evidence_locator": "Source commit and package context; recorded binary checks; metadata/interface changes",
+      "git_revision": "5d6bd07ab69303b886a732144b0311d9b5c857f7",
+      "applicability": "Sudo HEAD 5d6bd07ab69303b886a732144b0311d9b5c857f7; file inspected locally; no runtime validation in this extraction"
+    }
+  ],
+  "bom_conventions": {
+    "virtual_roots": {
+      "RING": "Finished ring assembly grouping",
+      "KIT": "Commercial kit including ring companion case and packaging",
+      "HISTORICAL": "Earlier options excluded from the current baseline"
+    },
+    "quantity": "Blank means unspecified. Singular component quantities are inferred unless the quantity_basis says otherwise. Integrated parts are included in their parent.",
+    "alternatives": "BAT10, BAT11 and BAT12 are mutually exclusive size variants under R09. Historical items are excluded from current totals.",
+    "costs": "Component CSV and commercial cost CSV are different views. Do not sum fitted-component breakdowns in addition to their quoted PCBA or assembly parent."
+  }
+}

@@ -1,7 +1,11 @@
-# Sudo Ring component stack and bill of materials
+# Italic Ring (formerly Sudo Ring) component stack and bill of materials
 
 Extracted on **2026-09-05** from the factory BOM workbooks, Bravechip
-datasheets, Sudo mechanical records, and application/firmware sources.
+datasheets, mechanical records, and application/firmware sources.
+
+The public-facing product name is **Italic Ring**. Historical Sudo names remain
+in source filenames, paths, and technical IDs so the original evidence and
+recorded hashes can be checked.
 
 The best-supported hardware baseline is the **Fitwatch / Feiyang ring using
 Bravechip BCL603M3 hardware 1.23.2**, with a BCL603S2P SiP containing Nordic's
@@ -32,11 +36,18 @@ filled with generic substitutes.
 - [Open specifications](#open-specifications): what is still needed for purchasing or build release.
 - [Source register](#source-register): exact files, revisions, and evidence locations.
 
-This reference imports the completed narrative from the Codex task
-“Document Ring BOM and stack” (2026-09-05). Its original CSV exports and
-file-hash manifest remain on the source Mac and have not been copied here.
-The component and cost tables below retain the researched evidence and its
-limits. Blank prices or quantities mean **not specified**, not zero.
+The accompanying [component CSV](sudo-ring/bom.csv),
+[supplier cost CSV](sudo-ring/quoted-bom.csv), and
+[source manifest](sudo-ring/sources.json) support filtering and re-extraction.
+[Workbook extracts](sudo-ring/source-extracts.json) retain the selected original
+cells, number formats, formulas, and cached values behind the commercial tables.
+Blank prices or quantities mean **not specified**, not zero.
+
+The component CSV has 37 records covering assemblies, component breakdowns,
+size alternatives and unresolved groups; it does not mean 37 fitted parts.
+`RING`, `KIT` and `HISTORICAL` are grouping roots in `parent_id`. Choose one
+`BAT10` / `BAT11` / `BAT12` variant for a ring, and preserve the included-in-parent
+cost treatment when summing anything. The manifest records these conventions.
 
 Evidence labels used here:
 
@@ -66,7 +77,7 @@ flowchart LR
     IMU[LSM6DSO family IMU] --> MCU
     MCU <--> FLASH[128 Mbit external NOR flash]
     MCU --> HAPTIC[Haptic motor and drive circuitry]
-    MCU <--> BLE[Bluetooth LE to Sudo client]
+    MCU <--> BLE[Bluetooth LE to Italic client]
     CELL[Curved ring LiPo] --> POWER[Power management and regulation]
     CONTACT[Magnetic charging contacts] --> POWER
     POWER --> MCU
@@ -82,7 +93,7 @@ components. The ring's charging contacts belong to the ring assembly; the
 
 | Name | What it identifies | Evidence |
 | --- | --- | --- |
-| Sudo Ring | Finished product, including size-specific enclosure, electronics, battery, and haptics. | Sudo product and mechanical records. |
+| Italic Ring (formerly Sudo Ring) | Finished product, including size-specific enclosure, electronics, battery, and haptics. | Product and mechanical records. |
 | `BCL603M3 1.23.2` | Bravechip's functional ring module/design family in the May 2026 datasheet title. | D1, p. 1. |
 | `BCL603MHV1.23.2` | Flexible PCBA/module material number; 52 × 6.5 mm. CAD labels replace punctuation with underscores. | D1, pp. 1, 7; M1. |
 | `603V1.23.2` | Production hardware identity accepted by the iOS app. | SW1, `supportedHardwareVersion`. |
@@ -119,7 +130,7 @@ BOM. Full manufacturer ordering codes are shown only where established.
 | R12 | RF antenna and matching | Exact design / part identifiers unspecified | Ring RF path | The SiP exposes an ANT connection. Antenna topology, matching values, and tuning through the final shell are not established by the module PDF. D3, p. 6. |
 | R13 | Ring indicators / optical parts | Exact LED MPN, count, light guide, and optical seal unspecified | Ring assembly | Earlier PRDs specify LED behaviors; retain those as requirements until matched to the current factory assembly. |
 
-The original task's component CSV includes mechanical and case items as well as these
+The [CSV](sudo-ring/bom.csv) includes mechanical and case items as well as these
 electronics, with explicit hierarchy and evidence status.
 
 ### Capability is not a fitted component
@@ -127,7 +138,7 @@ electronics, with explicit hierarchy and evidence status.
 The SiP's generic datasheet advertises support for NFC, PPG, NTC, ECG, and other
 peripherals. That is not evidence of an NFC antenna, optical heart-rate sensor,
 blood-oxygen sensor, ECG electrode, or discrete skin-temperature sensor in
-Sudo Ring. Likewise, Nordic's generic USB/multiprotocol capability does not
+Italic Ring. Likewise, Nordic's generic USB/multiprotocol capability does not
 establish a USB data port, Thread, Zigbee, or Bluetooth Classic audio profile
 on this ring. D1's named sensing stack is microphone, IMU, and touch.
 
@@ -271,7 +282,7 @@ quote must not be added to a separately quoted case PCBA/battery a second time.
 ### Ring module electrical table
 
 These values are translated from D1, p. 5. They are module reference figures,
-not measured Sudo runtime guarantees.
+not measured Italic runtime guarantees.
 
 | Parameter | Condition | Minimum | Typical / stated value | Maximum |
 | --- | --- | ---: | --- | ---: |
@@ -319,7 +330,9 @@ recording, touch, haptics, indicators, leakage, and the approved cell.
 SW2 is the factory's `1.23.2_6033固件SDK.zip` source snapshot. The table below
 records source selections and code paths, not the identity or behavior of a
 flashed ring. Paths and line numbers refer to members inside that exact archive;
-its hash and selected member hashes are in the source manifest.
+its hash and selected member hashes are in the source manifest. The preserved
+[production firmware image and extraction record](ring-firmware.md) are documented
+separately.
 
 | Evidence | What the source establishes | Archive member / lines |
 | --- | --- | --- |
@@ -332,7 +345,7 @@ its hash and selected member hashes are in the source manifest.
 | Recording flash | The `HANDWARE_1_23_2` branch selects `GD25WQ128HQIGR` on the logical `SPI1` device. SFUD's chip table gives 16 × 1024 × 1024 bytes, 256-byte pages, 4096-byte erase sectors and erase opcode `0x20`. QSPI support is enabled; the logical name alone does not establish board wiring. | `bc_ros/bc_module/spi_flash/sfud/inc/sfud_cfg.h`, lines 88–109; `sfud_flash_def.h` in the same directory, line 150. |
 | Microphone wiring and mode | The `HANDWARE_1_23_1` family uses mono PDM. For the `1.23.2` target, the branch specifies clock `P0.04` and data `P0.21`; `1.23.3` and `1.23.4` have separate pin branches. GPIO names are MCU ports, not module-pad numbers. | `bc_ros/bc_application/app_pdm_handler.c`, lines 324–379. |
 | Encoding path | The handler takes every second PCM sample, then has ADPCM calls under `#ifndef USE_OPUS` and a separate Opus branch. The project's `OPUS_BUILD` define is a different symbol and alone does not select `USE_OPUS`. | `bc_ros/bc_application/app_pdm_handler.c`, lines 512–570; target defines above. |
-| Audio packet sizing | Non-Opus constants set 220 payload bytes, 440 PCM samples, and a six-byte packet header. Sudo's current client interprets the 603 path as 8 kHz, one channel. A legacy `16K_2_MIC` file-type name does not establish two fitted microphones. | `bc_ros/bc_module/pdm/bc_pdm.h`, lines 7–12, 29–39; SW1, lines 98–115, 168–174; SW5, lines 3–24. |
+| Audio packet sizing | Non-Opus constants set 220 payload bytes, 440 PCM samples, and a six-byte packet header. Italic's current client interprets the 603 path as 8 kHz, one channel. A legacy `16K_2_MIC` file-type name does not establish two fitted microphones. | `bc_ros/bc_module/pdm/bc_pdm.h`, lines 7–12, 29–39; SW1, lines 98–115, 168–174; SW5, lines 3–24. |
 | Ring PMIC | `PMIC_ENABLED` defaults to 1 and `PMIC_DEVIECE_TYPE` to 2 (`YHM2712`). Type 2 calls `YHM2710_init()` and checks ID `0xA0`; the function naming differs from the selected driver name. This is ring-side power management, separate from the BCL701 case. | `bc_ros/bc_config/ring_config.h`, lines 13570–13582; `bc_ros/bc_module/pmic/bc_pmic.c`, lines 240–264, 286–314; `bc_ros/bc_device/yhm2712/yhm2712.c`, lines 51–62, 68–141. |
 | Battery-voltage sensing | The `1.23.2` branch calculates a one-third ADC divider using nominal 2 MΩ / 1 MΩ values, then applies a voltage correction. These are software assumptions, not a released two-resistor purchasing BOM or calibrated measurement. | `bc_ros/bc_module/pmic/bc_power.c`, lines 123–170. |
 | Haptic control | The `1.23.2` path configures PWM sequences and switches motor power. Later variants have separate IC-driver paths; shared SDK driver files do not establish a fitted AW86235 on this board. | `bc_ros/bc_application/app_linear_motor_handler.c`, lines 109–114, 256–355; `bc_ros/bc_module/motor/bc_linear_motor.c`, lines 38–68. |
@@ -448,7 +461,7 @@ as the latest explicit instruction in that workbook, but resolve its stale
 body text before using it as a clean procurement release. The existence of
 the workbook does not prove order acceptance, payment, delivery, or inspection.
 
-P1 also specifies Sudo-supplied color boxes, mailers and manuals, with the
+P1 also specifies product-team-supplied color boxes, mailers and manuals, with the
 factory handling final packing and shrink wrap. For the plastic charging-case
 housing it requests a dark-silver/gunmetal metallic appearance and asks the
 factory to evaluate coating processes. It does not select or approve NCVM,
@@ -500,10 +513,26 @@ These are documentation/procurement follow-ups, also tracked in
 state and sends no instructions to suppliers.
 
 ## Source register
-Source paths below refer to the original Sudo Drive folder and the app or
-historical prototype repository. The original extraction checked these sources
-on 2026-09-05. This import preserves their conclusions; it does not claim a new
-hardware inspection or firmware build.
+
+Source IDs used in the tables resolve below. Full relative source paths, file
+sizes, SHA-256 hashes, evidence locators, and revision limitations are retained
+in the [source manifest](sudo-ring/sources.json). The original Drive files
+remain in the Sudo Drive folder; they are not duplicated into this repository.
+
+`SUDO_DRIVE` means the connected Drive's Sudo folder. `SUDO_REPO` means the
+[ShopItalic/app](https://github.com/ShopItalic/app) checkout, formerly
+`botnetai/sudo`. `RING_FIRMWARE_REPO` means the historical
+[botnetai/ring-firmware](https://github.com/botnetai/ring-firmware) prototype
+checkout. This repository is `ShopItalic/sudo`; it preserves the extracted
+hardware and firmware evidence. These roots keep the source list portable
+between Macs without hard-coding a user's home path.
+Local file hashes were computed during extraction. For `SUDO_REPO` entries, the
+hashes and any line references below are from git revision
+`5d6bd07ab69303b886a732144b0311d9b5c857f7`; verify the original bytes with
+`git -C /path/to/app show 5d6bd07ab69303b886a732144b0311d9b5c857f7:path`
+rather than current working-tree contents. Web references were checked on
+2026-09-05; they
+corroborate product families and do not verify fitted parts.
 
 ### Supplier and product records
 
@@ -532,7 +561,7 @@ hardware inspection or firmware build.
 | H3 | `Sourcing/Factories/Cosonic/fr Lemon -D Italic Sudo Ring Cost breakdown  V1.0 -20260426.xlsx` | BOM COST rows 3-13; Quote Brief |
 | H4 | `PD/Sudo Ring/PRD & Specs/Sudo PRD - 2026-04-29.xlsx` | PRD rows 3-42; Version row 4 |
 | H5 | `PD/Sudo Ring/PRD & Specs/Sudo Ring Master Feature Spec - 2026-04-13.md` | Audio Capture and Storage; Haptics; LED matrix |
-| SW2 | `Firmware/1.23.2_6033固件SDK.zip` | Board-specific config and drivers; detailed locators in reference |
+| SW2 | `Firmware/1.23.2_6033固件SDK.zip` | See [factory firmware evidence](#factory-firmware-evidence); member hashes in manifest |
 
 ### Repository evidence
 
@@ -547,7 +576,7 @@ hardware inspection or firmware build.
 | SW5 | [apps/ios/Sudo/Services/RingRecording.swift](https://github.com/ShopItalic/app/blob/5d6bd07ab69303b886a732144b0311d9b5c857f7/apps/ios/Sudo/Services/RingRecording.swift) | RingRecordingAudioFormat, lines 3–24; 8 kHz / one-channel 603 format |
 | SW6 | [apps/ios/Vendor/BCLRingSDK.PROVENANCE.md](https://github.com/ShopItalic/app/blob/5d6bd07ab69303b886a732144b0311d9b5c857f7/apps/ios/Vendor/BCLRingSDK.PROVENANCE.md) | Vendored SDK source revision, package context, recorded binary checks and interface changes |
 
-### Primary manufacturer references
+### Manufacturer corroboration
 
 | ID | Primary source | What was checked |
 | --- | --- | --- |

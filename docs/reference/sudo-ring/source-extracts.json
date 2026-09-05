@@ -1,0 +1,2525 @@
+{
+  "schema_version": 1,
+  "extracted_on": "2026-09-05",
+  "scope": "Selected BOM, quotation and PO hardware/quantity/finish cells. Supplier contact, banking and payment-identifying data omitted. Original workbooks unchanged.",
+  "sources": [
+    {
+      "source_id": "B1",
+      "source_sha256": "d45be7274ffb2685bbe217cfcb16377d371ea1f46ec8e78a412e0a129353368b",
+      "parser": "xlrd2.0.1; values and formats; no displayed total formula in original cost row",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "K8",
+          "value": "NO:FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "项目名称",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "陶瓷外壳",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "主板",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "组装测试+老化",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "封胶",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "辅料",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "聚微电池",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "Grepow电池",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "损耗",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "充电盒",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K9",
+          "value": "备注",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "录音戒指",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "不同规格单价相同",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": "FLASH 64MB， MCU Nordic52840",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "不同规格单价相同",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E10",
+          "value": "不同规格单价相同，不含调色费",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G10",
+          "value": "按不同规格适配",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H10",
+          "value": "按不同规格适配",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I10",
+          "value": "预计10%",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J10",
+          "value": "公版（选配）",
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 125.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": 5.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F11",
+          "value": 1.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G11",
+          "value": 10.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H11",
+          "value": 30.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I11",
+          "value": 19.0,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J11",
+          "value": 18.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "MOQ：3K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "说 明：",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A14",
+          "value": "1、以上报价是否含税：未税，含税加12% 。",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "B1E",
+      "source_sha256": "4d235f9d33994102beb5c624546c4f3f0a98fe293b5b55d024e0848322d51f8c",
+      "parser": "xlrd2.0.1; values and formats; no displayed total formula in original cost row",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "K8",
+          "value": "NO:FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "Item Name",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "Ceramic Shell",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "Main Board",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "Assembly Test + Aging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "Potting / Adhesive Sealing",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "Auxiliary Materials",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "Juwei Battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "Grepow Battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "Loss",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "Charging Case",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K9",
+          "value": "Remarks",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "Recording Ring",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": "FLASH 64MB， MCU Nordic52840",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E10",
+          "value": "Same unit price for different specifications; color matching fee not included",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G10",
+          "value": "Adapted according to different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H10",
+          "value": "Adapted according to different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I10",
+          "value": "Estimated 10%",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J10",
+          "value": "Standard model (optional)",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 125.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": 5.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F11",
+          "value": 1.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G11",
+          "value": 10.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H11",
+          "value": 30.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I11",
+          "value": 19.0,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J11",
+          "value": 18.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "MOQ: 3K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "Notes:",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A14",
+          "value": "1. Tax: prices above exclude tax; add 12% if tax-inclusive.",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "B2",
+      "source_sha256": "60763ac3aae4c46dfa7bf8bf2f8581d6c6923a92b911189b7845db1c3e654ab8",
+      "parser": "xlrd2.0.1; values and formats; no displayed total formula in original cost row",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "J8",
+          "value": "NO:FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "项目名称",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "陶瓷外壳",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "主板",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "组装测试+老化",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "封胶",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "辅料",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "Grepow电池",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "损耗",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "充电盒",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "备注",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "录音戒指",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "不同规格单价相同",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": "FLASH 16 MB， MCU Nordic52840",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "不同规格单价相同",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E10",
+          "value": "不同规格单价相同，不含调色费",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G10",
+          "value": "按不同规格适配",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H10",
+          "value": "预计10%",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I10",
+          "value": "公版（小圆柱款）",
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 85.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": 5.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F11",
+          "value": 1.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G11",
+          "value": 30.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H11",
+          "value": 17.0,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I11",
+          "value": 15.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "MOQ：3K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "说 明：",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A14",
+          "value": "1、以上报价是否含税：未税，含税加12% 。",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "B2E",
+      "source_sha256": "20b1b378032ae301b689cef7d8d3ff0bf6ee07a0291d0a14970c9542463053fe",
+      "parser": "xlrd2.0.1; values and formats; no displayed total formula in original cost row",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "J8",
+          "value": "NO:FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "Item Name",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "Ceramic Shell",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "Main Board",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "Assembly Test + Aging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "Potting / Adhesive Sealing",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "Auxiliary Materials",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "Grepow Battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "Loss",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "Charging Case",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "Remarks",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "Recording Ring",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": "FLASH 16 MB, MCU Nordic52840",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E10",
+          "value": "Same unit price for different specifications; color matching fee not included",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G10",
+          "value": "Adapted according to different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H10",
+          "value": "Estimated 10%",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I10",
+          "value": "Standard model (small cylindrical type)",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 85.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": 5.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E11",
+          "value": 25.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F11",
+          "value": 1.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G11",
+          "value": 30.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H11",
+          "value": 17.0,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I11",
+          "value": 15.0,
+          "number_format": "\"¥\"#,##0.00_);[Red]\\(\"¥\"#,##0.00\\)"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "MOQ: 3K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "Notes:",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A14",
+          "value": "1. Tax: prices above exclude tax; add 12% if tax-inclusive.",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "Q1",
+      "source_sha256": "cec4eb9dcc9d9a523140653bc5cab71c7fa75ba06b4c2f26627d23f93c288f66",
+      "parser": "openpyxl; original formulas and cached values read separately; null cache is not zero",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "K8",
+          "value": "NO:FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "名称",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "产品材料",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "模具费",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "模具周期",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "芯片型号",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "电池",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "内存",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "单价",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "10K以上单价",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "50K以上单价",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K9",
+          "value": "备注",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "外圈",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "陶瓷",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": 8000,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "45天",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K10",
+          "value": "模具费为单一规格报价，不同规格需要单独开模",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A11",
+          "value": "注胶封装模具",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": "树脂",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 6000,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": "25天",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K11",
+          "value": "模具费为单一规格报价，不同规格需要单独开模",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "录音戒指整机",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E12",
+          "value": "NRF52840",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F12",
+          "value": "普通电池",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G12",
+          "value": "64MB",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H12",
+          "value": 210,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I12",
+          "value": 205,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J12",
+          "value": 200,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K12",
+          "value": "录音戒指整机一个，不含包装盒",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "充电盒",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H13",
+          "value": 18,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K13",
+          "value": "公版充电盒",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A17",
+          "value": "1、以上报价是否含税：未税，含税加12%",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "Q1E",
+      "source_sha256": "7e40c9912ed598ee81ff104a5fd6b93dd178aa7a2885727eec38f4a3a8b5678e",
+      "parser": "openpyxl; original formulas and cached values read separately; null cache is not zero",
+      "cells": [
+        {
+          "sheet": "Sheet1",
+          "cell": "K8",
+          "value": "NO: FY20260512",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A9",
+          "value": "Item Name",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B9",
+          "value": "Product Material",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C9",
+          "value": "Mold Fee",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D9",
+          "value": "Mold Lead Time",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E9",
+          "value": "Chip Model",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F9",
+          "value": "Battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G9",
+          "value": "Memory",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H9",
+          "value": "Unit Price",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I9",
+          "value": "Unit Price >10K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J9",
+          "value": "Unit Price >50K",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K9",
+          "value": "Remarks",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A10",
+          "value": "Outer Ring",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B10",
+          "value": "Ceramic",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C10",
+          "value": 8000,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D10",
+          "value": "45 days",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K10",
+          "value": "Mold fee is quoted for one specification; different specifications require separate molds.",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A11",
+          "value": "Resin Injection Encapsulation Mold",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "B11",
+          "value": "Resin",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "C11",
+          "value": 6000,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "D11",
+          "value": "25 days",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K11",
+          "value": "Mold fee is quoted for one specification; different specifications require separate molds.",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A12",
+          "value": "Recording Ring Assembly",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "E12",
+          "value": "NRF52840",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "F12",
+          "value": "Standard Battery",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "G12",
+          "value": "64MB",
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H12",
+          "value": 210,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "I12",
+          "value": 205,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "J12",
+          "value": 200,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K12",
+          "value": "One recording ring assembly, excluding packaging box",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A13",
+          "value": "Charging Case",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "H13",
+          "value": 18,
+          "number_format": "\"¥\"#,##0.00;\"¥\"\\-#,##0.00"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "K13",
+          "value": "Common-model Charging Case",
+          "number_format": "@"
+        },
+        {
+          "sheet": "Sheet1",
+          "cell": "A17",
+          "value": "1. Tax status: prices exclude tax; add 12% if tax included.",
+          "number_format": "General"
+        }
+      ]
+    },
+    {
+      "source_id": "B3",
+      "source_sha256": "2b9689d26096657e50b2a7fc29e4159842b9ca07e846bb4c9b96cc10beb78fcf",
+      "parser": "openpyxl; original formulas and cached values read separately; null cache is not zero",
+      "cells": [
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A4",
+          "value": "Updated BOM total, ex-tax, incl. charging case, excl. packaging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B4",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=SUM(D11:D18)",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C4",
+          "value": "Current Feiwang quote basis from updated BOM",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A5",
+          "value": "Updated BOM total, tax-adjusted comparable",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B5",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=ROUND(B4*1.12,2)",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C5",
+          "value": "Adds 12% tax to Feiwang because quote excludes tax",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A6",
+          "value": "Prior negotiation anchor, tax-adjusted comparable",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B6",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=ROUND(224*1.12,2)",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C6",
+          "value": "Prior Feiwang comparable used ring RMB 210 + smaller charging case RMB 14, then +12% tax",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A7",
+          "value": "Improvement vs prior anchor",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B7",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=B5-B6",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C7",
+          "value": "Negative means updated BOM improved vs prior anchor",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A8",
+          "value": "Factory A ring + smaller case + packaging benchmark",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B8",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=197.01+14+10",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C8",
+          "value": "Factory A benchmark includes packaging; Feiwang packaging still needs a separate quote",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A9",
+          "value": "Remaining gap vs Factory A benchmark",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B9",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=B5-B8",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C9",
+          "value": "Positive means updated Feiwang comparable remains above Factory A benchmark",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A10",
+          "value": "Item",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B10",
+          "value": "Updated BOM note",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C10",
+          "value": "Prior Feiwang / target",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D10",
+          "value": "Updated Feiwang",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E10",
+          "value": "Change vs prior",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F10",
+          "value": "Factory A / benchmark",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G10",
+          "value": "Gap vs benchmark",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H10",
+          "value": "Negotiation note",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A11",
+          "value": "Ceramic shell",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B11",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C11",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D11",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E11",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D11-C11",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F11",
+          "value": 61.2,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G11",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D11-F11",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H11",
+          "value": "Feiwang remains better than Factory A mechanical reserve; confirm shell/structure coverage is complete.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A12",
+          "value": "Main board / PCBA",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B12",
+          "value": "FLASH 16 MB, MCU Nordic52840",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C12",
+          "value": 125,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D12",
+          "value": 85,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E12",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D12-C12",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F12",
+          "value": 37.06,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G12",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D12-F12",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H12",
+          "value": "Major improvement: -RMB 40 vs prior Feiwang, but still +RMB 47.94 vs Factory A PCBA. Confirm 16 MB buffer memory is acceptable versus earlier 64 MB assumption.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A13",
+          "value": "Assembly test + aging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B13",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C13",
+          "value": 5,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D13",
+          "value": 5,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E13",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D13-C13",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F13",
+          "value": 13.6,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G13",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D13-F13",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H13",
+          "value": "Feiwang is below benchmark; keep scope confirmed for full assembly, test, and aging.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A14",
+          "value": "Potting / adhesive sealing",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B14",
+          "value": "Same unit price; color matching fee not included",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C14",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D14",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E14",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D14-C14",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F14",
+          "value": 15.64,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G14",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D14-F14",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H14",
+          "value": "No change; still above Factory A. Ask whether smaller form factor/process can reduce this.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A15",
+          "value": "Auxiliary materials",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C15",
+          "value": 1,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D15",
+          "value": 1,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E15",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D15-C15",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H15",
+          "value": "No material change.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A16",
+          "value": "Battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B16",
+          "value": "Grepow battery adapted by specification",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C16",
+          "value": 30,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D16",
+          "value": 30,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E16",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D16-C16",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F16",
+          "value": 23.8,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G16",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D16-F16",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H16",
+          "value": "Updated BOM only lists Grepow battery; prior separate Juwei base option appears removed. Decide whether Grepow is required for the base quote.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A17",
+          "value": "Loss / wastage",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B17",
+          "value": "Estimated 10%",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C17",
+          "value": 19,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D17",
+          "value": 17,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E17",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D17-C17",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F17",
+          "value": 16.85,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G17",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D17-F17",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H17",
+          "value": "Improved by RMB 2 and now roughly aligned with benchmark.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A18",
+          "value": "Charging case",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B18",
+          "value": "Standard model, small cylindrical type",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C18",
+          "value": 18,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D18",
+          "value": 15,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E18",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D18-C18",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F18",
+          "value": 14,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G18",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D18-F18",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H18",
+          "value": "Improved from old RMB 18 public model, but still RMB 1 above the smaller-case target.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A19",
+          "value": "Packaging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B19",
+          "value": "Not quoted in Feiwang BOM",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F19",
+          "value": 10,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H19",
+          "value": "Still missing. Need Feiwang packaging quote before a true all-in comparison.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A20",
+          "value": "Updated BOM total, ex-tax",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B20",
+          "value": "Sum of listed updated Feiwang components, excluding packaging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C20",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=SUM(C11:C18)",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "D20",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=SUM(D11:D18)",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "E20",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=D20-C20",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "F20",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=197.01+14+10",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "G20",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00",
+          "formula": "=ROUND(D20*1.12,2)-F20",
+          "cached_value": null
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "H20",
+          "value": "Updated total is RMB 203 ex-tax including charging case. Tax-adjusted comparable is RMB 227.36; still RMB 6.35 over Factory A benchmark that includes packaging.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A8",
+          "value": "Mechanical / ceramic + structure",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B8",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C8",
+          "value": 61.2,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D8",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B8=\"\",C8=\"\"),\"\",ROUND(B8-C8,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E8",
+          "value": "Factory A carries a much higher mechanical reserve, while Feiwang lists ceramic shell separately at RMB 25. Feiwang should keep this advantage visible but confirm it includes all required structure-related parts.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F8",
+          "value": "Factory A 机械/结构预留明显更高，而飞旺陶瓷外壳为 RMB 25。飞旺应保留该成本优势，但需要确认是否已包含所有必要结构件。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A9",
+          "value": "Glue injection / sealing",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B9",
+          "value": 25,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C9",
+          "value": 15.64,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D9",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B9=\"\",C9=\"\"),\"\",ROUND(B9-C9,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E9",
+          "value": "Feiwang sealing is higher than Factory A glue injection. Ask Feiwang to explain the process basis and reduce this line if the smaller design or process supports it.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F9",
+          "value": "飞旺封胶成本高于 Factory A 的点胶/灌胶成本。请飞旺说明工艺依据，并在小型化设计或工艺允许的情况下下调该项。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A10",
+          "value": "PCBA / main board",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B10",
+          "value": 125,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C10",
+          "value": 37.06,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D10",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B10=\"\",C10=\"\"),\"\",ROUND(B10-C10,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E10",
+          "value": "This is the largest gap. Feiwang main board at RMB 125 is far above Factory A PCBA at RMB 37.06. Ask for a detailed PCBA cost breakdown and optimization without changing NRF52840 + 64MB.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F10",
+          "value": "这是最大的差异项。飞旺主板 RMB 125 明显高于 Factory A PCBA RMB 37.06。请飞旺拆分主板成本，并在不改变 NRF52840 + 64MB 配置的前提下优化。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A11",
+          "value": "Battery, base option",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B11",
+          "value": 10,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C11",
+          "value": 23.8,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D11",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B11=\"\",C11=\"\"),\"\",ROUND(B11-C11,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E11",
+          "value": "Feiwang standard Juwei battery is below Factory A battery. Keep standard battery in the base quote and avoid mixing Grepow into base U/P.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F11",
+          "value": "飞旺标准聚微电池低于 Factory A 电池成本。基础报价应保留标准电池，不要把 Grepow 加价混入基础 U/P。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A12",
+          "value": "Packaging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C12",
+          "value": 10,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D12",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B12=\"\",C12=\"\"),\"\",ROUND(B12-C12,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E12",
+          "value": "Factory A packaging is set to RMB 10. Feiwang BOM/U/P does not include packaging, so Feiwang must quote packaging separately before any all-in comparison.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F12",
+          "value": "Factory A 包装按 RMB 10 计算。飞旺当前 BOM / U/P 不包含包装，因此飞旺必须单独报价包装，才能进行完整总成本对比。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A13",
+          "value": "Loss / wastage",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B13",
+          "value": 19,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C13",
+          "value": 16.85,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D13",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B13=\"\",C13=\"\"),\"\",ROUND(B13-C13,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E13",
+          "value": "Feiwang loss is higher than Factory A wastage. Ask whether loss can be reduced after yield and process assumptions are validated.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F13",
+          "value": "飞旺损耗高于 Factory A。请确认在良率和工艺假设明确后，损耗是否可以降低。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A14",
+          "value": "Assembly",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B14",
+          "value": 5,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C14",
+          "value": 13.6,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D14",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B14=\"\",C14=\"\"),\"\",ROUND(B14-C14,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E14",
+          "value": "Feiwang assembly/test/aging appears below Factory A assembly. Keep it visible and confirm that aging/test scope is complete.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F14",
+          "value": "飞旺组装测试+老化低于 Factory A 组装成本。请保留该优势，同时确认测试和老化范围完整。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A15",
+          "value": "Charging case, old public model",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B15",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=ROUND(18*1.12,2)",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D15",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B15=\"\",C15=\"\"),\"\",ROUND(B15-C15,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E15",
+          "value": "Feiwang quoted RMB 18 before tax for the old public charging case. We switched to the smaller case, so this should be revised to RMB 14 before tax.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F15",
+          "value": "飞旺旧公版充电盒报价为 RMB 18 未税。我们已经切换为更小的充电盒，因此该项应调整到 RMB 14 未税。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "A16",
+          "value": "Charging case, smaller target",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "B16",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=ROUND(14*1.12,2)",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "C16",
+          "value": 14,
+          "number_format": "\"RMB\" #,##0.00;[Red]-\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "D16",
+          "value": null,
+          "number_format": "\"RMB\" #,##0.00",
+          "formula": "=IF(OR(B16=\"\",C16=\"\"),\"\",ROUND(B16-C16,2))",
+          "cached_value": null
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "E16",
+          "value": "Target smaller charging case is RMB 14 before tax. Feiwang should revise the old RMB 18 public-case quote down to this smaller-case target.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Comparison",
+          "cell": "F16",
+          "value": "小充电盒目标为 RMB 14 未税。请飞旺将旧公版 RMB 18 充电盒报价下调到该小充电盒目标。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A30",
+          "value": "Updated Feiwang BOM source values",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A31",
+          "value": "BOM line",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B31",
+          "value": "Description",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C31",
+          "value": "RMB",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A32",
+          "value": "Ceramic shell",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B32",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C32",
+          "value": 26,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A33",
+          "value": "Main board",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B33",
+          "value": "FLASH 16 MB, MCU Nordic52840",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C33",
+          "value": 85,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A34",
+          "value": "Assembly test + aging",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B34",
+          "value": "Same unit price for different specifications",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C34",
+          "value": 6,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A35",
+          "value": "Potting / adhesive sealing",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B35",
+          "value": "Same unit price; color matching fee not included",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C35",
+          "value": 26,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A36",
+          "value": "Auxiliary materials",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C36",
+          "value": 2,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A37",
+          "value": "Grepow battery",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B37",
+          "value": "Adapted by specification",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C37",
+          "value": 31,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A38",
+          "value": "Loss",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B38",
+          "value": "Estimated 10%",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C38",
+          "value": 18,
+          "number_format": "\"RMB\" #,##0.00"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "A39",
+          "value": "Charging case",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "B39",
+          "value": "Standard model, small cylindrical type",
+          "number_format": "General"
+        },
+        {
+          "sheet": "May 14 Updated BOM",
+          "cell": "C39",
+          "value": 16,
+          "number_format": "\"RMB\" #,##0.00"
+        }
+      ]
+    },
+    {
+      "source_id": "P1",
+      "source_sha256": "19ca2d33990079525affacb79327bc5b1da1e9f676a7e43ca69577797e88b65a",
+      "parser": "openpyxl; original formulas and cached values read separately; null cache is not zero",
+      "cells": [
+        {
+          "sheet": "Revision",
+          "cell": "A3",
+          "value": "Cancel size 9",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Revision",
+          "cell": "A4",
+          "value": "Size 10 = 150",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Revision",
+          "cell": "A5",
+          "value": "Size 11 = 125",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Revision",
+          "cell": "A6",
+          "value": "Size 12 = 125",
+          "number_format": "General"
+        },
+        {
+          "sheet": "Revision",
+          "cell": "A8",
+          "value": "Inside: transparent Glossy resin",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "E10",
+          "value": "Ceramic shell / 陶瓷外壳: RMB 25.00\nMain board / 主板: FLASH 16 MB, MCU Nordic52840: RMB 85.00\nAssembly testing + aging / 组装测试+老化: RMB 5.00\nSealant / 封胶: RMB 25.00\nAccessories / 辅料: RMB 1.00\nGrepow battery / Grepow电池: RMB 30.00\nLoss / 损耗: RMB 17.00\nCharging case / 充电盒: RMB 15.00\nUnit total from BOM / BOM单价合计: RMB 203.00\nWaterproof rating / 防水等级: IP68",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "F10",
+          "value": "Total order qty / 订单总数量: 400pcs\nSize / 尺寸 9: 100pcs\nSize / 尺寸 10: 100pcs\nSize / 尺寸 11: 100pcs\nSize / 尺寸 12: 100pcs\nRing color / 戒指颜色: grey ceramic exterior, matte metal-like finish, anti-fingerprint coating, same as reference sample / 灰色陶瓷外观，哑光金属质感，防指纹涂层，与参考样一致\nCMF follow customer sample / CMF跟随客户寄样\n\n",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "G10",
+          "value": 203,
+          "number_format": "\"RMB\"\\ #,##0.00"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "H10",
+          "value": 400,
+          "number_format": "#,##0\" pcs / 片\""
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "I10",
+          "value": null,
+          "number_format": "\"RMB\"\\ #,##0.00",
+          "formula": "=G10*H10",
+          "cached_value": 81200
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "E11",
+          "value": "Mold fee / 模具费: RMB 8,000 per specification / 每个规格8000元",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "F11",
+          "value": "4 specifications / 4个规格: size / 尺寸 9 / 10 / 11 / 12\nTotal tooling fee / 模具费合计: RMB 32,000",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "G11",
+          "value": 8000,
+          "number_format": "\"RMB\"\\ #,##0.00"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "H11",
+          "value": 3,
+          "number_format": "#,##0\" specs / 规格\""
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "I11",
+          "value": null,
+          "number_format": "\"RMB\"\\ #,##0.00",
+          "formula": "=G11*H11",
+          "cached_value": 24000
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "E12",
+          "value": "Injection encapsulation tooling / 注胶封装模具: RMB 6,000 per specification / 每个规格6000元",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "F12",
+          "value": "4 specifications / 4个规格: size / 尺寸 9 / 10 / 11 / 12\nTotal injection tooling fee / 注胶封装模具费合计: RMB 24,000",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "G12",
+          "value": 6000,
+          "number_format": "\"RMB\"\\ #,##0.00"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "H12",
+          "value": 3,
+          "number_format": "#,##0\" specs / 规格\""
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "I12",
+          "value": null,
+          "number_format": "\"RMB\"\\ #,##0.00",
+          "formula": "=G12*H12",
+          "cached_value": 18000
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "B35",
+          "value": "Follow customer samples; received on 2026-05-20. Ring color: grey ceramic exterior with a matte metal-like finish and anti-fingerprint coating, same as reference sample / CMF跟随客户寄样（2026年5月20日收到）。戒指颜色：灰色陶瓷外观，哑光金属质感，防指纹涂层，与参考样一致。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "B37",
+          "value": "Size 9 / 10 / 11 / 12, 100pcs each, total 400pcs / 9、10、11、12 四个尺寸，每个100片，共400片. Mold fee / 模具费: RMB 8,000/spec x 4 = RMB 32,000; injection encapsulation tooling / 注胶封装模具: RMB 6,000/spec x 4 = RMB 24,000.",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "B38",
+          "value": "Sudo will provide the color boxes, mailer packaging, and user manuals to the factory on 7/11. The factory will handle the final packaging process, including heat shrink wrapping.\n7月11日，Sudo 将提供彩盒、邮购包装盒和说明书，到工厂。工厂将负责最终包装流程，包括热收缩包装。",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "B39",
+          "value": "We no need to provide a size kit/不需要",
+          "number_format": "General"
+        },
+        {
+          "sheet": "PO 采购订单",
+          "cell": "B40",
+          "value": "metal finish\n我们想在塑料充电盒外壳上做一层金属质感表面处理，不是直接用金属件，而是在塑料件表面做金属涂层/金属漆/NCVM 或类似工艺。\n目标效果是：外观看起来像深银色陶瓷金属或铬面金属，有高级、光滑、微反光的质感，但不能太亮、不能像廉价电镀。整体要像一个高端消费电子产品的表面处理。\n\n请帮我们评估以下几点：  \n1.适合塑料充电盒的工艺方案：金属漆、真空镀膜、NCVM、PVD 或其他可行方案。  \n2.表面效果：深银色 / dark silver / gunmetal，半亮光或柔和亮面，不要镜面过亮。  \n3.耐用性：需要测试附着力、耐刮、耐磨、耐汗液、耐手油、耐酒精擦拭。  \n4.如果充电盒里面有磁吸、无线充电、蓝牙、天线或其他电子元件，请确认这个金属涂层是否会影响信号、充电或磁吸。  \n5.请提供样板或色板，最好能做 2-3 个不同亮度和深浅的版本给我们选择。  \n6.请确认 MOQ、单价影响、良率风险、量产稳定性，以及是否需要修改模具或只需要调整表面处理工艺。我们想要的是“塑料件 + 高级金属质感外观”，不是普通银色喷漆。请按高端消费电子产品的标准来建议工艺。",
+          "number_format": "General"
+        }
+      ]
+    }
+  ]
+}
