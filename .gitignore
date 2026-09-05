@@ -1,0 +1,11 @@
+.DS_Store
+build/
+dist/
+*.o
+*.elf
+*.hex
+*.bin
+*.map
+.env
+.env.*
+__pycache__/
