@@ -1,5 +1,20 @@
 # Open work
 
+- Implement the [recording and push-to-talk requirements](reference/ring-recording-and-ptt.md)
+  as one firmware-owned lifecycle for hold/release and configurable double-tap
+  memos. Restore reliable release handling, honor Stop during Start, and use
+  consistent green recording LED / one short start haptic in connected and
+  standalone modes. The current app bridge handles double taps only.
+- Add versioned recording capabilities, idempotent Start/Stop results, a real
+  state query and final file/session metadata with saved bytes and completion
+  status. Coordinate the adapter in `ShopItalic/app`: its current workaround
+  matches only `6.0.3.3Z62`, not the candidate's `6.0.3.3-SUDO1`. Do not treat
+  the unacknowledged internal `0x71/0xFD` or a 150 ms delay as the final protocol.
+- Resolve the preserved gesture/clip-limit configuration and keyboard-dictation
+  exploration; finish sensitivity/optional-gesture controls, documented LED
+  and haptic configuration ranges, SDK errors, power/battery reporting and
+  release control from the June supplier briefs. The lean profile does not
+  establish that these requested features work.
 - Adapt the [Caption recording lifecycle](reference/ring-firmware-candidate.md#comparison-with-caption)
   for the selected production target: local backup before live BLE, a bounded
   recording worker, and an explicit encoder/capture-queue drain before Stop

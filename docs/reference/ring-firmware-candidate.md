@@ -7,6 +7,14 @@ compilation. **It is not a linked, signed, or device-tested firmware release.**
 No ring was read, flashed, erased, or reset during this work. Transfer speed,
 battery use, radio behavior, and recovery on hardware remain unmeasured.
 
+**Push-to-talk and connected recording remain open.** The
+[recording requirements review](ring-recording-and-ptt.md) preserves the earlier
+supplier briefs and current Chinese request, reconciles conflicting storage
+requirements, and defines hold/release, double-tap, LED/haptic, command-result
+and recovery acceptance. The BLE changes below do not create the missing Flash
+recording. The app also gates its existing workaround to exactly `6.0.3.3Z62`,
+so the engineering version needs coordinated app compatibility before use.
+
 ## Preserved original
 
 The original supplier archive `1.23.2_6033固件SDK.zip` was copied before editing:
@@ -43,7 +51,8 @@ physical ring's installed firmware, settings, bonds, calibration, or recordings.
 | Upload ignores read results or advances after a failed send | Accumulates short reads, stops on premature EOF/error, and waits for FIFO acceptance before reading another chunk. Failed transfers do not delete files or emit a fabricated completion. |
 | Missing upload file can be created; worker returns on error | Opens uploads read-only, closes resources, and returns to its request loop after failure. Counting notifications replace the resume/suspend wakeup race. |
 | A new request overwrites a busy transfer's global header | Checks ownership before copying the request. Busy responses use a separate packet. |
-| Parser treats a 250-byte buffer as a larger command struct | Copies into a zero-initialized command struct, checks lengths, and validates file-request lengths before dispatch. RX callbacks never block waiting for queue capacity. |
+| Parser treats a 250-byte buffer as a larger command struct | Copies into a zero-initialized command struct, checks lengths, and validates file-request and recording-control payload lengths before dispatch. RX callbacks never block waiting for queue capacity. |
+| Internal recording Start helpers declare four bytes for a five-byte packet | Preserves the Start byte. The stricter parser previously decoded these malformed internal Starts as Stops; the September 6 correction fixes both helpers and rejects truncated `0x71/0x05` and `0x71/0xFE` commands. |
 
 The on-air service identifiers, four-byte command header, 17-byte file-transfer
 metadata, 220-byte file chunks, and ADPCM recording format remain compatible
@@ -120,6 +129,19 @@ checks passed**: resource exhaustion, repeated early wakeups, cancellation,
 connection-epoch changes, fatal errors, finite deadlines, tick rollover, packet
 bounds/order, exact and partial final chunks, nonzero resume, short reads,
 premature EOF, send failure, invalid offsets, and empty remaining data.
+
+The September 6 recording-command review adds **99 checks** under the same
+sanitizers, for **561 checks total**. It compiles byte-preserved function
+extractions of the seven packet producers, the actual bounded parser and PDM
+dispatcher using the checked-in packet headers. Queue and hardware effects
+are intercepted: this tests command meaning and bounds, not physical recording.
+The pre-fix candidate reproduces Start dispatching as Stop. Coverage includes
+ordinary/ISR Stop, payload-free internal commands, truncated recording controls,
+null/short/oversize input and valid legacy packets. Both changed production
+translation units also pass fresh ARM object compilation. The
+[recording-command validation](../../firmware/recording-command-validation.json)
+records exact source hashes and scope; the original validation record below
+remains the September 5 snapshot.
 
 ARM checks use `arm-none-eabi-gcc 16.2.0`, Cortex-M4 Thumb, hard-float, the actual
 supplier target defines and SDK headers, and the Nordic GCC FreeRTOS port.

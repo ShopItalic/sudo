@@ -198,7 +198,6 @@ void app_package_mic_recording_start(void)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +1);
 	ble_package.data_length = 4 + 1 ;
-	ble_package.data_length = 4 ;
 	bc_queue_enqueue(BC_QUEUE_TYPE_BLE_RECV,&ble_package);
 }
 
@@ -273,7 +272,6 @@ void app_package_mic_capture_recording_start(void)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +1);
 	ble_package.data_length = 4 + 1 ;
-	ble_package.data_length = 4 ;
 	bc_queue_enqueue(BC_QUEUE_TYPE_BLE_RECV,&ble_package);
 }
 

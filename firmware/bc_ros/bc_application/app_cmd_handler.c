@@ -3300,6 +3300,10 @@ void app_cmd_package_parse(uint8_t *cmd_pack,uint16_t pack_length)
     /* The legacy cast wrote length beyond the 250-byte receive buffer. */
     memcpy(&decoded, cmd_pack, pack_length);
     decoded.length = (uint8_t)pack_length;
+    if (decoded.cmd == CMD_PDM &&
+        (decoded.subcmd == 0x05 || decoded.subcmd == 0xFE) &&
+        pack_length < 5)
+        return;
     if (decoded.cmd == CMD_GET_HISTORY) {
         if (decoded.subcmd == 0x11 && pack_length < 42) return;
         if (decoded.subcmd == 0x18 && pack_length < 46) return;

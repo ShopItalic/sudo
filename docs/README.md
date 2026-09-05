@@ -5,6 +5,7 @@ This repository documents the production Italic Ring hardware and firmware.
 ## Start here
 
 - [Sudo Voice firmware candidate](reference/ring-firmware-candidate.md): preserved source, BLE improvements, lean target, validation, and supplier acceptance.
+- [Recording and push-to-talk requirements](reference/ring-recording-and-ptt.md): full prior requirements, connected Flash defect, current app workaround, historical conflicts and physical acceptance matrix. PTT and recording recovery remain unfinished.
 - [Caption comparison](reference/ring-firmware-candidate.md#comparison-with-caption): reusable recording/recovery/session work, source-evidence limits, and remaining Ring recording defects.
 - [Firmware baseline](firmware.md): factory source, toolchain, and acceptance gates.
 - [Raw factory firmware extraction](reference/ring-firmware.md): recovered image files, memory map, hashes, and signature checks.

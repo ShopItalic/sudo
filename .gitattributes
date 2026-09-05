@@ -7,3 +7,8 @@
 
 # Retain supplier source encodings and CRLF bytes for baseline provenance.
 /firmware/** -text -whitespace
+
+# Retain exact historical requirements, including their original trailing lines.
+/docs/reference/sudo-ring/requirements/master-feature-spec-2026-04-13.md -text -whitespace
+/docs/reference/sudo-ring/requirements/supplier-pre-read-2026-06-13.md -text -whitespace
+/docs/reference/sudo-ring/requirements/supplier-call-agenda-2026-06-13.md -text -whitespace

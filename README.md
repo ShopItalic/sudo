@@ -29,6 +29,13 @@ Its [Caption comparison](docs/reference/ring-firmware-candidate.md#comparison-wi
 identifies recording-safety, recovery and session features to adapt next,
 including inherited Ring capture and storage issues outside the transfer patch.
 
+The [recording and push-to-talk requirements](docs/reference/ring-recording-and-ptt.md)
+restore the earlier hold/release, LED/haptic, gesture, reliable command and
+recovery requirements alongside the connected-recording bug. The original
+supplier briefs and the Chinese request are preserved with source hashes.
+**Native connected Flash recording and complete push-to-talk remain unfinished**;
+the transfer candidate does not implement them.
+
 The separate
 [`botnetai/ring-firmware`](https://github.com/botnetai/ring-firmware) repository
 is an older Nordic/Seeed test-unit prototype and is not the production source.
