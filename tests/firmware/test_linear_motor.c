@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "app_linear_motor_handler.h"
+#include "bc_device_info.h"
 #include "bc_linear_motor.h"
 #include "q_device.h"
 #include "nrfx_pwm.h"
@@ -51,6 +52,15 @@ static enum
 } failure_stage;
 
 static int failures_left;
+
+/* The retained legacy timer table references this callback even when the
+ * Sudo tests exercise only finite pulses. Keep the platform boundary linked
+ * on ELF hosts, whose section collection differs from Mach-O dead stripping. */
+bc_device_hid_info *bc_device_info_get_hid_info(void)
+{
+    static bc_device_hid_info info;
+    return &info;
+}
 
 static bool should_fail(int stage)
 {
