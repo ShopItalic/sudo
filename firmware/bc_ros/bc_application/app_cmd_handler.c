@@ -313,6 +313,9 @@ static uint8_t app_test_ble_loopback_callback(struct app_cmd_package * cmd_packa
 
 static uint8_t app_test_ble_speed_callback(struct app_cmd_package * cmd_package)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)cmd_package; /* Factory traffic generator is excluded. */
+#else
 	if(cmd_package->data[0] == 1)
 	{
 		app_ble_speed_test_start(cmd_package->data[1]);
@@ -321,6 +324,8 @@ static uint8_t app_test_ble_speed_callback(struct app_cmd_package * cmd_package)
 	{
 		app_ble_speed_test_stop();
 	}
+#endif
+    return 0;
 }                                                 
 static uint8_t app_test_read_pressure_sensor_adc_callback(struct app_cmd_package * cmd_package)
 {
@@ -1720,6 +1725,9 @@ static uint8_t app_cmd_get_hrstory(struct app_cmd_package * cmd_package)
 		}
 		case 2:                               //停止上传本地数据
 		{
+#if defined(SUDO_VOICE_ONLY)
+            app_ppg_file_upload_cancel();
+#endif
 //			app_tsdb_data_stop_updata();
 //			app_package_send_enqueue(cmd_package,4);
 			break;
@@ -3171,6 +3179,9 @@ static uint8_t app_cmd_rtc_alarm_clock_event(struct app_cmd_package * cmd_packag
 
 static uint8_t app_cmd_wifi_event(struct app_cmd_package * cmd_package)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)cmd_package; /* This board has no Wi-Fi transport. */
+#else
   switch(cmd_package->subcmd)
   {
     case 0x00:
@@ -3212,6 +3223,8 @@ static uint8_t app_cmd_wifi_event(struct app_cmd_package * cmd_package)
       break;
     }
   }
+#endif
+    return 0;
 }
 
 
@@ -3280,8 +3293,21 @@ static void app_test_cmd_handler(struct app_cmd_package * cmd_package)
  *******************************************************************************/	
 void app_cmd_package_parse(uint8_t *cmd_pack,uint16_t pack_length)
 {
-	struct app_cmd_package *cmd_package = (struct app_cmd_package*)cmd_pack;
-    cmd_package->length = pack_length;
+    struct app_cmd_package decoded = {0};
+    struct app_cmd_package *cmd_package = &decoded;
+    if (!cmd_pack || pack_length < 4 || pack_length > 250)
+        return;
+    /* The legacy cast wrote length beyond the 250-byte receive buffer. */
+    memcpy(&decoded, cmd_pack, pack_length);
+    decoded.length = (uint8_t)pack_length;
+    if (decoded.cmd == CMD_GET_HISTORY) {
+        if (decoded.subcmd == 0x11 && pack_length < 42) return;
+        if (decoded.subcmd == 0x18 && pack_length < 46) return;
+        if (decoded.subcmd == 0x1E || decoded.subcmd == 0x20) {
+            if (pack_length < 6 || decoded.data[1] != 38 ||
+                pack_length < (uint16_t)(6 + decoded.data[1])) return;
+        }
+    }
 	
 	switch(cmd_package->cmd)
 	{

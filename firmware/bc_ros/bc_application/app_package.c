@@ -33,7 +33,9 @@ struct bc_ble_calss ble_calss;
  *******************************************************************************/	
 void app_package_send_enqueue(struct app_cmd_package * cmd_package,uint8_t length)
 {
-	struct bc_ble_data_package ble_package;
+	struct bc_ble_data_package ble_package = {0};
+    if (!cmd_package || !length || length > sizeof(ble_package.data))
+        return;
 	memcpy(ble_package.data,(uint8_t*)cmd_package,length);
 	ble_package.data_length = length;
 	bc_queue_enqueue(BC_QUEUE_TYPE_BLE_SEND,&ble_package);
@@ -58,7 +60,7 @@ void app_package_ppg(struct app_cmd_package *package,void const *pack_pyload,uin
 	}
 	package->subcmd = pack_type;
 	memcpy(package->data,(uint8_t*)pack_pyload,pyload_length);
-	ble_calss.ble_send((uint8_t*)package,4+pyload_length);
+	app_ble_send((uint8_t*)package,4+pyload_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 	BC_LOG_HEX_P("ble send ppg:",(uint8_t*)package,4+pyload_length);
 	BC_LOG_INFO("pyload_length:%d  \r\n",4+pyload_length);
@@ -72,7 +74,7 @@ void app_package_ppg_file_uplaod(struct app_cmd_package *package, uint16_t lengt
 	}
 
   
-  ble_calss.ble_send((uint8_t*)package,4+length);
+  app_ble_send((uint8_t*)package,4+length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 
  
@@ -114,7 +116,7 @@ void app_package_history_record_up(struct app_cmd_package *package,void const *p
 		memcpy(&package->data[0],(uint8_t*)pack_pyload,pyload_length);
 //		app_package_send_enqueue(package,4+pyload_length);
 		
-		ble_calss.ble_send((uint8_t*)package,4+pyload_length);
+		app_ble_send((uint8_t*)package,4+pyload_length);
 		app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 	}
 	else
@@ -124,7 +126,7 @@ void app_package_history_record_up(struct app_cmd_package *package,void const *p
 
 		memcpy(&package->data[8],(uint8_t*)pack_pyload,pyload_length);
 //		app_package_send_enqueue(package,4+8+pyload_length);
-		ble_calss.ble_send((uint8_t*)package,4+8+pyload_length);
+		app_ble_send((uint8_t*)package,4+8+pyload_length);
 		app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 	}
 //	app_ble_task_event(BLE_TASK_TYPE_SEND);
@@ -362,7 +364,7 @@ void app_package_ppg_ir_midvalue_up(uint8_t seq,uint8_t midvalue_num,uint8_t *mi
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 + 2 + midvalue_length);
 	ble_package.data_length = 4 + 1 + midvalue_length;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 	 printf("ir_midvalue_up:");
 	  for(uint8_t i = 0;i < ble_package.data_length;i++)
@@ -394,7 +396,7 @@ void app_package_temper_up(uint8_t id,uint8_t status,uint16_t temper,uint8_t sub
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 + 3);
 	ble_package.data_length = 4 + 3;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 }
 
@@ -418,7 +420,7 @@ void app_package_ble_log_up(uint8_t *send_data,uint8_t length)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 + 1+1+length);
 	ble_package.data_length = 4 + 1+1+length;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 }
 
@@ -441,7 +443,7 @@ void app_package_mouse_event_up(uint8_t *send_data,uint8_t length)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +1+length);
 	ble_package.data_length = 4 +1+length;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 }
 
@@ -473,7 +475,7 @@ void app_package_precent_up(uint8_t data)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +1);
 	ble_package.data_length = 4 + 1;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 
 }
@@ -502,7 +504,7 @@ void app_package_precent_up(uint16_t data)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +2);
 	ble_package.data_length = 4 + 2;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 
 }
@@ -532,7 +534,7 @@ void app_package_precent_status_up(uint16_t data)
 	
 	memcpy(ble_package.data,(uint8_t*)&package,4 +2);
 	ble_package.data_length = 4 + 2;
-	ble_calss.ble_send(ble_package.data,ble_package.data_length);
+	app_ble_send(ble_package.data,ble_package.data_length);
 	app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 
 }

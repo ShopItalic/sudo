@@ -416,6 +416,9 @@ void hids_init(uint16_t  *p)
 //发送按键
 void mouse_button_send(int8_t click, int8_t wheel, int8_t pan)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)click; (void)wheel; (void)pan;
+#else
     ret_code_t err_code;
     if(*m_conn_handle == 0xFFFF)
     {
@@ -450,6 +453,7 @@ void mouse_button_send(int8_t click, int8_t wheel, int8_t pan)
     {
         APP_ERROR_HANDLER(err_code);
     }
+#endif
 }
 
 /**@brief Function for sending a Mouse Movement.
@@ -461,6 +465,9 @@ void mouse_button_send(int8_t click, int8_t wheel, int8_t pan)
 
 void mouse_movement_send(int16_t x_delta, int16_t y_delta)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)x_delta; (void)y_delta;
+#else
 //	 ble_mouse_movement_slide( x_delta, y_delta);
 	
     ret_code_t err_code;
@@ -518,11 +525,15 @@ void mouse_movement_send(int16_t x_delta, int16_t y_delta)
     {
         APP_ERROR_HANDLER(err_code);
     }
+#endif
 }
 
 
 void send_keyboard_hid_report(uint8_t key)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)key;
+#else
     uint8_t report[INPUT_REPORT_KEYS_MAX_LEN] = {0};
 
     // 将key存放在键位数组的第一个位置
@@ -539,6 +550,7 @@ void send_keyboard_hid_report(uint8_t key)
 		BC_LOG_INFO("lltthhhhhhhhhhhhtl  %d \r\n",err_code);
 //        APP_ERROR_CHECK(err_code);
     }
+#endif
 }
 
 void send_keyboard_pgup()
@@ -593,6 +605,9 @@ uint16_t map_to_hid_coord(uint16_t coord, uint16_t max_coord, uint16_t hid_max) 
 
 
 void send_touch_event(uint16_t x, uint16_t y, bool touch) {
+#if defined(SUDO_VOICE_ONLY)
+    (void)x; (void)y; (void)touch;
+#else
 	
 	if(*m_conn_handle == NULL)
     {
@@ -626,6 +641,7 @@ void send_touch_event(uint16_t x, uint16_t y, bool touch) {
     {
         APP_ERROR_HANDLER(err_code);
     }
+#endif
 }
 
 void process_touch_event(uint16_t touch_x, uint16_t touch_y, uint16_t screen_width, uint16_t screen_height, bool touch) {
@@ -672,6 +688,9 @@ static void send_gamepad_report( uint8_t buttons, int8_t x, int8_t y, int8_t z, 
 
 void update_joystick_state(int8_t x, int8_t y)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)x; (void)y;
+#else
     // 假设按钮未按下
     uint8_t buttons = 0x0000;  // 没有按钮按下
     int8_t z = 0;   // Z 轴初始值
@@ -679,6 +698,7 @@ void update_joystick_state(int8_t x, int8_t y)
 
     // 调用发送函数，传递当前的摇杆状态
     send_gamepad_report( buttons, x, y, z, rz);
+#endif
 }
 
 void joystick_commands_example(void)
@@ -741,6 +761,9 @@ static void ble_mouse_button_send(uint8_t *data,uint8_t length)
 
 void ble_mouse_button_control(enum ble_hid_mouse_button_cmd mouse_button_cmd)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)mouse_button_cmd;
+#else
 	uint16_t ios_delay_time = 25;
 	uint16_t android_delay_time = 20  ;
 	ret_code_t err_code;
@@ -1012,6 +1035,7 @@ void ble_mouse_button_control(enum ble_hid_mouse_button_cmd mouse_button_cmd)
     {
         APP_ERROR_HANDLER(err_code);
     }
+#endif
 }
 
 
@@ -1091,6 +1115,9 @@ void ble_hid_phone_screen_get(uint32_t *phone_screen_high,uint32_t *phone_screen
 
 void ble_hid_send_cmd(enum ble_hid_cmd  hid_cmd)
 {
+#if defined(SUDO_VOICE_ONLY)
+    (void)hid_cmd;
+#else
 
 	switch(hid_cmd)
 	{
@@ -1116,5 +1143,6 @@ void ble_hid_send_cmd(enum ble_hid_cmd  hid_cmd)
 		}
 	}
 	
+#endif
 }
 

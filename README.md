@@ -17,8 +17,14 @@ at 184,132 bytes, the combined
 `BCL603S2P_6.0.3.3Z62.hex`, the application-only OTA ZIP, and seven exact
 memory regions. SHA-256, ZIP CRC, HEX consistency, DFU metadata, and ECDSA
 signature checks passed. These are extracted factory artifacts, not a device
-dump or an approved release. The vendor SDK source tree is still **not imported
-as a buildable tree**. No ring was dumped or flashed, and no firmware was rebuilt.
+dump or an approved release. No ring was dumped or flashed.
+
+The [Sudo Voice firmware candidate](docs/reference/ring-firmware-candidate.md)
+preserves the reviewed factory source at commit `102bfd2` and adds a queued BLE
+sender, correct file resume, transfer error handling, and a recording-focused
+Keil target. Host fault-injection tests and ARM object checks pass. A production
+link, signed update package, measured throughput, and hardware validation remain
+pending. Start with that document for the changes and reproduction commands.
 
 The separate
 [`botnetai/ring-firmware`](https://github.com/botnetai/ring-firmware) repository

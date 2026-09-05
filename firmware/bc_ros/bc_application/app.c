@@ -98,7 +98,9 @@ void app_init(void)
   
 #if (!defined(BLE_POWER_TEST))
   
+#if !defined(SUDO_VOICE_ONLY)
   app_ble_speed_time_create();
+#endif
   
 //	
 #if (HARDWARE_411_ENABLED == 1 || HARDWARE_412_ENABLED == 1 || HARDWARE_413_ENABLED == 1 || HARDWARE_153_ENABLED == 1  || HARDWARE_441_ENABLED == 1 || HARDWARE_191_ENABLED == 1 || \
@@ -292,6 +294,8 @@ void app_init(void)
     //bc_linear_motor_ic_device_init();
 #endif
 
+#if defined(USE_OPUS)
     app_opus_create();
+#endif
 	
 }

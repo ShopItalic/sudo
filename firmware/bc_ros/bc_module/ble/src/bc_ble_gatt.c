@@ -39,6 +39,7 @@
 
 
 #include "app_error.h"
+#include "bc_ble.h"
 #include "bc_logger.h"
 #include "bc_ble_info_service.h"
 
@@ -49,7 +50,7 @@ extern uint16_t m_conn_handle;
 NRF_BLE_GATT_DEF(m_gatt);                                //定义名称为m_gatt的GATT模块实例
 
 //发送的最大数据长度
-static uint16_t   fml_ble_max_data_len = (uint8_t)BLE_GATT_ATT_MTU_DEFAULT - 3; 
+static volatile uint16_t   fml_ble_max_data_len = (uint8_t)BLE_GATT_ATT_MTU_DEFAULT - 3; 
 
 
 //GATT事件处理函数，该函数中处理MTU交换事件
@@ -60,7 +61,8 @@ static void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const *
     {
 
 //			  fml_ble_max_data_len  = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
-		 fml_ble_max_data_len  = p_evt->params.att_mtu_effective ;
+		 fml_ble_max_data_len = p_evt->params.att_mtu_effective - 3;
+        bc_ble_tx_wake();
         BC_LOG_INFO("Data len is set to 0x%X(%d) \r\n", fml_ble_max_data_len , fml_ble_max_data_len );
     }
     BC_LOG_DEBUG("ATT MTU exchange completed. central 0x%x(%d) peripheral 0x%x(%d) \r\n",
@@ -89,3 +91,13 @@ void gatt_init(void)
 
 
 
+
+uint16_t bc_ble_payload_limit(void)
+{
+    return fml_ble_max_data_len;
+}
+
+void bc_ble_gatt_reset(void)
+{
+    fml_ble_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
+}

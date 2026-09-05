@@ -9,10 +9,14 @@ OTA ZIP, and seven exact memory regions. SHA-256, ZIP CRC, HEX consistency, DFU
 metadata, and ECDSA signature checks passed against the saved factory
 distribution.
 
-The vendor SDK source tree is still not imported as a buildable tree. No
-compiler command, reproducible rebuild, or approved release has been
-established. No physical device has been dumped or flashed, and no source
-rebuild has been performed.
+The reviewed SDK is imported under `firmware/`, with its unmodified source
+baseline saved at commit `102bfd2`. The [Sudo Voice candidate](reference/ring-firmware-candidate.md)
+documents the separate modified build profile, BLE/file-transfer improvements,
+source hashes, reproduction tools, and validation limits. The exact production
+toolchain is Arm Compiler 5.06 update 7 (build 960). Host tests and GNU ARM object
+checks pass; an Arm Compiler 5 link and physical acceptance remain pending.
+No physical device has been dumped or flashed, and no replacement image has been
+signed or released.
 
 ## Evidence to retain on import
 
@@ -39,10 +43,9 @@ replacement pin maps or adapt the older Nordic prototype by assumption.
 
 ## Build and hardware acceptance
 
-1. Review and import the vendor source tree with its archive SHA-256 and revision.
-   Identify the exact supported compiler, SDK, target, and packaging tools from
-   the supplied project files.
-2. Reproduce the unmodified vendor build before changing firmware. Record
+1. Verify the saved source baseline with `tools/firmware/verify_baseline.py`
+   and review the candidate diff from `102bfd2`.
+2. Reproduce the unmodified vendor build before accepting the candidate for hardware. Record
    tool versions, command, output hashes, and memory use.
 3. Read back the physical board and firmware identity. Verify audio rate and
    ADPCM framing against the app's current 8 kHz mono interpretation; older
@@ -53,4 +56,5 @@ replacement pin maps or adapt the older Nordic prototype by assumption.
 5. Validate the upgrade path and recovery on the correct hardware before
    publishing a firmware release.
 
-The extraction involved no physical-device operations or firmware rebuild.
+The factory extraction remains unchanged. Source changes and compiler object
+checks do not establish a production firmware build.

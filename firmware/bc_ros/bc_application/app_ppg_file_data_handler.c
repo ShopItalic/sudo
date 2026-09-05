@@ -17,6 +17,10 @@
 #include "bc_util.h"
 
 #include "app_package.h"
+#include "bc_ble.h"
+#include "bc_queue.h"
+#include "bc_ble_modu_interface.h"
+#include "bc_file_transfer.h"
 #include "app_ppg_data_handler.h"
 #include "app_pmic_handler.h"
 #include "bc_delay.h"
@@ -123,16 +127,20 @@ static uint16_t app_ppg_list_files_number_get(struct ppg_file_hard *file_hardle,
 enum app_ppg_data_task
 {
 	PPG_FILE_DATA_TASK_TYPE_UPLOAD = 0,
+#if !defined(SUDO_VOICE_ONLY)
   APP_FILE_RESUME_UPLOAD_TASK_TYPE,
 //  APP_FILE_RESUME_STORAGE_TASK_TYPE,
   APP_FILE_ONE_CLICK_UPLOAD_TASK_TYPE,
+#endif
 	PPG_FILE_DATA_TASK_TYPE_NUM
 };
 
 static void ppg_file_data_upload_handler_thread(void * p_context);
+#if !defined(SUDO_VOICE_ONLY)
 static void ppg_file_resume_upload_handler_thread(void * p_context);
 static void ppg_file_resume_storage_handler_thread(void * p_context);
 static void ppg_file_one_click_upload_handler_thread(void * p_context);
+#endif
 static uint32_t ppg_file_sys_size(struct ppg_file_hard *file_hardle);
 void lk_ppg_space_reclamation();
 
@@ -144,6 +152,7 @@ static bc_rtos_thread_struct task_thread[PPG_FILE_DATA_TASK_TYPE_NUM] = {
 																	  .thread_parameters    = NULL,
 																	  .thread_task_code     = ppg_file_data_upload_handler_thread,
 																	}, 
+#if !defined(SUDO_VOICE_ONLY)
                                   {
 																	  .thread_name          = "file resume  up task",
 																	  .thread_stack_depth   = APP_TASK_FILE_UPLOAD_STACK_SIZE,
@@ -165,6 +174,8 @@ static bc_rtos_thread_struct task_thread[PPG_FILE_DATA_TASK_TYPE_NUM] = {
 																	  .thread_parameters    = NULL,
 																	  .thread_task_code     = ppg_file_one_click_upload_handler_thread,
 																	},
+#endif
+
 																};
 
 enum app_file_timer_event
@@ -958,6 +969,147 @@ static bool ppg_file_rename(enum ppg_file_type file_type)
 	return true;
 }
 
+#if defined(SUDO_VOICE_ONLY)
+static uint32_t upload_session;
+static uint8_t upload_header[4];
+static uint32_t upload_offset;
+static volatile bool upload_cancelled;
+
+static bool file_current(void *context)
+{
+    (void)context;
+    return !upload_cancelled && bc_ble_connect_status() &&
+           upload_session == bc_ble_session_id();
+}
+
+static int32_t file_seek(void *context, uint32_t offset)
+{
+    (void)context;
+    return lfs_file_seek(&app_ppg_file_hardle.lfs_fls_ppg_handle,
+                         &app_ppg_file_hardle.lfs_file_ppg_handle, offset, LFS_SEEK_SET);
+}
+
+static int32_t file_read(void *context, uint8_t *data, uint32_t length)
+{
+    (void)context;
+    return lfs_file_read(&app_ppg_file_hardle.lfs_fls_ppg_handle,
+                         &app_ppg_file_hardle.lfs_file_ppg_handle, data, length);
+}
+
+static bool file_send(void *context, const uint8_t *data, uint16_t length)
+{
+    struct bc_ble_data_package packet = {0};
+    uint32_t start = xTaskGetTickCount();
+    (void)context;
+    memcpy(packet.data, upload_header, sizeof(upload_header));
+    memcpy(packet.data + 4, data, length);
+    packet.data_length = length + 4;
+    /* Retain the same chunk under queue pressure; never read the next one
+     * until this packet has been accepted by the TX task's FIFO. */
+    while (file_current(NULL)) {
+        if (bc_queue_ble_send(&packet, upload_session, pdMS_TO_TICKS(100)))
+            return true;
+        bc_dog_feed();
+        if ((uint32_t)(xTaskGetTickCount() - start) >= pdMS_TO_TICKS(10000))
+            break;
+    }
+    return false;
+}
+
+void app_ppg_file_upload_cancel(void)
+{
+    upload_cancelled = true;
+    /* A cancelled stream has no completion packet. Reconnect starts a new
+     * transport epoch and discards any already queued audio. */
+    if (app_ppg_file_hardle.fls_status == PPG_FLS_UPLOAD &&
+        upload_session == bc_ble_session_id() && bc_ble_connect_status())
+        bc_ble_disconnect();
+}
+
+static bool sudo_file_request(struct app_cmd_package *request,
+                               uint8_t name_offset, uint32_t offset)
+{
+    struct app_cmd_package reply;
+    uint8_t i;
+    if (!request || !bc_ble_connect_status())
+        return false;
+    /* Factory filenames contain 38 bytes; reject paths and short requests. */
+    for (i = 0; i < 38; ++i) {
+        uint8_t c = request->data[name_offset + i];
+        if (c == 0 || c == '/' || c == '\\')
+            return false;
+    }
+    if (request->data[name_offset + 33] != '8' &&
+        request->data[name_offset + 33] != 'B' &&
+        request->data[name_offset + 33] != 'D')
+        return false; /* Current app-supported ADPCM recording file types. */
+    taskENTER_CRITICAL();
+    if (app_ppg_file_hardle.fls_status != PPG_FLS_IDIE ||
+        app_ppg_file_hardle.ppg_file_status) {
+        taskEXIT_CRITICAL();
+        reply = *request;
+        reply.data[0] = PPG_FLS_BUSY;
+        app_package_send_enqueue(&reply, 5);
+        return false;
+    }
+    app_ppg_file_hardle.fls_status = PPG_FLS_UPLOAD;
+    memcpy(upload_header, request, sizeof(upload_header));
+    memset(app_ppg_file_hardle.ppg_file_name, 0, sizeof(app_ppg_file_hardle.ppg_file_name));
+    app_ppg_file_hardle.ppg_file_name[0] = '/';
+    memcpy(app_ppg_file_hardle.ppg_file_name + 1, request->data + name_offset, 38);
+    app_ppg_file_hardle.file_type = (enum ppg_file_type)(request->data[name_offset + 33] - '0');
+    upload_session = bc_ble_session_id();
+    upload_offset = offset;
+    upload_cancelled = false;
+    taskEXIT_CRITICAL();
+    /* Counting notification avoids the vendor resume-before-suspend race. */
+    xTaskNotifyGive(task_thread[PPG_FILE_DATA_TASK_TYPE_UPLOAD].thread_handler);
+    return true;
+}
+
+static void ppg_file_data_upload_handler_thread(void *context)
+{
+    bc_file_port port = {NULL, file_seek, file_read, file_send, file_current};
+    (void)context;
+    lfs_sfud_init(&app_ppg_file_hardle.lfs_fls_ppg_handle);
+    for (;;) {
+        lfs_ssize_t size;
+        int error;
+        bc_file_result result = BC_FILE_READ_ERROR;
+        (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        bc_spi_flash_device_open();
+        /* Upload must not create an empty file when a requested name is absent. */
+        error = lfs_file_open(&app_ppg_file_hardle.lfs_fls_ppg_handle,
+                              &app_ppg_file_hardle.lfs_file_ppg_handle,
+                              app_ppg_file_hardle.ppg_file_name, LFS_O_RDONLY);
+        if (error == 0) {
+            app_ppg_file_hardle.ppg_file_status = true;
+            size = lfs_file_size(&app_ppg_file_hardle.lfs_fls_ppg_handle,
+                                 &app_ppg_file_hardle.lfs_file_ppg_handle);
+            app_ble_conn_time_audio_set();
+            if (size > 0 && upload_offset < (uint32_t)size)
+                result = bc_file_transfer(&port, (uint32_t)size, upload_offset,
+                                           PDM_DATA_SEND_SIZE);
+            else
+                result = BC_FILE_INVALID; /* No undefined zero-packet reply. */
+            error = lfs_file_close(&app_ppg_file_hardle.lfs_fls_ppg_handle,
+                                   &app_ppg_file_hardle.lfs_file_ppg_handle);
+            app_ppg_file_hardle.ppg_file_status = false;
+            app_ble_conn_time_audio_reset();
+        }
+        bc_spi_flash_device_close();
+        if (result != BC_FILE_DONE || error != 0) {
+            BC_LOG_WARN("File transfer aborted: %u/%d\r\n", result, error);
+            if (file_current(NULL))
+                bc_ble_disconnect();
+        }
+        /* Do not report or delete a file based on local queue acceptance.
+         * The app validates received bytes and issues deletion separately. */
+        app_ppg_file_hardle.fls_status = PPG_FLS_IDIE;
+    }
+}
+
+#else
 static void ppg_file_data_upload_handler_thread(void * p_context)
 {
 	uint32_t ppg_file_pack_number = 0;
@@ -1611,6 +1763,8 @@ static void ppg_file_one_click_upload_handler_thread(void * p_context)
     bc_rtos_thread_suspend(task_thread[APP_FILE_ONE_CLICK_UPLOAD_TASK_TYPE].thread_handler);
   }
 }
+#endif
+
 
 
 void app_ppg_file_format(struct app_cmd_package * pack)
@@ -1876,6 +2030,9 @@ void app_ppg_file_ls(struct app_cmd_package * pack)
 
 bool app_ppg_file_upload(struct app_cmd_package * pack)
 {
+#if defined(SUDO_VOICE_ONLY)
+    return sudo_file_request(pack, 0, 0);
+#else
 	memset((uint8_t*)&app_ppg_file_package,0,sizeof(app_ppg_file_package));
 	memcpy((uint8_t*)&app_ppg_file_package,(uint8_t*)pack,60);
 	if(app_ppg_file_hardle.fls_status != PPG_FLS_IDIE)
@@ -1904,10 +2061,14 @@ bool app_ppg_file_upload(struct app_cmd_package * pack)
 #endif  
   BC_LOG_INFO("nnnnnnnnn \r\n");
   bc_rtos_thread_resume(task_thread[PPG_FILE_DATA_TASK_TYPE_UPLOAD].thread_handler);   
+#endif
 }
 
 bool app_file_active_upload(struct app_cmd_package * pack)
 {
+#if defined(SUDO_VOICE_ONLY)
+    return sudo_file_request(pack, 0, 0);
+#else
 	memset((uint8_t*)&app_ppg_file_package,0,sizeof(app_ppg_file_package));
 	memcpy((uint8_t*)&app_ppg_file_package,(uint8_t*)pack,60);
 	if(app_ppg_file_hardle.fls_status != PPG_FLS_IDIE)
@@ -1934,11 +2095,17 @@ bool app_file_active_upload(struct app_cmd_package * pack)
 
   
   bc_rtos_thread_resume(task_thread[PPG_FILE_DATA_TASK_TYPE_UPLOAD].thread_handler);   
+#endif
 }
 
 
 bool app_ppg_file_resume_upload(struct app_cmd_package * pack)
 {
+#if defined(SUDO_VOICE_ONLY)
+    uint32_t offset;
+    memcpy(&offset, pack->data, sizeof(offset));
+    return sudo_file_request(pack, 4, offset);
+#else
   
 	memset((uint8_t*)&app_ppg_file_package,0,sizeof(app_ppg_file_package));
 	memcpy((uint8_t*)&app_ppg_file_package,(uint8_t*)pack,60);
@@ -1964,10 +2131,18 @@ bool app_ppg_file_resume_upload(struct app_cmd_package * pack)
 	bc_delay_ms(100);
 
   bc_rtos_thread_resume(task_thread[APP_FILE_RESUME_UPLOAD_TASK_TYPE].thread_handler);
+#endif
 }
 
 bool app_ppg_file_one_click_upload(struct app_cmd_package * pack)
 {
+#if defined(SUDO_VOICE_ONLY)
+    /* The client requests individual files; remove the vendor batch worker. */
+    struct app_cmd_package reply = *pack;
+    reply.data[0] = 0;
+    app_package_send_enqueue(&reply, 5);
+    return false;
+#else
   
 	memset((uint8_t*)&app_ppg_file_package,0,sizeof(app_ppg_file_package));
 	memcpy((uint8_t*)&app_ppg_file_package,(uint8_t*)pack,60);
@@ -1993,6 +2168,7 @@ bool app_ppg_file_one_click_upload(struct app_cmd_package * pack)
   ppg_file_one_click_upload_index = pack->data[0];
 	bc_delay_ms(100);
 	bc_rtos_thread_resume(task_thread[APP_FILE_ONE_CLICK_UPLOAD_TASK_TYPE].thread_handler);
+#endif
 }
 
 

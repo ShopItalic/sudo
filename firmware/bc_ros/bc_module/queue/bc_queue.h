@@ -46,6 +46,9 @@ typedef enum
 bool bc_queue_isr_enqueue(bc_queue_type queue_type,void *  enqueue_data);
 bool bc_queue_isr_enqueue_not_yield(bc_queue_type queue_type,void *  enqueue_data);
 bool bc_queue_enqueue(bc_queue_type queue_type,void *  enqueue_data);
+struct bc_ble_data_package;
+bool bc_queue_ble_send(const struct bc_ble_data_package *packet,
+                       uint32_t session, uint32_t wait_ticks);
 
 bool bc_queue_dequeue(bc_queue_type queue_type, void *  const pvBuffer);
 

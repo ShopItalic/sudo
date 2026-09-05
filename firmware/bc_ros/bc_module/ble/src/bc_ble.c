@@ -47,6 +47,9 @@
 #include "bc_ble_hids_service.h"
 #include "bc_device_info.h"
 #include "bc_delay.h"
+#include "bc_rtos.h"
+#include "bc_ble_tx.h"
+#include "bc_queue.h"
 ////#include "bc_watchdog.h"
 
 #include "peer_manager.h"
@@ -84,15 +87,34 @@ uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;
 //static bool info_service_enabled = false;
 
 
-static bool ble_connect_status = false;
+static volatile bool ble_connect_status = false;
+static volatile uint32_t tx_session = 0;
+static volatile bool tx_failed = false;
+static SemaphoreHandle_t tx_event = NULL;
 static bool pm_connect_status = false;
 #if defined(HANDWARE_1_23_4)
 static bool m_conn_rejected = false;
 static bc_ble_connect_guard_callback m_ble_connect_guard = NULL;
 #endif
 
-static uint8_t respose_data[256];
-static uint16_t respose_len;
+uint32_t bc_ble_session_id(void)
+{
+    return tx_session;
+}
+
+void bc_ble_tx_wake(void)
+{
+    if (tx_event == NULL)
+        return;
+    if (__get_IPSR() != 0)
+    {
+        BaseType_t wake = pdFALSE;
+        (void)xSemaphoreGiveFromISR(tx_event, &wake);
+        portYIELD_FROM_ISR(wake);
+    }
+    else
+        (void)xSemaphoreGive(tx_event);
+}
 //static void fml_ble_recv_callback(uint8_t *recv_data,uint8_t recv_length)
 //{
 //	LOG_HEX("ble-recv:",recv_data,recv_length);
@@ -168,11 +190,13 @@ static void info_service_data_handler(ble_info_service_evt_t * p_evt)
     //通知使能后
     case BLE_NUS_EVT_COMM_STARTED:
     {
+      bc_ble_tx_wake();
       break;
     }
    //通知关闭后，
     case BLE_NUS_EVT_COMM_STOPPED:
     {
+      bc_ble_tx_wake();
       break;
     }
      //判断事件类型:接收到新数据事件
@@ -256,7 +280,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     ret_code_t err_code = NRF_SUCCESS;
 	 struct bc_ble_calss  ble_calss = bc_ble_new();
-	BC_LOG_INFO("p_ble_evt->header.evt_id:%04x \r\n",p_ble_evt->header.evt_id);
+    if (p_ble_evt->header.evt_id != BLE_GATTS_EVT_HVN_TX_COMPLETE)
+        BC_LOG_INFO("BLE event: %04x\r\n", p_ble_evt->header.evt_id);
     //判断BLE事件类型，根据事件类型执行相应操作
     switch (p_ble_evt->header.evt_id)
     {
@@ -269,6 +294,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             {
                 m_conn_rejected = false;
                 m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            ++tx_session;
+            bc_ble_gatt_reset();
+            bc_ble_tx_wake();
                 BC_LOG_INFO("Rejected connection disconnected.\r\n");
                 advertising_start();
                 break;
@@ -335,6 +363,10 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
 				    //保存连接句柄
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            ++tx_session;
+            tx_failed = false;
+            bc_ble_gatt_reset();
+            bc_ble_tx_wake();
 				    //将连接句柄分配给排队写入实例，分配后排队写入实例和该连接关联，这样，当有多个连接的时候，通过关联不同的排队写入实例，很方便单独处理各个连接
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
@@ -356,6 +388,10 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             } break;
 				
         //PHY更新事件
+        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
+            bc_ble_tx_wake();
+            break;
+
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
         {
 #if defined(HANDWARE_1_23_4)
@@ -370,8 +406,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             {
                 //.rx_phys = BLE_GAP_PHY_AUTO,
 //                .tx_phys = BLE_GAP_PHY_AUTO,
-              .rx_phys = BLE_GAP_PHY_2MBPS,
-                .tx_phys = BLE_GAP_PHY_2MBPS,
+              .rx_phys = BLE_GAP_PHY_AUTO,
+                .tx_phys = BLE_GAP_PHY_AUTO,
             };
 						//响应PHY更新规程
             err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
@@ -463,7 +499,33 @@ static void ble_stack_init(void)
     APP_ERROR_CHECK(err_code);
 
     //使能BLE协议栈
+#if defined(SUDO_VOICE_ONLY)
+    {
+        /* Request a useful notification window without borrowing app RAM.
+         * sd_ble_enable writes its required RAM base back through the pointer;
+         * always restore the LINKER base before a retry. */
+        const uint32_t linker_ram_start = ram_start;
+        ble_cfg_t config = {0};
+        config.conn_cfg.conn_cfg_tag = APP_BLE_CONN_CFG_TAG;
+        config.conn_cfg.params.gatts_conn_cfg.hvn_tx_queue_size = 6;
+        err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATTS, &config, linker_ram_start);
+        if (err_code == NRF_SUCCESS)
+            err_code = nrf_sdh_ble_enable(&ram_start);
+        if (err_code == NRF_ERROR_NO_MEM)
+        {
+            config.conn_cfg.params.gatts_conn_cfg.hvn_tx_queue_size = 1;
+            err_code = sd_ble_cfg_set(BLE_CONN_CFG_GATTS, &config, linker_ram_start);
+            APP_ERROR_CHECK(err_code);
+            ram_start = linker_ram_start;
+            err_code = nrf_sdh_ble_enable(&ram_start);
+            BC_LOG_WARN("BLE TX window: 1 (RAM fallback)\r\n");
+        }
+        else if (err_code == NRF_SUCCESS)
+            BC_LOG_INFO("BLE TX window: 6\r\n");
+    }
+#else
     err_code = nrf_sdh_ble_enable(&ram_start);
+#endif
     APP_ERROR_CHECK(err_code);
 
     //注册BLE事件回调函数
@@ -669,37 +731,91 @@ static void peer_manager_init(void)
 
 	
 
-void bc_ble_send(uint8_t *send_data,uint16_t send_length)
+/* The TX task is the sole caller. Stack acceptance is not a phone ACK. */
+static uint32_t tx_now(void *context)
 {
-	uint32_t       err_code;
-	memcpy(respose_data,send_data,send_length);
-	respose_len = send_length;
-	
-	do
-	{
-		err_code = ble_info_service_data_send(&m_info_service, respose_data, &respose_len, m_conn_handle);
-		if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_RESOURCES) &&
-       (err_code != NRF_ERROR_NOT_FOUND) )
+    (void)context;
+    return (uint32_t)xTaskGetTickCount();
+}
+
+static bool tx_current(void *context, uint32_t session)
+{
+    (void)context;
+    return ble_connect_status && !tx_failed && tx_session == session;
+}
+
+static void tx_wait(void *context, uint32_t ticks)
+{
+    (void)context;
+    (void)xSemaphoreTake(tx_event, (TickType_t)ticks);
+}
+
+static bc_ble_tx_attempt_result tx_attempt(void *context, const uint8_t *data,
+                                         uint16_t length)
+{
+    uint32_t error;
+    uint16_t accepted_length = length;
+    uint32_t session = *(const uint32_t *)context;
+    /* Keep the epoch/handle check and SVC together across RTOS switches. */
+    taskENTER_CRITICAL();
+    if (!tx_current(NULL, session) || length > bc_ble_payload_limit())
+        error = NRF_ERROR_INVALID_STATE;
+    else
+        error = ble_info_service_data_send(&m_info_service, (uint8_t *)data,
+                                            &accepted_length, m_conn_handle);
+    taskEXIT_CRITICAL();
+    if (error == NRF_SUCCESS)
+        return accepted_length == length ? BC_BLE_TX_ATTEMPT_ACCEPTED
+                                         : BC_BLE_TX_ATTEMPT_FATAL;
+    if (error == NRF_ERROR_RESOURCES || error == NRF_ERROR_INVALID_STATE ||
+        error == BLE_ERROR_GATTS_SYS_ATTR_MISSING || error == NRF_ERROR_BUSY)
+        return BC_BLE_TX_ATTEMPT_RETRY;
+    BC_LOG_WARN("BLE TX failed: %lu\r\n", (unsigned long)error);
+    return BC_BLE_TX_ATTEMPT_FATAL;
+}
+
+void bc_ble_send_session(uint8_t *data, uint16_t length, uint32_t session)
+{
+    bc_ble_tx_port port = { &session, tx_attempt, tx_now, tx_wait, tx_current };
+    bc_ble_tx_result result;
+    if (tx_event == NULL)
+        return;
+    result = bc_ble_tx_write(&port, data, length, session,
+                              pdMS_TO_TICKS(10000), pdMS_TO_TICKS(100));
+    if (result != BC_BLE_TX_ACCEPTED && result != BC_BLE_TX_CANCELLED)
+    {
+        /* Abort this link so queued EOF cannot follow a lost audio packet.
+         * Stored recordings remain available for a fresh sync after reconnect. */
+        taskENTER_CRITICAL();
+        if (tx_current(NULL, session))
         {
-                APP_ERROR_CHECK(err_code);
+            tx_failed = true;
+            (void)sd_ble_gap_disconnect(m_conn_handle,
+                                        BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
         }
-        if (NRF_ERROR_NOT_FOUND == err_code || NRF_ERROR_INVALID_STATE == err_code || NRF_ERROR_INVALID_PARAM == err_code)
-        {
-            break;
-        }
-        /* 忙等期间喂狗，防止高优先级线程长时间占用CPU导致看门狗复位 */
-        if (err_code == NRF_ERROR_RESOURCES)
-        {
-            bc_dog_feed();
-        }
-  } while (err_code != NRF_SUCCESS);
-	 
+        taskEXIT_CRITICAL();
+        BC_LOG_WARN("BLE TX aborted: %u\r\n", (unsigned int)result);
+    }
+}
+
+void bc_ble_send(uint8_t *send_data, uint16_t send_length)
+{
+    struct bc_ble_data_package packet = {0};
+    if (!send_data || !send_length || send_length > BC_BLE_TX_MAX_LENGTH ||
+        !bc_ble_connect_status())
+        return;
+    memcpy(packet.data, send_data, send_length);
+    packet.data_length = send_length;
+    if (__get_IPSR() != 0)
+        (void)bc_queue_isr_enqueue(BC_QUEUE_TYPE_BLE_SEND, &packet);
+    else
+        (void)bc_queue_ble_send(&packet, bc_ble_session_id(), pdMS_TO_TICKS(100));
 }
 
 
 bool bc_ble_connect_status(void)
 {
-	return ble_connect_status;
+	return ble_connect_status && !tx_failed;
 }
 
 bool bc_ble_pm_connect_status(void)
@@ -767,6 +883,9 @@ void bc_ble_mac_set(uint8_t *ble_mac)
 
 void bc_ble_init(void)
 {
+    tx_event = xSemaphoreCreateBinary();
+    if (tx_event == NULL)
+        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
 	bc_device_hid_info *hid_info;
 	hid_info = bc_device_info_get_hid_info();
 #if APP_CHECK_BOOT_VALID	

@@ -1,12 +1,18 @@
 # Open work
 
-- Review and import the vendor `1.23.2_6033固件SDK.zip` source tree as a
-  buildable, licensed snapshot. Use the pinned SHA-256 in
-  [the source manifest](reference/sudo-ring/sources.json) and identify the
-  exact compiler, SDK, target, linker, and packaging tools. Reproduce the
-  unmodified vendor build and record its command, tool versions, output hashes,
-  and memory use. The recovered raw image is evidence only and does not by
-  itself establish a source build or approved release.
+- Rebuild factory source commit `102bfd2` with Arm Compiler 5.06 update 7
+  (build 960), then link the [Sudo Voice candidate](reference/ring-firmware-candidate.md).
+  Resolve the existing vendor warnings and inspect all memory/stack boundaries,
+  opaque library compatibility, and the selected six/one notification window.
+  Host fault tests and GNU ARM object checks are complete; no production image
+  has been linked, signed, installed, or measured.
+- Run the candidate's supplier acceptance matrix on a spare production ring:
+  transfer integrity and throughput, resume/cancellation, small MTU and stalled
+  notifications, persisted settings, recording, charging/thermal behavior,
+  pairing, and DFU/recovery. Enable app resume only after joint validation.
+- Confirm the lean feature scope with the supplier. Temperature and shared
+  motion dependencies remain; PPG was already disabled. The candidate excludes
+  optional phone/media HID actions and vendor batch uploads.
 - Resolve the [open specifications](reference/sudo-ring-hardware.md#open-specifications),
   including battery ratings, fitted PMIC / haptic parts, case BOM, mechanical
   clearance, RF evidence, and supplier cost discrepancies.

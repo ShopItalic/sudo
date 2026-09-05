@@ -1,0 +1,23 @@
+name: Firmware source checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Verify preserved factory source
+        run: python3 tools/firmware/verify_baseline.py
+      - name: Check generated Keil profile
+        run: |
+          python3 tools/firmware/make_voice_project.py
+          git diff --exit-code -- firmware/BCL603S2X/app/project/mdk5/sudo_voice.uvprojx firmware/voice-profile.json
+      - name: Run transfer fault-injection tests
+        run: sh tools/firmware/test.sh

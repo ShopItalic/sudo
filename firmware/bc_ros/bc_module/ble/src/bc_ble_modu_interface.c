@@ -38,7 +38,9 @@ struct bc_ble_data_package ble_port_cmd_pack;
 static void bc_ble_recv(uint8_t *recv_data,uint16_t recv_length)
 {
 #if (HARDWARE_ARCH_TYPE_NORDIC == 1)	
-	struct bc_ble_data_package ble_recv_pack;
+	struct bc_ble_data_package ble_recv_pack = {0};
+    if (!recv_data || !recv_length || recv_length > sizeof(ble_recv_pack.data))
+        return;
 	memcpy(ble_recv_pack.data,recv_data,recv_length);
     ble_recv_pack.data_length = recv_length;	
 	BC_LOG_HEX("ble recv:",ble_recv_pack.data,ble_recv_pack.data_length);
@@ -49,7 +51,10 @@ static void bc_ble_recv(uint8_t *recv_data,uint16_t recv_length)
 //  }
 //  else
 //  {
-    bc_queue_enqueue(BC_QUEUE_TYPE_BLE_RECV,&ble_recv_pack);
+    if (__get_IPSR() != 0)
+        (void)bc_queue_isr_enqueue(BC_QUEUE_TYPE_BLE_RECV, &ble_recv_pack);
+    else
+        (void)bc_queue_enqueue(BC_QUEUE_TYPE_BLE_RECV, &ble_recv_pack);
 //  }
 //	
 #endif	

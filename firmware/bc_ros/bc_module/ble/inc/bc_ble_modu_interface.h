@@ -33,6 +33,7 @@ struct bc_ble_data_package
 {
 	uint8_t data[250];
 	uint16_t data_length;
+    uint32_t session_id; /* Queue metadata only; never transmitted. */
 };
 
 

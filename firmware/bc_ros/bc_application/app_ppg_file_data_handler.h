@@ -53,6 +53,7 @@ bool app_ppg_file_resume_upload(struct app_cmd_package * pack);
 bool app_ppg_file_one_click_upload(struct app_cmd_package * pack);
 void app_ppg_list_capture_audio_up_check(void) ;
 bool app_file_active_upload(struct app_cmd_package * pack);
+void app_ppg_file_upload_cancel(void);
 
 #if defined(HANDWARE_1_23_2_ONE_SEC)
 uint8_t lk_app_ppg_file_open(enum ppg_file_type file_type);

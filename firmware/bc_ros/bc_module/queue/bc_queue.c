@@ -9,6 +9,7 @@
 
 
 #include "bc_ble_modu_interface.h"
+#include "bc_ble.h"
 #include "bc_logger.h"
 #include "bc_ppg.h"
 #include "bc_pdm.h"
@@ -130,9 +131,17 @@ static bc_rtos_queue_struct bc_queue[BC_QUEUE_TYPE_NUM] = {
  *******************************************************************************/
  bool bc_queue_isr_enqueue(bc_queue_type queue_type,void *  enqueue_data)
 {
-	bc_base_type_t xReturn = bc_pdPASS;
+	struct bc_ble_data_package copy;
+    if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
+    {
+        copy = *(const struct bc_ble_data_package *)enqueue_data;
+        copy.session_id = bc_ble_session_id();
+        enqueue_data = &copy;
+    }
+    bc_base_type_t xReturn = bc_pdPASS;
 	signed bc_long  xHigherPriorityTaskWoken;	
-	if(bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
+	if(queue_type > BC_QUEUE_TYPE_BLE_SEND &&
+       bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
 	{
         //BC_LOG_ERROR("queue enqueue fial, queue type:%d  queue_count:%d \r\n",queue_type,bc_queue[queue_type].queue_count);
 		return false;
@@ -157,9 +166,17 @@ static bc_rtos_queue_struct bc_queue[BC_QUEUE_TYPE_NUM] = {
 
 bool bc_queue_isr_enqueue_not_yield(bc_queue_type queue_type,void *  enqueue_data)
 {
-	bc_base_type_t xReturn = bc_pdPASS;
+	struct bc_ble_data_package copy;
+    if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
+    {
+        copy = *(const struct bc_ble_data_package *)enqueue_data;
+        copy.session_id = bc_ble_session_id();
+        enqueue_data = &copy;
+    }
+    bc_base_type_t xReturn = bc_pdPASS;
 	signed bc_long  xHigherPriorityTaskWoken;	
-	if(bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
+	if(queue_type > BC_QUEUE_TYPE_BLE_SEND &&
+       bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
 	{
         //BC_LOG_ERROR("queue enqueue fial, queue type:%d  queue_count:%d \r\n",queue_type,bc_queue[queue_type].queue_count);
 		return false;
@@ -193,19 +210,25 @@ bool bc_queue_isr_enqueue_not_yield(bc_queue_type queue_type,void *  enqueue_dat
  *******************************************************************************/
 bool bc_queue_enqueue(bc_queue_type queue_type,void *  enqueue_data)
 {
-//	bc_rtos_sem_take(BC_ENUQUE_SEM );
+if (queue_type == BC_QUEUE_TYPE_BLE_SEND)
+        return bc_queue_ble_send((const struct bc_ble_data_package *)enqueue_data,
+                                 bc_ble_session_id(), 0);
+    //	bc_rtos_sem_take(BC_ENUQUE_SEM );
 	bc_base_type_t xReturn = bc_pdPASS;
 
 	
-	if(bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
+	if(queue_type > BC_QUEUE_TYPE_BLE_SEND &&
+       bc_queue[queue_type].queue_count >= bc_queue[queue_type].queue_depth)
 	{
 
 //		bc_rtos_sem_give(BC_ENUQUE_SEM);
         BC_LOG_ERROR("queue enqueue fial, queue type:%d  queue_count:%d \r\n",queue_type,bc_queue[queue_type].queue_count);
 		return false;
 	}
-    BC_LOG_INFO("queue enqueue ok, queue type:%d  queue_count:%d enqueue_count:%d\r\n",queue_type,bc_queue[queue_type].queue_count,bc_queue[queue_type].enqueue_count);
-	xReturn = bc_rtos_queue_send(bc_queue[queue_type].queue_handler,(void *)enqueue_data);
+    if (queue_type > BC_QUEUE_TYPE_BLE_SEND) BC_LOG_INFO("queue enqueue ok, queue type:%d  queue_count:%d enqueue_count:%d\r\n",queue_type,bc_queue[queue_type].queue_count,bc_queue[queue_type].enqueue_count);
+	xReturn = (queue_type == BC_QUEUE_TYPE_BLE_RECV)
+        ? xQueueSend(bc_queue[queue_type].queue_handler, enqueue_data, 0)
+        : bc_rtos_queue_send(bc_queue[queue_type].queue_handler, enqueue_data);
 	if(xReturn != bc_pdPASS)
 	{
 //		bc_rtos_sem_give(BC_ENUQUE_SEM);
@@ -240,7 +263,7 @@ bool bc_queue_dequeue(bc_queue_type queue_type, void *  const pvBuffer)
 		return false;
 	}
     
-    BC_LOG_INFO("queue dequeue ok, queue type:%d  queue_count:%d dequeue_conut:%d\r\n",queue_type,bc_queue[queue_type].queue_count,bc_queue[queue_type].dequeue_conut);
+    if (queue_type > BC_QUEUE_TYPE_BLE_SEND) BC_LOG_INFO("queue dequeue ok, queue type:%d  queue_count:%d dequeue_conut:%d\r\n",queue_type,bc_queue[queue_type].queue_count,bc_queue[queue_type].dequeue_conut);
     bc_rtos_taskENTER_CRITICAL();
     if(bc_queue[queue_type].queue_count)
         bc_queue[queue_type].queue_count--;
@@ -322,3 +345,21 @@ void bc_queue_init(void)
 
 
 
+
+/* One bounded enqueue, with epoch metadata retained even if the link changes
+ * while xQueueSend is blocked. The consumer discards stale epochs. */
+bool bc_queue_ble_send(const struct bc_ble_data_package *packet,
+                       uint32_t session, uint32_t wait_ticks)
+{
+    struct bc_ble_data_package copy;
+    if (!packet || !packet->data_length ||
+        packet->data_length > sizeof(packet->data) ||
+        !bc_ble_connect_status() || session != bc_ble_session_id())
+        return false;
+    copy = *packet;
+    copy.session_id = session;
+    if (xQueueSend(bc_queue[BC_QUEUE_TYPE_BLE_SEND].queue_handler,
+                   &copy, wait_ticks) != pdPASS)
+        return false;
+    return bc_ble_connect_status() && session == bc_ble_session_id();
+}

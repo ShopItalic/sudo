@@ -4,7 +4,8 @@ This repository documents the production Italic Ring hardware and firmware.
 
 ## Start here
 
-- [Firmware baseline](firmware.md): source-tree import, build, and acceptance gates.
+- [Sudo Voice firmware candidate](reference/ring-firmware-candidate.md): preserved source, BLE improvements, lean target, validation, and supplier acceptance.
+- [Firmware baseline](firmware.md): factory source, toolchain, and acceptance gates.
 - [Raw factory firmware extraction](reference/ring-firmware.md): recovered image files, memory map, hashes, and signature checks.
 - [Component stack and BOM](reference/sudo-ring-hardware.md): detailed electronics, mechanics, supplier costs, and open specifications.
 - [Component BOM](reference/sudo-ring/bom.csv), [quoted cost BOM](reference/sudo-ring/quoted-bom.csv), [workbook extracts](reference/sudo-ring/source-extracts.json), and [source manifest](reference/sudo-ring/sources.json).

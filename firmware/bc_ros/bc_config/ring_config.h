@@ -1,3 +1,6 @@
+#if defined(SUDO_VOICE_ONLY)
+#include "sudo_voice_profile.h"
+#endif
 /*****************************************************************/
 
 /// <<< Use Configuration Wizard in Context Menu >>>\n

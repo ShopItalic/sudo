@@ -143,10 +143,11 @@ static void on_hvx_tx_complete(ble_info_service_t * p_info_service, ble_evt_t co
     err_code = blcm_link_ctx_get(p_info_service->p_link_ctx_storage,
                                  p_ble_evt->evt.gatts_evt.conn_handle,
                                  (void *) &p_client);
-    if (err_code != NRF_SUCCESS)
+    if (err_code != NRF_SUCCESS || p_client == NULL)
     {
         BC_LOG_ERROR("Link context for 0x%02X connection handle could not be fetched.",
                       p_ble_evt->evt.gatts_evt.conn_handle);
+        return;
     }
     
     //通知使能的情况下才会执行回调

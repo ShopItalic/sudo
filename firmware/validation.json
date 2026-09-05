@@ -1,0 +1,160 @@
+{
+  "validated_on": "2026-09-05",
+  "host": "mba",
+  "baseline_commit": "102bfd263952caaf532f0d53041b1f35bdfa943a",
+  "source_archive_sha256": "ea3db9a85e153a49f77e716cd60c4127463484792235e91311b281f05a111d15",
+  "source_hashes": {
+    "firmware/BCL603S2X/app/project/mdk5/sudo_voice.uvprojx": "3f4674076d9dbb4780d895857d58ff31102a9a956c95eeeff94dbd448332927b",
+    "firmware/bc_ros/bc_application/app.c": "734272bb845c9c8a309f7f828c271d4e74e991a711ec38088f606a0e885a755b",
+    "firmware/bc_ros/bc_application/app_ble_handler.c": "e94e45682091c7d1cd42907431c5e81cec1d45503440b4499d7929938c45f903",
+    "firmware/bc_ros/bc_application/app_cmd_handler.c": "d30a0faf60692c3ea61dabf2fc590f2c6d827694dd732c02eadc7eba4e81fd50",
+    "firmware/bc_ros/bc_application/app_package.c": "b9619cf19cc3bb07b3e6b1bc79458115100fcd83b6a6999f097c97699833e1f3",
+    "firmware/bc_ros/bc_application/app_ppg_file_data_handler.c": "6f77f3a270a061290874d80a9e29851f6c8d5ba7fe7608ec36330151881ad73d",
+    "firmware/bc_ros/bc_application/app_ppg_file_data_handler.h": "4794aef22784a9088fc838ed3d177b238da471b586900c4bb0bcf3d13a84fcac",
+    "firmware/bc_ros/bc_config/ring_config.h": "742b29af791d1ba9129b128b31cfccfc0c24dd1af3f318dc97e110522c08f557",
+    "firmware/bc_ros/bc_config/sudo_voice_profile.h": "959184924d2acd42afb4a70507e395637271c285a66bee93d945abab111333a1",
+    "firmware/bc_ros/bc_module/ble/inc/bc_ble.h": "081babe4d741c040cfadf291d0d8cbbf4890fc59c7871d94d67098d960d4b27b",
+    "firmware/bc_ros/bc_module/ble/inc/bc_ble_gatt.h": "2614ceed60b2f8e47c17c6428c0385a88f895c0f60229801298fd10fba3e9e0f",
+    "firmware/bc_ros/bc_module/ble/inc/bc_ble_modu_interface.h": "50b073f5ce63f762709aac4a4484346bf4b6f89c21d57a2c46a4ed5b83c1886c",
+    "firmware/bc_ros/bc_module/ble/inc/bc_ble_tx.h": "280224ed6f3132d6afe02426d9e22310b742e9d5e440a74b855a701ef4166fd3",
+    "firmware/bc_ros/bc_module/ble/inc/bc_file_transfer.h": "caed0d791fb677e7de4fcef41b105200cdc13f57ad13f2042ae3a417c1330399",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble.c": "555e2be4f2e61adab5059c1c5165025028c2e8e99e4730113974a10da511388b",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble_gatt.c": "a9ea22fdacaedc22bce7ee83c47e85fcbfe4053d5e328356c9a5d8eb0a5f573a",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble_hids_service.c": "d977e0c2414eda94b25797ab53d996008d166726f0deb02b400ae29c8d31057e",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble_info_service.c": "86235325f7093639c7c3b4d336d01ab9d1043da00c3482fa160de6bc7292f815",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble_modu_interface.c": "b23f41a7fb4aec8e8430f451430be02dc3a9923248fde14b147b5b1253e19fc8",
+    "firmware/bc_ros/bc_module/ble/src/bc_ble_tx.c": "47cc51b2ae26c5d09e969db2c3c2b15eb0216fbc3e47497b12280206a9ea68a2",
+    "firmware/bc_ros/bc_module/ble/src/bc_file_transfer.c": "b3fef84248450dd722b1d59e23068521d74081f502aecb92358dd31bdf5df2a2",
+    "firmware/bc_ros/bc_module/queue/bc_queue.c": "0b9de76e629ba8db71d6728e904bb488f0599cc318a759c0f00c90adf4732ba5",
+    "firmware/bc_ros/bc_module/queue/bc_queue.h": "2fd7fe9cfa825d83caa15f86f87c3afcd3309767eb80982fe3d762a6290d6e1f",
+    "firmware/voice-profile.json": "99a7d644714bc6873c8c166be3d6b180a4242866be4fb8056b8890ef8f339aa7",
+    "tests/firmware/test_transfer.c": "d6ef7903d7d4fcd92a149a504e6c633aeac22f4246dad105120d9f3deb42ab9e",
+    "tools/firmware/check_arm.py": "bcb99bb140e1ee83893b76c5560097fdf770d9b70b64c2690e0b9c5e483e68c9",
+    "tools/firmware/make_voice_project.py": "dc6c82368f456506225c9583e5e44b3cb8fc426fa16d9349e28d13e6d505463f",
+    "tools/firmware/prepare_headers.py": "2707e293ef26622972089317f655cb9ff44c9c8bfded49391a28d06dd9c75326",
+    "tools/firmware/test.sh": "fea9842f44eff83d16033a811236a72b91df19a6888e4eb0575deb6b31fc4766",
+    "tools/firmware/verify_baseline.py": "02ab91c83a096514c46459e156d9fc5fb178670bc256681bf9ea0af526f756bf"
+  },
+  "host_tests": {
+    "command": "sh tools/firmware/test.sh",
+    "checks_passed": 462,
+    "address_sanitizer": true,
+    "undefined_behavior_sanitizer": true,
+    "scope": "actual portable retry and file transfer cores with fault-injecting callbacks"
+  },
+  "arm_objects": {
+    "compiler": "arm-none-eabi-gcc (GCC) 16.2.0",
+    "command": "python3 tools/firmware/check_arm.py",
+    "baseline_translation_units_passed": 10,
+    "candidate_translation_units_passed": 13,
+    "configuration": "Cortex-M4 Thumb hard-float; real vendor SDK; GCC Nordic FreeRTOS port; __MODULE__ diagnostic alias; Newlib headers",
+    "compiled": [
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble.c",
+        "source_sha256": "555e2be4f2e61adab5059c1c5165025028c2e8e99e4730113974a10da511388b",
+        "object_sha256": "b75e717fe6eabe104c2e1aafa2e6768106377f214f8ee2d098cfa55ecea8c719",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble_gatt.c",
+        "source_sha256": "a9ea22fdacaedc22bce7ee83c47e85fcbfe4053d5e328356c9a5d8eb0a5f573a",
+        "object_sha256": "a9584b26bbd0987ee1840767f1cb7ced925a303dc53dba4e85e8c400f80a6f4f",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble_info_service.c",
+        "source_sha256": "86235325f7093639c7c3b4d336d01ab9d1043da00c3482fa160de6bc7292f815",
+        "object_sha256": "8c325d61961f1328eafff7a52de700491090a0bb9f2820fcbae571fab824f8c1",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble_modu_interface.c",
+        "source_sha256": "b23f41a7fb4aec8e8430f451430be02dc3a9923248fde14b147b5b1253e19fc8",
+        "object_sha256": "50f930dbc377f5e5259fbb4f0652a5db1a43fb79848fb15b14c3033ccc15771b",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble_hids_service.c",
+        "source_sha256": "d977e0c2414eda94b25797ab53d996008d166726f0deb02b400ae29c8d31057e",
+        "object_sha256": "42828dfa35228c35e52f53918b33698ca8e638bbc9970eaaeae4e84d850306fa",
+        "status": "compiled",
+        "warnings": [
+          "comparison between pointer and integer"
+        ]
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/queue/bc_queue.c",
+        "source_sha256": "0b9de76e629ba8db71d6728e904bb488f0599cc318a759c0f00c90adf4732ba5",
+        "object_sha256": "d1f5fee23aa4dc84b336b50b9dc990b92b02701d325f86a4059ef1b5da27a35f",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app_ble_handler.c",
+        "source_sha256": "e94e45682091c7d1cd42907431c5e81cec1d45503440b4499d7929938c45f903",
+        "object_sha256": "66365963b471f6a8fb9c29c4a1f97f1a9df9eaddf1d242f60680ceda8a99140b",
+        "status": "compiled",
+        "warnings": [
+          "comparison between pointer and integer"
+        ]
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app_package.c",
+        "source_sha256": "b9619cf19cc3bb07b3e6b1bc79458115100fcd83b6a6999f097c97699833e1f3",
+        "object_sha256": "a3f047bd39acf355b0ebccb429d2ce3d65708515d110d47a1c2f3dfe09b7ca91",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app_cmd_handler.c",
+        "source_sha256": "d30a0faf60692c3ea61dabf2fc590f2c6d827694dd732c02eadc7eba4e81fd50",
+        "object_sha256": "51a20e21d590fc222e77263a74465adc8c23a2f847e79bf7e1603a255e574d9e",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app_ppg_file_data_handler.c",
+        "source_sha256": "6f77f3a270a061290874d80a9e29851f6c8d5ba7fe7608ec36330151881ad73d",
+        "object_sha256": "7c3b6b81d1dbc0d328e7d606644ed70228f46a459136147489e871debab88195",
+        "status": "compiled",
+        "warnings": [
+          "comparison between pointer and integer"
+        ]
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app.c",
+        "source_sha256": "734272bb845c9c8a309f7f828c271d4e74e991a711ec38088f606a0e885a755b",
+        "object_sha256": "90f743a80d3fda4a455aa9c6057e686effb257c90b9edb425a251258ef062d5e",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_ble_tx.c",
+        "source_sha256": "47cc51b2ae26c5d09e969db2c3c2b15eb0216fbc3e47497b12280206a9ea68a2",
+        "object_sha256": "71aa8f1713aafb4d210c102924c0b164f4677446e31ebb46ce5ac171febb9cc4",
+        "status": "compiled",
+        "warnings": []
+      },
+      {
+        "source": "firmware/bc_ros/bc_module/ble/src/bc_file_transfer.c",
+        "source_sha256": "b3fef84248450dd722b1d59e23068521d74081f502aecb92358dd31bdf5df2a2",
+        "object_sha256": "40ec46f97fbbb0fd15cb5eaebdf988ff982472192740e6c19e503a3f3a92366b",
+        "status": "compiled",
+        "warnings": []
+      }
+    ]
+  },
+  "not_verified": [
+    "Complete Arm Compiler 5 production link",
+    "Source-to-factory image reproduction",
+    "Actual notification window and memory headroom",
+    "Physical recording and app interoperability",
+    "Transfer throughput or battery improvement",
+    "Update signing, installed identity, DFU or recovery"
+  ],
+  "physical_operations": []
+}

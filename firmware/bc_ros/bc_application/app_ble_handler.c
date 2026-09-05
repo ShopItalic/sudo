@@ -2,6 +2,7 @@
 
 
 #include "bc_ble_modu_interface.h"
+#include "bc_ble.h"
 #include "bc_queue.h"
 
 #include "app_touch_button_handler.h"
@@ -343,7 +344,7 @@ static void app_ble_recv_handler_thread(void *thread_handler)
 			app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 			ble_calss.ble_connect_params_update(BLE_CONN_PARAMS_FAST);
 		}	
-    bc_rtos_delay(1000);
+    /* Queue receive blocks when idle; drain commands without a fixed delay. */
 	}
 }
 /*******************************************************************************
@@ -364,13 +365,14 @@ static void app_ble_send_handler_thread(void *thread_handler)
 		if(bc_queue_dequeue(BC_QUEUE_TYPE_BLE_SEND,(void*)&ble_send_msg))
 		{
 
-			if(ble_calss.ble_connect_status())
+			if(ble_calss.ble_connect_status() &&
+               ble_send_msg.session_id == bc_ble_session_id())
 			{
-				ble_calss.ble_send(ble_send_msg.data,ble_send_msg.data_length);
+                bc_ble_send_session(ble_send_msg.data, ble_send_msg.data_length,
+                                    ble_send_msg.session_id);
 	//			BC_LOG_INFO("send temp:%d",temp++);
 			}
-			printf("ble_msg.data_length:%d \r\n",ble_send_msg.data_length);
-			BC_LOG_HEX("ble send:",ble_send_msg.data,ble_send_msg.data_length);
+            /* Per-packet UART/hex logging throttles audio transfers. */
 			memset((uint8_t*)&ble_send_msg,0,sizeof(struct bc_ble_data_package));
 			app_connect_idie_timer_start(BLE_CONNECT_IDIE_TIMEOUT_TIMER);
 #if (HARDWARE_153_ENABLED == 1 || HARDWARE_158_ENABLED == 1 || HARDWARE_1121_ENABLED == 1)	
@@ -466,10 +468,15 @@ bool app_ble_notify_allowed(void)
 
 void app_ble_send(uint8_t *send_data,uint8_t send_length)
 {
-	if(ble_calss.ble_connect_status())
-	{
-		ble_calss.ble_send(send_data,send_length);
-	}
+    struct bc_ble_data_package packet = {0};
+    if (!send_data || !send_length || send_length > sizeof(packet.data) ||
+        !ble_calss.ble_connect_status())
+        return;
+    memcpy(packet.data, send_data, send_length);
+    packet.data_length = send_length;
+    /* Do not let concurrent IMU/command producers call the radio directly. */
+    if (!bc_queue_ble_send(&packet, bc_ble_session_id(), pdMS_TO_TICKS(100)))
+        BC_LOG_WARN("BLE TX queue full\r\n");
 }
 
 
