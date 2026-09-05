@@ -1,6 +1,11 @@
 #include "app_pmic_handler.h"
+#include "app_package.h"
+#include "app_rtc_handler.h"
 #include "bc_battery_filter.h"
 #include "bc_pmic.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "timers.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,6 +34,50 @@ static enum pmic_charge_status reentrant_nested_status;
 static enum pmic_charge_status reentrant_restore_status;
 static unsigned reentrant_status_delta;
 static unsigned reentrant_percent_delta;
+
+/*
+ * The app handler translation unit contains the complete legacy PMIC state
+ * machine.  The battery tests root getvpct(), while Linux ELF linking keeps
+ * these external callback/timer edges in the retained sections.  Keep the
+ * boundary doubles typed to the vendor declarations and side-effect free;
+ * none of these callbacks participate in the battery percentage assertions.
+ */
+void app_package_precent_up(uint8_t data)
+{
+    (void)data;
+}
+
+void app_package_precent_status_up(uint16_t data)
+{
+    (void)data;
+}
+
+void app_rtc_ushut_down_time_record(void)
+{
+}
+
+void bc_pmic_set_shipmode(void)
+{
+}
+
+BaseType_t xTimerGenericCommand(TimerHandle_t timer,
+                                BaseType_t command,
+                                TickType_t optional_value,
+                                BaseType_t *higher_priority_task_woken,
+                                TickType_t ticks_to_wait)
+{
+    (void)timer;
+    (void)command;
+    (void)optional_value;
+    (void)higher_priority_task_woken;
+    (void)ticks_to_wait;
+    return pdPASS;
+}
+
+TickType_t xTaskGetTickCount(void)
+{
+    return 0U;
+}
 
 static void check_condition(bool condition, const char *expression,
                             unsigned line)
