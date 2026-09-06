@@ -38,13 +38,15 @@ product decisions:
 - **App capability/version coordination.** Validate the native protocol and
   capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
   Keep the factory `6.0.3.3Z62` identity distinct from the engineering
-  candidates `6.0.3.3S01` (RC1) and `6.0.3.3S02` and `6.0.3.3S03` (current source) and do not let the app workaround imply
-  a release.
-- **Product decisions and historical requirements.** Keep the root/main
-  requirements aligned on a configurable default 10-second PTT limit and an
-  unlimited memo when `memo_limit_ms=0`. Resolve the historical conflicts in
-  [the requirements record](reference/ring-recording-and-ptt.md) explicitly
-  before changing defaults or app behavior.
+  candidates S01 (historical RC1), S02, S03 (published RC1) and S04 (current
+  source review). S04 host adoption is separate from this firmware-only change;
+  no app workaround establishes a release.
+- **Keep release and source documentation aligned.** S04 supersedes the old
+  ten-second default: PTT runs until release; memo is unlimited when
+  `memo_limit_ms=0`. The three mappings and configurable hold activation are
+  recorded in [the requirements record](reference/ring-recording-and-ptt.md).
+  When S04 is merged or released, update the review/release status and publish
+  exact provenance; retain the historical release guides unchanged.
 - **Qualify keyboard dictation and settle additional hosts.** The provisional
   same-iPhone path now has finite background PTT and final-only keyboard
   admission. Verify BLE wake, model execution, actual host-field insertion,
