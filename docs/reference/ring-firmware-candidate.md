@@ -1,6 +1,6 @@
 # Sudo Voice firmware candidate
 
-The **6.0.3.3S01** engineering candidate implements local-first recording,
+The **6.0.3.3S02** engineering candidate implements local-first recording,
 hold/release push-to-talk, configurable double-tap memos, checked storage and
 resumable BLE for the production **603V1.23.2** Ring. The corresponding app
 adapter lives in [ShopItalic/app](https://github.com/ShopItalic/app).
@@ -13,6 +13,16 @@ radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
 remain unmeasured. The [requirements matrix](ring-recording-and-ptt.md) separates
 implemented behavior from device acceptance; the [protocol](ring-voice-protocol.md)
 defines exact packets and error meanings.
+
+## Post-RC1 controls follow-up
+
+S02 makes double-tap recording opt-in and expands the persisted light/haptic
+switches to all normal application feedback. The app retains S01 support and
+labels its older switches as recording-only. The published RC1 tag/assets are
+unchanged; historical build measurements below describe RC1 unless explicitly
+identified as S02. New settings preserve an existing saved choice, and changes
+require idle recording state. Physical feedback and gesture acceptance remain
+pending.
 
 ## Preserved original
 
@@ -41,7 +51,7 @@ physical ring's installed firmware, settings, bonds, calibration, or recordings.
 | --- | --- |
 | Recording ownership | One firmware worker owns the microphone lifecycle, mounted LittleFS instance, recording identity and final state. Connected and standalone recordings use the same storage path; reconnect does not stop capture. |
 | Hold/release | IQS reports include validated contact/release. A separate capture guard enforces release/stale-touch/limit handling independently of a busy storage worker. Stop received during Start is retained. |
-| Memo mode | Double tap toggles a separately configurable memo. PTT defaults to ten seconds; memo/app recording defaults to unlimited. Limits, memo enable, LED and haptic enable persist. |
+| Memo mode | Double tap is off by default and can be enabled in the app to toggle a recording without holding. PTT defaults to ten seconds; memo/app recording defaults to unlimited. Limits, memo enable, LED and haptic enable persist. |
 | Capture tail | Eight bounded PDM buffers feed the encoder with recording IDs and sequence checks. Stop halts production and drains accepted complete blocks before finalizing. Overflow, missing sequence and stop timeout produce explicit partial/error outcomes. |
 | Storage | Checked opens, appends, checkpoints, close and metadata readback. No implicit format on mount failure, no unsynced reclamation, no invented accepted-byte count. Full storage rejects recording while retaining prior files. |
 | Restart recovery | LittleFS atomic attributes record identity, verified prefix, CRC, completion and receipt state. Fresh mount validates recoverable data; a reboot never restarts the microphone. Cold-cut tests cover recording, receipt and deletion. |
@@ -292,3 +302,13 @@ stops visibly and preserves pending recordings.
 The factory extraction is not a read-back of the user's installed ring. This
 candidate is reviewable source and an unsigned build, not an authorized OTA
 release or a tested recovery image.
+
+### S02 hold-to-stop escape
+
+When an enabled double-tap recording is active, a hold requests Stop through
+the same drain-and-finalize path as a second double tap. Repeated hold reports
+and release cannot start another clip; a new hold after release can start PTT.
+This does not interrupt an app-owned recording. It provides another gesture
+when a double tap is missed, but still needs a functioning touch sensor.
+Supplier testing must reproduce the reported stuck double-tap behavior on
+physical hardware; passing host tests does not establish its original cause.

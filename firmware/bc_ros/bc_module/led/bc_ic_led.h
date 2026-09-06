@@ -5,6 +5,10 @@
 
 #include "stdint.h"
 
+#if defined(SUDO_VOICE_ONLY)
+#include <stdbool.h>
+#endif
+
 #if defined(HANDWARE_1_23_4) || defined(HANDWARE_1_23_2_ONE_SEC)
 /* 呼吸灯模式 */
 enum bc_ic_led_breathing_mode
@@ -48,6 +52,11 @@ void bc_ic_led_battery_indication(uint8_t percent);
 void bc_ic_led_recording_pause_on(void);
 /* 恢复录音LED指示 - 恢复30%绿灯 */
 void bc_ic_led_recording_pause_off(void);
+#endif
+
+#if defined(SUDO_VOICE_ONLY)
+/* Enable or suppress all normal Sudo LED feedback. */
+void bc_ic_led_feedback_enable(bool enabled);
 #endif
 
 void bc_ic_led_stop(void);

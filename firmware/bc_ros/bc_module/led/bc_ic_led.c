@@ -131,6 +131,12 @@ static struct ic_led_status led_status ={0};
 static volatile bool sudo_recording_indicator_desired = false;
 /* Aligned word publication prevents a torn GRB request across tasks. */
 static volatile uint32_t sudo_idle_rgb_desired;
+/* The policy is enabled until the worker applies a persisted setting. */
+static volatile bool sudo_feedback_enabled = true;
+/* Policy changes invalidate prior desired output, including coalesced wakes. */
+static volatile uint32_t sudo_feedback_policy_generation;
+static bool sudo_feedback_task_enabled = true;
+static uint32_t sudo_feedback_task_generation;
 #endif
 
 enum BC_IC_LED_EVENT
@@ -176,6 +182,31 @@ static bc_rtos_event_struct event_struct = {
   .event_wait_for_all_bits = bc_pdFALSE,
 };
 
+#if defined(SUDO_VOICE_ONLY)
+static void bc_ic_led_sudo_event_set(bc_event_bits bits)
+{
+  /* Normal requests are dropped at the producer boundary while disabled so
+   * they cannot accumulate and replay after a later enable. */
+  if (event_struct.event_handler == NULL ||
+      !sudo_feedback_enabled)
+  {
+    return;
+  }
+  bc_rtos_event_group_set_bits(event_struct.event_handler, bits);
+}
+
+static void bc_ic_led_sudo_policy_wake(void)
+{
+  /* Reuse the SUDO idle-color bit; the generation below distinguishes a
+   * policy wake from an ordinary idle-color request. */
+  if (event_struct.event_handler != NULL)
+  {
+    bc_rtos_event_group_set_bits(event_struct.event_handler,
+                                 IC_LED_SUDO_IDLE_COLOR_EVENT);
+  }
+}
+#endif
+
 
 enum bc_ic_led_task_type
 {
@@ -192,7 +223,7 @@ static bc_rtos_thread_struct thread_struct[IC_LED_TASK_TYPE_NUM] = {
                                                                       .thread_priority      = BC_IC_LED__PRIO,
                                                                       .thread_parameters    = NULL,
                                                                       .thread_task_code     = bc_ic_led_handler_thread,
-                                                                    },	                                                                    
+                                                                    },	                                                                   
                                                                   };
 
 #if defined(HANDWARE_1_23_2)
@@ -256,6 +287,17 @@ static void bc_ic_led_rgb_clear(void)
   bc_delay_ms(20);
   bc_ldo_rgb_power_off();
 }  
+
+#if defined(SUDO_VOICE_ONLY)
+static void bc_ic_led_sudo_quiesce(void)
+{
+  /* Forget task-side ownership before the next event batch. Desired output
+   * is maintained by the producer policy below and is intentionally preserved
+   * here so a fresh post-enable request can be applied after this clear. */
+  led_status = (struct ic_led_status){0};
+  bc_ic_led_rgb_clear();
+}
+#endif
                                                                   
 #if defined(HANDWARE_1_23_2_ONE_SEC)
 static void bc_ic_led_file_sync_green_off_timer_callback(void *pvParameter)
@@ -299,6 +341,42 @@ static void bc_ic_led_handler_thread(void *thread_handler)
                                                 ,
                                                 event_struct.event_clear_on_exit,event_struct.event_wait_for_all_bits,bc_rtos_max_delay);
 #if defined(SUDO_VOICE_ONLY)
+    /* A policy transition owns the hardware clear. The producer-side desired
+     * state is authoritative for the remainder of this batch, which lets a
+     * fresh recording request coalesced with the policy wake win while old
+     * requests cleared by the setter cannot replay. */
+    {
+      uint32_t policy_generation = sudo_feedback_policy_generation;
+      bool policy_enabled = sudo_feedback_enabled;
+      if (policy_generation != sudo_feedback_task_generation ||
+          policy_enabled != sudo_feedback_task_enabled)
+      {
+        sudo_feedback_task_generation = policy_generation;
+        sudo_feedback_task_enabled = policy_enabled;
+        bc_ic_led_sudo_quiesce();
+        if (policy_enabled)
+        {
+          if (sudo_recording_indicator_desired)
+          {
+            bc_ic_led_rgb_set(5, 0, 0, 1);
+          }
+          else if (sudo_idle_rgb_desired != 0U)
+          {
+            uint32_t color = sudo_idle_rgb_desired;
+            bc_ic_led_rgb_set((uint8_t)color, (uint8_t)(color >> 8),
+                              (uint8_t)(color >> 16), 1);
+          }
+        }
+        continue;
+      }
+    }
+    if (!sudo_feedback_task_enabled)
+    {
+      /* Producers drop normal requests while muted; clear any timer or
+       * legacy bits that were already pending and wait for the next policy. */
+      continue;
+    }
+
     /* Only this task drives the LED. A queued legacy/off/online event cannot
      * override the latest recording indicator, or replay an old idle color
      * after Stop. Candidate connection notifications are deliberately quiet. */
@@ -1114,60 +1192,113 @@ void bc_ic_led_ble_disconnect(void)
 void bc_ic_led_ble_disconnect_from_isr(void)
 {
 #if defined(SUDO_VOICE_ONLY)
-  return;
+    return;
 #else
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
   xEventGroupSetBitsFromISR(event_struct.event_handler,IC_LED_BLE_DISCONNECT_EVENT , &xHigherPriorityTaskWoken);
 #endif
 }
 
+#if defined(SUDO_VOICE_ONLY)
+void bc_ic_led_feedback_enable(bool enabled)
+{
+  if (sudo_feedback_enabled == enabled) return;
+  /* Block new producers before invalidating old desired output. The owner
+   * task performs the hardware clear and can accept a fresh post-enable request. */
+  sudo_feedback_enabled = enabled;
+  if (!enabled)
+  {
+    sudo_recording_indicator_desired = false;
+    sudo_idle_rgb_desired = 0;
+  }
+  ++sudo_feedback_policy_generation;
+  bc_ic_led_sudo_policy_wake();
+}
+#endif
+
 void bc_ic_led_mic_offline_recording_on(void)
 {
 #if defined(SUDO_VOICE_ONLY)
+  if (!sudo_feedback_enabled)
+  {
+    return;
+  }
   sudo_recording_indicator_desired = true;
-#endif
+  bc_ic_led_sudo_event_set(IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_ON_EVENT);
+#endif
 }
 
 void bc_ic_led_mic_online_recording_on(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_ONLINE_RECORDING_ON_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_ONLINE_RECORDING_ON_EVENT );
+#endif
 }
 
 
 void bc_ic_led_mic_offline_recording_capture_on(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_ON_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_ON_EVENT);
+#endif
 }
 
 void bc_ic_led_mic_online_recording_capture_on(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_ONLINE_RECORDING_CAPTURE_ON_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_ONLINE_RECORDING_CAPTURE_ON_EVENT );
+#endif
 }
 
 
 void bc_ic_led_mic_offline_recording_off(void)
 {
 #if defined(SUDO_VOICE_ONLY)
+  if (!sudo_feedback_enabled)
+  {
+    return;
+  }
   sudo_recording_indicator_desired = false;
-#endif
+  bc_ic_led_sudo_event_set(IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_OFF_EVENT);
+#endif
 }
 
 void bc_ic_led_mic_online_recording_off(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_ONLINE_RECORDING_OFF_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_ONLINE_RECORDING_OFF_EVENT );
+#endif
 }
 
 
 void bc_ic_led_mic_offline_recording_capture_off(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_OFF_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_OFFLINE_RECORDING_CAPTURE_OFF_EVENT);
+#endif
 }
 
 void bc_ic_led_mic_online_recording_capture_off(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  bc_ic_led_sudo_event_set(IC_LED_MIC_ONLINE_RECORDING_CAPTURE_OFF_EVENT);
+#else
   bc_rtos_event_group_set_bits(event_struct.event_handler,IC_LED_MIC_ONLINE_RECORDING_CAPTURE_OFF_EVENT );
+#endif
 }
 
 
@@ -1180,9 +1311,9 @@ void bc_ic_led_mic_online_recording_capture_off(void)
 void bc_ic_led_stop(void)
 {
 #if defined(SUDO_VOICE_ONLY)
-  if (sudo_recording_indicator_desired) return;
+  if (!sudo_feedback_enabled || sudo_recording_indicator_desired) return;
   sudo_idle_rgb_desired = 0;
-  bc_rtos_event_group_set_bits(event_struct.event_handler, IC_LED_SUDO_IDLE_COLOR_EVENT);
+  bc_ic_led_sudo_event_set(IC_LED_SUDO_IDLE_COLOR_EVENT);
 #else
 	struct rgb_struct rgb_config = {.rgb_g = 0,.rgb_r = 0,.rgb_b =0};
 
@@ -1196,10 +1327,10 @@ void bc_ic_led_stop(void)
 void bc_ic_led_set(uint8_t* rgb_data)
 {
 #if defined(SUDO_VOICE_ONLY)
-  if (!rgb_data || sudo_recording_indicator_desired) return;
+  if (!rgb_data || !sudo_feedback_enabled || sudo_recording_indicator_desired) return;
   sudo_idle_rgb_desired = (uint32_t)rgb_data[0] | ((uint32_t)rgb_data[1] << 8) |
                            ((uint32_t)rgb_data[2] << 16);
-  bc_rtos_event_group_set_bits(event_struct.event_handler, IC_LED_SUDO_IDLE_COLOR_EVENT);
+  bc_ic_led_sudo_event_set(IC_LED_SUDO_IDLE_COLOR_EVENT);
 #else
 	bc_ldo_rgb_power_on();
 	bc_delay_ms(20);
@@ -1457,15 +1588,23 @@ void bc_ic_led_pdm_off(void)
 
 void bc_id_led_clear(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+	bc_ic_led_stop();
+#else
 	bc_ldo_rgb_power_on();
 	struct rgb_struct rgb_config = {.rgb_g = 0,.rgb_r = 0,.rgb_b =0};
-
+	
 	tx1812n5_RGB(&rgb_config ,1);
 	bc_ldo_rgb_power_off();
+#endif
 }
 
 void bc_ic_led_test_cmd(uint8_t g,uint8_t r,uint8_t b)
 {
+#if defined(SUDO_VOICE_ONLY)
+	uint8_t rgb_data[3] = {g, r, b};
+	bc_ic_led_set(rgb_data);
+#else
 	bc_ldo_rgb_power_on();
     bc_delay_ms(20);
 	struct rgb_struct rgb_config = {.rgb_g = 0,.rgb_r = 0,.rgb_b =0};
@@ -1501,6 +1640,7 @@ void bc_ic_led_test_cmd(uint8_t g,uint8_t r,uint8_t b)
 	{
 		bc_ldo_rgb_power_off();
 	}
+#endif
 }
 
 

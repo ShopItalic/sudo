@@ -26,7 +26,12 @@ recovery and resumable Bluetooth delivery. The matching
 [app candidate](https://github.com/ShopItalic/app/pull/10) adds verified live
 transcription and bounded PTT dictation through the existing iPhone keyboard.
 Candidate version
-**6.0.3.3S01** is distinct from factory **6.0.3.3Z62**.
+**6.0.3.3S02** is distinct from factory **6.0.3.3Z62**. This post-RC1
+follow-up makes double-tap recording opt-in and adds SDK-controlled master
+lights/haptics for normal application feedback. Existing saved choices are
+retained. The [published S01 RC1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)
+remains unchanged; its double tap defaults on and feedback switches affect
+recording only. See the [controls contract](docs/reference/ring-voice-protocol.md#application-controls-in-s02).
 
 The integrated host tests pass, and the GNU target compiles and links all
 225 sources with no undefined symbols. Physical radio/audio,

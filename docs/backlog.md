@@ -27,7 +27,7 @@ product decisions:
 - **App capability/version coordination.** Validate the native protocol and
   capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
   Keep the factory `6.0.3.3Z62` identity distinct from the engineering
-  candidate `6.0.3.3S01` ten-byte build and do not let the app workaround imply
+  candidates `6.0.3.3S01` (RC1) and `6.0.3.3S02` (current source) and do not let the app workaround imply
   a release.
 - **Product decisions and historical requirements.** Keep the root/main
   requirements aligned on a configurable default 10-second PTT limit and an
@@ -44,3 +44,15 @@ product decisions:
   including battery cell and current ratings, fitted PMIC and haptic parts,
   case/mechanical clearance, RF and antenna evidence, crystal/microphone data,
   and supplier cost/BOM discrepancies.
+
+## S02 application controls follow-up
+
+- Reproduce the reported stuck double-tap recording on hardware; qualify the
+  S02 hold-to-stop escape, final file drain, and release-before-restart gate.
+- Qualify double-tap opt-in, persisted gesture choices, master lights/haptics
+  off, manual-output rejection and mute/unmute on a standard spare Ring.
+- Verify the app shows recording-only scope on S01 and application scope on S02.
+- Confirm the startup settings-load boundary and measure actual motor/LED off
+  timing; bootloader feedback remains independent.
+- Publish a separately identified S02 release candidate after review; do not
+  replace the tested S01 RC1 tag or assets.

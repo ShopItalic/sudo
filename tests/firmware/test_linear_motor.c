@@ -39,6 +39,7 @@ static uint32_t last_delay_ms;
 static bool motor_powered;
 static bool fail_callback_register;
 static bool callback_during_setup_delay;
+static bool mute_during_delay, unmute_during_delay, mute_during_config;
 static int callback_during_setup_delay_calls;
 
 static enum
@@ -160,6 +161,12 @@ int q_device_cfg(q_device_t *dev, void *args, void *var)
     if(dev == NULL || config == NULL)
         return RESULT_CONFIG_NULL_ERR;
     ++config_calls;
+    if(mute_during_config)
+    {
+        mute_during_config = false;
+        bc_linear_motor_feedback_enable(false);
+        bc_linear_motor_feedback_enable(true);
+    }
     last_config = *config;
     if(config->pwm_parameter_config.p_common != NULL &&
        config->pwm_parameter_config.length <= 200)
@@ -217,6 +224,12 @@ void bc_delay_ms(uint32_t ms)
 {
     ++delay_calls;
     last_delay_ms = ms;
+    if(mute_during_delay && ms == 20U)
+    {
+        mute_during_delay = false;
+        bc_linear_motor_feedback_enable(false);
+        if(unmute_during_delay) bc_linear_motor_feedback_enable(true);
+    }
     if(callback_during_setup_delay && ms == 20 && stopped_callback != NULL)
     {
         callback_during_setup_delay = false;
@@ -250,6 +263,7 @@ static void reset_observations(void)
     motor_powered = false;
     callback_during_setup_delay = false;
     callback_during_setup_delay_calls = 0;
+    mute_during_delay = false; unmute_during_delay = false; mute_during_config = false;
     failure_stage = FAIL_NONE;
     failures_left = 0;
 }
@@ -453,6 +467,41 @@ static void test_driver_failures(void)
     CHECK(power_off_calls == 1 && !motor_powered, "stop failure powers motor off");
 }
 
+static void test_master_feedback_policy(void)
+{
+    reset_observations();
+    CHECK(bc_linear_motor_pulse(50U, 100U), "start before mute");
+    bc_linear_motor_feedback_enable(false);
+    CHECK(!motor_powered && control_stop_calls > 0, "mute stops active pulse and power");
+    reset_observations();
+    CHECK(!bc_linear_motor_pulse(50U, 100U), "muted pulse cannot claim success");
+    bc_linear_motor_start(LINEAR_MOTOR_MIC_START);
+    bc_linear_motor_strong_vibration_start();
+    bc_linear_motor_continuous_vibration_start();
+    CHECK(control_start_calls == 0 && power_on_calls == 0, "all low-level starts muted");
+    bc_linear_motor_feedback_enable(true);
+    CHECK(control_start_calls == 0, "unmute never restarts old work");
+    CHECK(bc_linear_motor_pulse(50U, 100U), "new pulse works after unmute");
+    finish_pulse();
+
+    reset_observations();
+    mute_during_delay = true;
+    CHECK(!bc_linear_motor_pulse(50U, 100U), "mute during settle aborts pulse");
+    CHECK(control_start_calls == 0 && !motor_powered, "no delayed muted playback");
+    bc_linear_motor_feedback_enable(true);
+    reset_observations();
+    mute_during_delay = true; unmute_during_delay = true;
+    CHECK(!bc_linear_motor_pulse(50U, 100U), "mute/unmute invalidates old settling pulse");
+    CHECK(control_start_calls == 0 && !motor_powered, "old pulse cannot replay after unmute");
+
+    reset_observations();
+    mute_during_config = true;
+    CHECK(!bc_linear_motor_pulse(50U, 100U), "mute during driver setup rejects stale request");
+    CHECK(control_start_calls == 0 && !motor_powered, "stale config cannot start PWM");
+    CHECK(bc_linear_motor_pulse(50U, 100U), "fresh pulse after config cancellation works");
+    finish_pulse();
+}
+
 int main(void)
 {
     reset_observations();
@@ -471,6 +520,7 @@ int main(void)
     test_replacing_active_pulse_ignores_late_callback();
     test_app_finite_after_loop();
     test_driver_failures();
+    test_master_feedback_policy();
 
     if(failures != 0)
     {

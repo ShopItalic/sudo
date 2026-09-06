@@ -106,7 +106,15 @@ bc_rec_result bc_voice_gesture_report(bc_voice_gesture *gesture,
         gesture->ptt_id = 0;
     } else if (report->hold && !gesture->hold_attempted) {
         gesture->hold_attempted = true;
-        result = start(gesture, BC_REC_PTT, now_ms);
+        snapshot = bc_recording_snapshot(gesture->recording);
+        /* A hold also ends a hands-free memo if its second double tap was
+         * missed. Consume this entire contact so drain/release cannot start
+         * another recording. App-owned sessions retain their own stop path. */
+        if (bc_recording_active(gesture->recording) &&
+            snapshot->start.trigger == BC_REC_MEMO)
+            result = bc_recording_stop(gesture->recording, snapshot->start.id, now_ms);
+        else
+            result = start(gesture, BC_REC_PTT, now_ms);
     }
     if (!report->double_tap)
         return result;

@@ -121,6 +121,7 @@ typedef struct {
     unsigned watchdog_calls;
     unsigned callback_register_calls;
     bc_touch_report_callback_t touch_callback;
+    bool lights_enabled, haptics_enabled;
     unsigned settings_writes;
     bc_rec_result settings_result;
     bc_voice_settings persisted_settings;
@@ -655,6 +656,16 @@ void bc_dog_feed(void)
 {
     if (active_fixture != NULL)
         ++active_fixture->hardware.watchdog_calls;
+}
+
+void bc_ic_led_feedback_enable(bool enabled)
+{
+    if (active_fixture != NULL) active_fixture->hardware.lights_enabled = enabled;
+}
+
+void bc_linear_motor_feedback_enable(bool enabled)
+{
+    if (active_fixture != NULL) active_fixture->hardware.haptics_enabled = enabled;
 }
 
 bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
@@ -1206,6 +1217,7 @@ static void restart_script(worker_fixture *fixture)
     case 44:
         response = find_response(fixture, BC_VOICE_SETTINGS_GET, 133U);
         if (response != NULL) {
+            CHECK(fixture->hardware.lights_enabled && fixture->hardware.haptics_enabled);
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->length == 16U);
             CHECK(bc_voice_get32(response->payload + 5U) == 1234U &&
@@ -1349,12 +1361,23 @@ static void worker_script(worker_fixture *fixture)
 
     switch (fixture->script_stage) {
     case 0:
-        /* The first real worker iteration has registered the touch callback.
-         * A hold starts an offline PTT without any BLE session. */
+        /* Fresh devices ignore accidental double taps. Validate this through
+         * the actual worker before proving hold/release still works offline. */
         if (fixture->loop_count == 1U && fixture->hardware.touch_callback != NULL) {
-            CHECK(inject_touch(fixture, true, true, true, false));
-            fixture->script_stage = 1U;
+            CHECK(worker_tuning_snapshot_matches(54U, 52U, false,
+                                                 BC_TOUCH_TUNING_PENDING));
+            CHECK(fixture->hardware.lights_enabled && fixture->hardware.haptics_enabled);
+            CHECK(inject_touch(fixture, true, false, false, true));
+            fixture->script_stage = 52U;
         }
+        break;
+    case 52:
+        CHECK(fixture->capture.start_calls == 0U);
+        CHECK(!app_pdm_work_status());
+        CHECK(fixture->hardware.motor_pulse_calls == 0U);
+        CHECK(fixture->hardware.led_on_calls == 0U);
+        CHECK(inject_touch(fixture, true, true, true, false));
+        fixture->script_stage = 1U;
         break;
     case 1:
         /* Release arrives while the first DMA block is still pending. The
@@ -2056,6 +2079,7 @@ static void worker_script(worker_fixture *fixture)
         if (response != NULL) {
             uint8_t current_attr[20];
             CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(!fixture->hardware.lights_enabled && !fixture->hardware.haptics_enabled);
             CHECK(lfs_setattr(worker_lfs, "/", 0xa6U,
                               fixture->saved_settings_attr,
                               sizeof(fixture->saved_settings_attr)) == 0);

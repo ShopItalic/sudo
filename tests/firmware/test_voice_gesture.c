@@ -662,6 +662,50 @@ static void test_invalid_combinations_have_no_effect(void)
     CHECK(fixture.finish_calls == 0U);
 }
 
+static void test_hold_stops_memo_without_restarting(void)
+{
+    static const uint8_t audio[] = {0x11U, 0x22U};
+    gesture_fixture fixture;
+    bc_recording recording;
+    bc_voice_gesture gesture;
+    bc_voice_gesture_config config = gesture_config();
+    bc_touch_report_t double_tap = touch_report(true, false, false, true);
+    bc_touch_report_t hold = touch_report(true, true, true, false);
+    bc_touch_report_t release = touch_report(true, false, false, false);
+    uint64_t id;
+
+    fixture_reset(&fixture);
+    CHECK(init_pair(&recording, &gesture, &fixture, &config));
+    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 10U) == BC_REC_OK);
+    id = bc_recording_snapshot(&recording)->start.id;
+    CHECK(bc_recording_snapshot(&recording)->start.trigger == BC_REC_MEMO);
+    CHECK(bc_recording_frame(&recording, id, 1U, audio, sizeof(audio), 20U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 30U) == BC_REC_OK);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
+    CHECK(fixture.capture_stop_calls == 1U);
+    CHECK(fixture.last_capture_stop.id == id);
+    CHECK(fixture.new_id_calls == 1U);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 31U) == BC_REC_OK);
+    CHECK(fixture.capture_stop_calls == 1U);
+    /* The escape uses the normal stop path, preserving the accepted tail. */
+    CHECK(bc_recording_frame(&recording, id, 2U, audio, sizeof(audio), 32U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&recording, id) == BC_REC_OK);
+    CHECK(fixture.last_finish_complete);
+    CHECK(fixture.last_finish_file.bytes == 2U * sizeof(audio));
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 33U) == BC_REC_OK);
+    CHECK(fixture.new_id_calls == 1U);
+    CHECK(fixture.capture_start_calls == 1U);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 34U) == BC_REC_OK);
+    CHECK(fixture.new_id_calls == 1U);
+    CHECK(!bc_recording_active(&recording));
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 35U) == BC_REC_OK);
+    CHECK(fixture.new_id_calls == 2U);
+    CHECK(bc_recording_snapshot(&recording)->start.trigger == BC_REC_PTT);
+    CHECK(bc_recording_snapshot(&recording)->start.id != id);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 36U) == BC_REC_OK);
+    finish_recording(&recording, bc_recording_snapshot(&recording)->start.id, 37U);
+}
+
 static void test_hold_busy_with_foreign_owner(void)
 {
     gesture_fixture fixture;
@@ -998,6 +1042,7 @@ int main(void)
     test_double_tap_memo_and_independent_limits();
     test_stale_release_does_not_stop_foreign_sessions();
     test_invalid_combinations_have_no_effect();
+    test_hold_stops_memo_without_restarting();
     test_hold_busy_with_foreign_owner();
     test_invalid_sensor_and_lease_timeout_are_partial();
     test_invalid_touch_does_not_cancel_memo();

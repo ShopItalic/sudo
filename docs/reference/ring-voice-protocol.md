@@ -4,6 +4,30 @@ This document records the candidate voice protocol implemented by the firmware a
 
 Primary firmware sources are firmware/bc_ros/bc_module/recording/bc_voice_wire.h and .c for framing, bc_voice_protocol.h and bc_voice_service.c for messages and service behavior, bc_recording.h for state/results, and firmware/bc_ros/bc_application/app_sudo_voice.c for the standard worker. The app mirror is apps/ios/Sudo/Services/RingVoiceWire.swift, RingVoiceProtocol.swift, RingVoiceConnection.swift, RingVoiceRecordingTransport.swift, RingVoiceLiveReceiver.swift, RingVoiceLivePreview.swift, and RingProductionBoard.swift.
 
+## Application controls in S02
+
+The post-RC1 S02 candidate uses the existing acknowledged SETTINGS and TUNING
+messages; no new packet layout is needed. SETTINGS enables/disables double-tap
+recording, lights and haptics and sets recording limits. TUNING sets touch
+thresholds and bounded vibration strength/start/stop durations. Read the current
+values before changing a subset, preserve the other fields, and accept a change
+only after a successful response containing the exact saved values. Changes are
+accepted while idle; active recording/held contact returns BUSY. Desired sensor
+settings additionally report pending/applied/I/O-error after actual readback.
+
+S02's light/haptic switches govern all normal output from the running
+application, including manual feedback commands. Muted manual-on requests fail;
+queued output cannot replay across mute/unmute. The worker restores policy after
+mounting settings at startup. These controls do not change bootloader/DFU output
+or claim suppression before application settings load. The published S01/RC1
+switches govern recording feedback only. The app labels the scope by exact
+firmware version instead of promising global mute on S01.
+
+Double tap is disabled by default on fresh S02 settings. Existing persisted
+choices are retained; use SETTINGS_SET to opt in or opt out. `memo_enabled` is
+kept as the wire field name for compatibility; the app calls it **Double-tap
+recording**. Explicit app Start/Stop and hold/release still work when it is off.
+
 ## 1. Envelope and integrity
 
 All multibyte integers are unsigned little endian. The ATT limit is the complete packet limit, including the 12-byte voice header.
@@ -145,7 +169,7 @@ RECEIPT is accepted only with exact ID/size/CRC; firmware records the receipt an
 
 ## 7. Settings and touch tuning
 
-Standard defaults are PTT limit 10,000 ms, memo limit 0 for unlimited, and memo, LED, and haptic enabled: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
+Standard defaults are PTT limit 10,000 ms, memo limit 0 for unlimited, double tap disabled, and application LED/haptics enabled: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
 
 Settings persist in a 20-byte A6 attribute: SVS1 bytes 0-3; flags byte 4 with memo bit 0, LED bit 1, haptic bit 2; reserved bytes 5-7; PTT u32 at 8; memo u32 at 12; CRC32 over bytes 0-15 at 16. The firmware reads back the attribute before reporting SET success: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
 
@@ -173,4 +197,14 @@ Legacy delete 0x12, format 0x13, and batch 0x1a do not claim success. Root legac
 
 BCL remains the CBPeripheral delegate. RingVoiceConnection installs a BCL public peripheral observer, which filters notifications by characteristic and 0x7e command marker and forwards ordered copied values to the native client. This source-level forwarding does not verify physical notification delivery; public observer physical forwarding is UNVERIFIED: [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/codex/ring-voice/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
-The direct gate accepts hardware 603V1.23.2 and firmware 6.0.3.3S01 after fixed-field trimming. Other board or firmware combinations do not pass the voice-protocol gate: [RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/codex/ring-voice/apps/ios/Sudo/Services/RingProductionBoard.swift); [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/codex/ring-voice/apps/ios/Sudo/Services/RingVoiceConnection.swift).
+The direct gate accepts hardware 603V1.23.2 and firmware 6.0.3.3S01 or 6.0.3.3S02 after fixed-field trimming. Only S02 advertises application-wide feedback semantics through that exact version gate. Other board or firmware combinations do not pass the voice-protocol gate: [RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/codex/ring-voice/apps/ios/Sudo/Services/RingProductionBoard.swift); [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/codex/ring-voice/apps/ios/Sudo/Services/RingVoiceConnection.swift).
+
+### S02 hold-to-stop escape
+
+When an enabled double-tap recording is active, a hold requests Stop through
+the same drain-and-finalize path as a second double tap. Repeated hold reports
+and release cannot start another clip; a new hold after release can start PTT.
+This does not interrupt an app-owned recording. It provides another gesture
+when a double tap is missed, but still needs a functioning touch sensor.
+Supplier testing must reproduce the reported stuck double-tap behavior on
+physical hardware; passing host tests does not establish its original cause.

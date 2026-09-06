@@ -67,6 +67,12 @@ static  struct pwm_config  continuous_vibration_pwm_config = {
 	.pwm_parameter_config.flags = PWM_FLAG_STOP,                                                //执行模式
 };
 
+#if defined(SUDO_VOICE_ONLY)
+/* The worker applies the persisted policy; a fresh process starts enabled. */
+static volatile bool sudo_feedback_enabled = true;
+static volatile uint32_t sudo_feedback_generation;
+#endif
+
 
 
 #if defined(SUDO_VOICE_ONLY)
@@ -110,6 +116,15 @@ static void linear_motor_pwm_cleanup(void)
 static bool linear_motor_pwm_start(struct pwm_config *linear_motor_config)
 {
 	int result;
+	uint32_t policy_generation = sudo_feedback_generation;
+
+	if(!sudo_feedback_enabled)
+	{
+		/* A disable may race the caller's power-settle delay. Cleanup releases
+		 * that lease and rejects the peripheral start. */
+		linear_motor_pwm_cleanup();
+		return false;
+	}
 
 	if(linear_motor_config == NULL || linear_motor_pwm_dev == NULL ||
 		linear_motor_config->pwm_parameter_config.p_common == NULL ||
@@ -149,12 +164,19 @@ static bool linear_motor_pwm_start(struct pwm_config *linear_motor_config)
 		return false;
 	}
 
+	if(!sudo_feedback_enabled || policy_generation != sudo_feedback_generation)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
+
 	/* Set STOP before starting so a prior LOOP cannot leave cleanup latched out. */
 	pwm_falsh.pwm_mode = (linear_motor_config->pwm_parameter_config.flags == PWM_FLAG_LOOP)
 		? PWM_LOOP : PWM_STOP;
 	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_BUSY;
 	result = q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_START, NULL);
-	if(result != RESULT_Q_DEVICE_OK)
+	if(result != RESULT_Q_DEVICE_OK || !sudo_feedback_enabled ||
+		policy_generation != sudo_feedback_generation)
 	{
 		linear_motor_pwm_cleanup();
 		return false;
@@ -228,8 +250,9 @@ bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 {
 	struct pwm_config pulse_config = {0};
 	uint32_t compare;
+	uint32_t policy_generation = sudo_feedback_generation;
 
-	if(strength_percent < 1 || strength_percent > 100 ||
+	if(!sudo_feedback_enabled || strength_percent < 1 || strength_percent > 100 ||
 		active_ms < 20 || active_ms > 400 || (active_ms % 20) != 0 ||
 		linear_motor_pwm_dev == NULL)
 	{
@@ -239,6 +262,10 @@ bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 	/* Stop and close the previous transfer before touching its DMA buffer or
 	 * taking the motor power lease for the replacement pulse. */
 	if(!linear_motor_pwm_stop_existing())
+	{
+		return false;
+	}
+	if(!sudo_feedback_enabled)
 	{
 		return false;
 	}
@@ -263,6 +290,11 @@ bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 
 	bc_ldo_motor_power_on();
 	bc_delay_ms(20);
+	if(policy_generation != sudo_feedback_generation)
+	{
+		linear_motor_pwm_cleanup();
+		return false;
+	}
 	return linear_motor_pwm_start(&pulse_config);
 }
 #endif
@@ -270,13 +302,29 @@ bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode)
 {
 #if defined(SUDO_VOICE_ONLY)
+	uint32_t policy_generation = sudo_feedback_generation;
+	if(!sudo_feedback_enabled)
+	{
+		return;
+	}
 	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+	if(!sudo_feedback_enabled)
 	{
 		return;
 	}
 #endif
   bc_ldo_motor_power_on();
     bc_delay_ms(20);
+#if defined(SUDO_VOICE_ONLY)
+  if(!sudo_feedback_enabled || policy_generation != sudo_feedback_generation)
+  {
+    linear_motor_pwm_cleanup();
+    return;
+  }
+#endif
   switch(mode)
   {
     case LINEAR_MOTOR_MIC_OFFLINER_RECORDING:
@@ -364,6 +412,11 @@ void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode)
 void bc_linear_motor_pwm_out(void *linear_motor_config)
 {
 #if defined(SUDO_VOICE_ONLY)
+	if(!sudo_feedback_enabled)
+	{
+		linear_motor_pwm_cleanup();
+		return;
+	}
 	if(pwm_falsh.pwm_status != LINEAR_MOTOR_PWM_IDIE &&
 		!linear_motor_pwm_stop_existing())
 	{
@@ -386,7 +439,15 @@ void bc_linear_motor_pwm_out(void *linear_motor_config)
 void bc_linear_motor_strong_vibration_start(void)
 {
 #if defined(SUDO_VOICE_ONLY)
+	if(!sudo_feedback_enabled)
+	{
+		return;
+	}
 	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+	if(!sudo_feedback_enabled)
 	{
 		return;
 	}
@@ -398,7 +459,15 @@ void bc_linear_motor_strong_vibration_start(void)
 void bc_linear_motor_continuous_vibration_start(void)
 {
 #if defined(SUDO_VOICE_ONLY)
+	if(!sudo_feedback_enabled)
+	{
+		return;
+	}
 	if(!linear_motor_pwm_stop_existing())
+	{
+		return;
+	}
+	if(!sudo_feedback_enabled)
 	{
 		return;
 	}
@@ -417,6 +486,21 @@ void bc_linear_motor_stop(void)
 	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
 #endif
 }
+
+#if defined(SUDO_VOICE_ONLY)
+void bc_linear_motor_feedback_enable(bool enabled)
+{
+	/* Publish disabled before touching the peripheral so a racing start is
+	 * rejected by linear_motor_pwm_start(). */
+	sudo_feedback_enabled = enabled;
+	if(!enabled)
+	{
+		++sudo_feedback_generation;
+		/* Stop PWM, close the device and release motor power even mid-pulse. */
+		linear_motor_pwm_cleanup();
+	}
+}
+#endif
 
 void bc_linear_motor_pwm_idie_register_callback(void * register_callback)
 {

@@ -2,7 +2,7 @@
 
 Reviewed September 6, 2026 for **603V1.23.2**, standard **1.23.2**. Factory
 artifact version is **6.0.3.3Z62**; the engineering candidate identifies itself
-as **6.0.3.3S01**. It does not select `1.23.2_one_sec`.
+as **6.0.3.3S02** (post-RC1). It does not select `1.23.2_one_sec`.
 
 The candidate now implements a firmware-owned recording lifecycle, complete
 local capture while connected, native hold/release and configurable double-tap
@@ -111,8 +111,18 @@ checkpoint/resume handles the next permitted connection or execution opportunity
 
 ## Configuration contract
 
-Defaults are ten-second PTT, unlimited memo, double-tap memo enabled, recording
-LED enabled and haptics enabled. Tuning defaults are touch set/clear **54/52**,
+Double-tap recording is opt-in in the post-RC1 candidate because accidental
+activation is too easy. A memo means a recording that continues without holding
+the touch surface; another double tap stops it. The app labels this
+**Double-tap recording**. Disabling it leaves hold/release and explicit app
+Start/Stop available. Existing persisted choices are retained; turn the switch
+off in the app to change a Ring that previously saved it as enabled. The
+published RC1 tag/assets retain their original enabled default.
+
+Defaults are ten-second PTT, unlimited memo, double-tap recording disabled,
+application lights enabled and haptics enabled. In S02 these feedback switches
+cover normal application output after settings load; RC1 covers recording
+feedback only. Settings changes require an idle Ring. Tuning defaults are touch set/clear **54/52**,
 strength **100%**, start **120 ms** and stop **280 ms**.
 
 Supported touch set is **32–80**; clear is **30 through set−2**. These are sensor
@@ -195,3 +205,13 @@ The [candidate reference](ring-firmware-candidate.md) records the implementation
 and validation limits. The [backlog](../backlog.md) tracks remaining integration
 and device acceptance. This review does not send a message to the supplier or
 change installed firmware.
+
+### S02 hold-to-stop escape
+
+When an enabled double-tap recording is active, a hold requests Stop through
+the same drain-and-finalize path as a second double tap. Repeated hold reports
+and release cannot start another clip; a new hold after release can start PTT.
+This does not interrupt an app-owned recording. It provides another gesture
+when a double tap is missed, but still needs a functioning touch sensor.
+Supplier testing must reproduce the reported stuck double-tap behavior on
+physical hardware; passing host tests does not establish its original cause.

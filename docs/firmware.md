@@ -11,7 +11,7 @@ distribution.
 
 The reviewed SDK is imported under `firmware/`, with its unmodified source
 baseline saved at commit `102bfd2`. The factory distribution is exactly
-`6.0.3.3Z62`. The separate Sudo Voice engineering profile is `6.0.3.3S01`, a
+`6.0.3.3Z62`. The separate Sudo Voice engineering profile is `6.0.3.3S02`, a
 ten-byte build string plus NUL in the legacy version field; it is not a factory
 version, signed release, or anti-rollback-approved image. The matching iOS
 adapter is [ShopItalic/app](https://github.com/ShopItalic/app).
@@ -46,7 +46,8 @@ The current firmware source provides:
 - Configurable PTT and memo limits, touch tuning, checked SUDO ADC/power error
   handling, a fixed-window battery filter with charging-epoch monotonicity, and
   haptic settings. The profile default is a 10-second PTT limit and
-  `memo_limit_ms=0` for an unlimited memo. Host tests cover these paths; sensor
+  `memo_limit_ms=0` for an unlimited app recording. Double tap is opt-in; lights
+  and haptics have persisted master switches for normal application output. Host tests cover these paths; sensor
   calibration, physical ranges, power draw, and device behavior remain open.
 
 All public storage calls are serialized by the recording/archive worker, and the

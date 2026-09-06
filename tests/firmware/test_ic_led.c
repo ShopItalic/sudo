@@ -81,6 +81,7 @@ bc_event_bits bc_rtos_event_group_set_bits(EventGroupHandle_t handle,
                                             bc_event_bits bits_to_set)
 {
     CHECK(handle == event_handle);
+    CHECK((bits_to_set & 0xff000000U) == 0U); /* FreeRTOS reserves the top byte. */
     ++event_set_calls;
     pending_bits |= bits_to_set;
     return pending_bits;
@@ -290,6 +291,56 @@ static void test_legacy_color_is_serialized_and_cannot_override_recording(void)
     check_last_rgb(0U, 0U, 0U);
 }
 
+static void test_master_feedback_policy(void)
+{
+    uint8_t blue[3] = {0U, 0U, 20U};
+    reset_observations();
+    bc_ic_led_set(blue);
+    bc_ic_led_feedback_enable(false);
+    bc_ic_led_feedback_enable(true);
+    CHECK(rgb_write_calls == 0U); /* All hardware writes stay on the owner. */
+    run_worker_once();
+    check_last_rgb(0U, 0U, 0U); /* Never replay the old blue after unmute. */
+
+    reset_observations();
+    bc_ic_led_feedback_enable(false);
+    bc_ic_led_mic_offline_recording_on();
+    bc_ic_led_set(blue);
+    bc_ic_led_test_cmd(5U, 5U, 5U);
+    bc_ic_led_ble_connect();
+    bc_ic_led_mic_online_recording_on();
+    CHECK(rgb_write_calls == 0U);
+    run_worker_once();
+    check_last_rgb(0U, 0U, 0U);
+    /* The harness re-enters task initialization (which writes black). No
+     * muted request may produce a nonzero RGB value, including earlier writes. */
+    for (unsigned i = 0U; i < rgb_write_calls; ++i)
+        CHECK(rgb_writes[i].rgb_g == 0U && rgb_writes[i].rgb_r == 0U && rgb_writes[i].rgb_b == 0U);
+
+    reset_observations();
+    bc_ic_led_feedback_enable(true);
+    bc_ic_led_mic_offline_recording_on();
+    run_worker_once();
+    check_last_rgb(5U, 0U, 0U); /* A fresh recording can share the policy wake. */
+
+    reset_observations();
+    bc_ic_led_feedback_enable(false);
+    run_worker_once();
+    check_last_rgb(0U, 0U, 0U);
+    CHECK(rgb_power_off_calls >= 1U);
+
+    reset_observations();
+    bc_ic_led_feedback_enable(true);
+    run_worker_once();
+    check_last_rgb(0U, 0U, 0U); /* Unmute does not revive the prior recording. */
+
+    reset_observations();
+    bc_ic_led_set(blue);
+    run_worker_once();
+    check_last_rgb(0U, 0U, 20U); /* A new command is accepted normally. */
+    bc_ic_led_stop();
+}
+
 int main(void)
 {
     bc_ic_led_init();
@@ -300,6 +351,7 @@ int main(void)
     test_sudo_ble_notifications_are_noops();
     test_sudo_recording_indicator();
     test_legacy_color_is_serialized_and_cannot_override_recording();
+    test_master_feedback_policy();
 
     if (failures != 0U)
     {

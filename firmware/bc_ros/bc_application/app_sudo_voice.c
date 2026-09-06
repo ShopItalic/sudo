@@ -69,7 +69,9 @@ static uint8_t legacy_reply[8];
 static uint16_t legacy_reply_length;
 static uint32_t legacy_reply_epoch;
 static bool legacy_reply_pending;
-static bc_voice_settings settings = {10000U, 0U, true, true, true};
+/* Double tap is opt-in; hold/release remains available on a fresh Ring.
+ * Persisted choices still take precedence when SETTINGS is loaded. */
+static bc_voice_settings settings = {10000U, 0U, false, true, true};
 static bc_voice_tuning tuning = {54U, 52U, 100U, 120U, 280U};
 
 /* Convert elapsed RTOS ticks instead of truncating portTICK_PERIOD_MS (which
@@ -296,6 +298,8 @@ static bc_rec_result save_settings(void *ctx, const bc_voice_settings *value)
             memcmp(bytes, check, sizeof(bytes)) != 0) return BC_REC_SYNC_ERROR;
     }
     settings = *value;
+    bc_ic_led_feedback_enable(settings.led_enabled);
+    bc_linear_motor_feedback_enable(settings.haptic_enabled);
     (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
     return BC_REC_OK;
 }
@@ -453,13 +457,13 @@ static void legacy_control(const voice_command *command)
         legacy_reply_pending = true; return;
     }
     if (!bc_recording_active(&recording) && !gesture.hold_attempted) {
-        if (cmd == CMD_LED && sub == 4U && command->length == 7U) {
+        if (cmd == CMD_LED && sub == 4U && command->length == 7U && settings.led_enabled) {
             uint8_t grb[3]; memcpy(grb, command->bytes + 4U, sizeof(grb));
             bc_ic_led_set(grb); success = true;
         } else if (cmd == CMD_LED && sub == 7U && command->length == 4U) {
             bc_ic_led_stop(); success = true;
         } else if (cmd == CMD_MOTOR && sub == 4U && command->length == 5U &&
-                   command->bytes[4] == 1U) {
+                   command->bytes[4] == 1U && settings.haptic_enabled) {
             success = bc_linear_motor_pulse(100U, 120U);
         }
     }
@@ -475,11 +479,15 @@ static void run(void *ctx)
         capture_start, app_sudo_capture_stop, app_sudo_capture_abort, live, changed};
     bc_voice_service_port service_port = {NULL, send_packet, save_settings};
     bc_voice_tuning_port tuning_port = {NULL, get_tuning, save_tuning};
-    bc_voice_gesture_config gesture_config = {10000U, 0U, 750U, 300U, true};
+    bc_voice_gesture_config gesture_config = {10000U, 0U, 750U, 300U, false};
     uint32_t last_epoch = 0;
     bool last_connected = false;
     (void)ctx;
     load_settings();
+    /* Apply persisted application-wide feedback policy before accepting
+     * gestures/commands. Bootloader and pre-load boot output are separate. */
+    bc_ic_led_feedback_enable(settings.led_enabled);
+    bc_linear_motor_feedback_enable(settings.haptic_enabled);
     load_tuning();
     (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
     gesture_config.ptt_limit_ms = settings.ptt_limit_ms;
