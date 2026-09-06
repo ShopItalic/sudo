@@ -532,7 +532,7 @@ durable receipt.
 ### S03-003 — Expire stalled archive work independently of retry timing
 
 **Version/status:** S03 candidate source; implemented with focused BLE worker
-coverage, pending final source/CI landing and physical validation.
+coverage, included in S03 RC1 with passing firmware CI; physical validation remains pending.
 
 **Before → after:** Archive verification or transfer could remain active while
 the retry clock continued to schedule attempts. S03 adds a separate
@@ -565,7 +565,7 @@ reopening an abandoned archive.
 ### S03-004 — Preserve sent ACK boundaries across transfer rewind
 
 **Version/status:** S03 candidate source; implemented with focused BLE worker
-coverage, pending final source/CI landing and physical validation.
+coverage, included in S03 RC1 with passing firmware CI; physical validation remains pending.
 
 **Before → after:** A retry rewind reset the outstanding sent-boundary history.
 S03 keeps up to six sent message end offsets while rewinding the next cursor to
@@ -590,7 +590,7 @@ changes, and receipt/delete ordering with a supplier harness.
 ### S03-005 — Bound each transfer poll to one message and four fragments
 
 **Version/status:** S03 candidate source; implemented with focused BLE worker
-coverage, pending final source/CI landing and physical validation.
+coverage, included in S03 RC1 with passing firmware CI; physical validation remains pending.
 
 **Before → after:** One poll sent one fragment and the surrounding service had
 no explicit per-poll burst bound. S03 permits at most four fragments from the
@@ -614,6 +614,50 @@ increase.
 ATT-244 poll for the bounded burst. These are harness scheduling results, not
 RF goodput or PHY measurements. Measure physical packet timing, weak signal,
 and ten-minute mixed recording/transfer use separately.
+
+### S03-006 — Record the codec decision and proposed Opus evaluation
+
+**Version/status:** Decision recorded after S03 RC1 publication. Opus evaluation
+is proposed; no codec implementation or released audio format changed.
+
+**Before → after:** S03 retains the supplier-compatible 8 kHz mono IMA ADPCM
+contract (220 encoded bytes per 440 decoded samples, approximately 32 kbps).
+The implementation prioritized recording and Bluetooth reliability while
+preserving SDK/file compatibility. That decision was not based on measured
+CPU limits or a comparison proving ADPCM the best codec for this Ring.
+The earlier product requirement identified 16 kHz mono Opus. It should have
+been evaluated explicitly alongside the performance work.
+
+The supplier source includes an optional Opus encoder using mono input,
+16 kbps CBR and complexity 0, but its input-rate define is 8 kHz and USE_OPUS
+is commented out. Included source is not evidence that the standard board has
+been qualified with Opus. The S03 profile excludes that encoder and Opus
+sources. Both codecs are not running simultaneously.
+
+**Why / proposed target:** Evaluate 16 kHz mono Opus at an initial 16 kbps against
+S03. At the target bitrate, a ten-second audio payload would be approximately
+20 KB instead of 40 KB before framing/container overhead. This arithmetic does
+not establish equal quality, half the transfer time, improved transcription,
+or lower battery consumption. Higher-rate capture must be verified; upsampling
+an existing 8 kHz recording cannot restore lost detail.
+
+**Principal evidence:**
+
+- [app_opus.c](../../firmware/bc_ros/bc_application/app_opus.c), optional encoder initialization and controls
+- [app_opus.h](../../firmware/bc_ros/bc_application/app_opus.h), actual rate/bitrate and disabled USE_OPUS switch
+- [app_sudo_capture.c](../../firmware/bc_ros/bc_application/app_sudo_capture.c), current decimation and ADPCM path
+- [FreeRTOSConfig.h](../../firmware/BCL603S2X/app/user/inc/FreeRTOSConfig.h), runtime statistics disabled
+- [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h), current codec/board guard
+- [Hardware audio boundaries](sudo-ring-hardware.md#storage-and-audio-boundaries), earlier requirement versus current source evidence
+
+**Compatibility and acceptance:** A new candidate must update codec metadata,
+framing, recoverable storage, resumed decoding and the matching SDK together,
+while preserving old ADPCM recordings and immutable S03 RC1 assets. Measure
+worst-case frame encoding time during BLE/Flash activity, dropped samples,
+PTT release latency, stack/heap high-water use, transfer bytes/time, transcription
+quality and total recording-plus-sync energy on the identified board. CPU load
+is currently unmeasured; reserved RAM is not CPU utilization. Promote Opus only
+when the complete audio path meets the reliability and resource requirements.
 
 ## Features intentionally retained or outside this candidate
 
@@ -678,9 +722,29 @@ epoch fault harnesses and cloud gates pass. Firmware release provenance records
 the actual Linux CI artifact and final source. No hardware/RF-speed, battery
 calibration, runtime-stack or signed-update qualification is implied.
 
+## S03 publication amendment — September 6, 2026
+
+S03 firmware is committed as `da712a2877c98278a647c0beb66befd7d98d9b09`,
+merged to `e1b196292934fbc62fa3b5effbfa4e5265b310d1` through
+[firmware PR #2](https://github.com/ShopItalic/sudo/pull/2), and published as
+[Pre-release v6.0.3.3S03-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1).
+[Main CI run 34023848753](https://github.com/ShopItalic/sudo/actions/runs/34023848753)
+passed host tests and the GNU build. The released Linux BIN is 311,304 bytes,
+SHA-256 `5592f039f3725e1f7a160cc206e84d3830e3ac3b7c942a621e42d58ad72b19f4`;
+its load range is `[0x27000, 0x73008)`. These released-image values are distinct
+from the local macOS build reported above. Download-back verification passed
+for all 12 checksum-listed assets and all 22 checksum-listed bundle files.
+
+Matching SDK source `492af2ad40949de3d54419df5e2fa140c912b94f` is merged as
+`664ea438c7265d57885f926e589acb0faa1d05ca` through app PR #12. Its local Ring
+tests passed as recorded above; separate remote
+[iOS CI run 34023194481](https://github.com/ShopItalic/app/actions/runs/34023194481)
+ended cancelled and is not a passing validation result. No physical Ring was
+flashed. Later decision notes in this log do not alter the tagged RC or its ZIP.
+
 ## How to append future changes
 
-Append a new monotonically named entry such as S03-006 or S04-001; do not
+Append a new monotonically named entry such as S03-007 or S04-001; do not
 rewrite an earlier entry's historical before/after. Set its version and status
 to one of implemented, implemented-pending-validation, planned, published,
 or rejected. Include:

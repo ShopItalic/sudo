@@ -64,3 +64,15 @@ product decisions:
   shutdown and touch/STOP latency under packet backpressure at ATT 20 and 244.
 - Test proof reuse on hardware, including catalog refresh, reconnect, partial resume, full phone storage and a retained receipt retry; do not equate the removed duplicate read with a measured throughput figure.
 - Confirm S03 supplier build/signing/recovery before consumer OTA distribution. Preserve the separate S01 RC1 tag and files.
+
+## Proposed codec evaluation
+
+- Evaluate 16 kHz mono Opus at an initial 16 kbps against S03 ADPCM, as recorded
+  in [decision S03-006](reference/supplier-firmware-change-log.md#s03-006--record-the-codec-decision-and-proposed-opus-evaluation).
+  This is a proposed candidate, not an implemented codec change. Verify capture
+  rate, peak encoding time, memory, PTT/recording integrity, resumed storage/SDK
+  compatibility, transcription quality, transfer cost and total energy on the
+  standard Ring. Preserve the S03 RC and existing ADPCM files.
+- Resolve the cancelled [matching SDK main CI run](https://github.com/ShopItalic/app/actions/runs/34023194481)
+  in the app/runner workflow before claiming remote iOS validation; local Ring
+  test success does not replace that result.
