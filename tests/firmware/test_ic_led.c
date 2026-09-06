@@ -32,6 +32,14 @@ static unsigned event_set_calls;
 static unsigned isr_event_set_calls;
 static unsigned wait_calls;
 static unsigned thread_create_calls;
+static bool fail_task_start;
+static jmp_buf task_failure;
+void test_task_fatal(uint32_t error)
+{
+    CHECK(fail_task_start);
+    CHECK(error == 4U);
+    longjmp(task_failure, 1);
+}
 static TaskFunction_t worker_task;
 static jmp_buf worker_stop;
 static bool worker_stop_armed;
@@ -100,6 +108,7 @@ bc_base_type_t bc_rtos_thread_create(TaskFunction_t task_code,
     CHECK(parameters != NULL);
     (void)priority;
     ++thread_create_calls;
+    if (fail_task_start) return -1; /* FreeRTOS allocation failure, not zero. */
     worker_task = task_code;
     if (created_task != NULL)
         *created_task = (TaskHandle_t)(uintptr_t)0x2U;
@@ -343,6 +352,15 @@ static void test_master_feedback_policy(void)
 
 int main(void)
 {
+    fail_task_start = true;
+    if (setjmp(task_failure) == 0) {
+        bc_ic_led_init();
+        CHECK(false); /* A missing required worker must reach the fatal path. */
+    }
+    CHECK(worker_task == NULL);
+    CHECK(thread_create_calls == 1U);
+    fail_task_start = false;
+    thread_create_calls = 0U;
     bc_ic_led_init();
     CHECK(event_handle != NULL);
     CHECK(thread_create_calls == 1U);

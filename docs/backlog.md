@@ -4,6 +4,17 @@ The source tranche is implemented and host-tested. The remaining work is
 external qualification, supplier/build review, compatibility migration, and
 product decisions:
 
+- **Qualify corrected task-start failures.** S04 fixes the nine inherited
+  `xTaskCreate` checks and adds required-task fatal error handling. LED worker
+  allocation-failure injection passes on the host; qualify reset/recovery on
+  target before closing the [S03 audit finding](reference/ring-s03-final-audit.html).
+- **Measured simplification and long-lived storage.** S04 removes proven dead
+  live state, unused stubs and duplicate recording dispatch paths from the
+  [final S03 audit](reference/ring-s03-final-audit.html). Wider command removal
+  needs a supported-command inventory. Preserve old-file reads and custody;
+  measure catalog/start latency and space with many recordings and `.done`
+  receipts. No lifetime-capacity result is claimed.
+
 - **Physical qualification and measurements.** On a spare, identified
   production ring, read back the board and firmware identity; measure PDM/audio
   framing, PTT release and stop timing, connected and standalone capture, BLE
@@ -27,13 +38,15 @@ product decisions:
 - **App capability/version coordination.** Validate the native protocol and
   capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
   Keep the factory `6.0.3.3Z62` identity distinct from the engineering
-  candidates `6.0.3.3S01` (RC1) and `6.0.3.3S02` and `6.0.3.3S03` (current source) and do not let the app workaround imply
-  a release.
-- **Product decisions and historical requirements.** Keep the root/main
-  requirements aligned on a configurable default 10-second PTT limit and an
-  unlimited memo when `memo_limit_ms=0`. Resolve the historical conflicts in
-  [the requirements record](reference/ring-recording-and-ptt.md) explicitly
-  before changing defaults or app behavior.
+  candidates S01 (historical RC1), S02, S03 (published RC1) and S04 (current
+  source review). S04 host adoption is separate from this firmware-only change;
+  no app workaround establishes a release.
+- **Keep release and source documentation aligned.** S04 supersedes the old
+  ten-second default: PTT runs until release; memo is unlimited when
+  `memo_limit_ms=0`. The three mappings and configurable hold activation are
+  recorded in [the requirements record](reference/ring-recording-and-ptt.md).
+  When S04 is merged or released, update the review/release status and publish
+  exact provenance; retain the historical release guides unchanged.
 - **Qualify keyboard dictation and settle additional hosts.** The provisional
   same-iPhone path now has finite background PTT and final-only keyboard
   admission. Verify BLE wake, model execution, actual host-field insertion,
@@ -76,3 +89,26 @@ product decisions:
 - Resolve the cancelled [matching SDK main CI run](https://github.com/ShopItalic/app/actions/runs/34023194481)
   in the app/runner workflow before claiming remote iOS validation; local Ring
   test success does not replace that result.
+
+## S04 qualification
+
+- Measure continuous hold/release recording beyond 10 seconds, one minute and
+  multiple minutes on a spare standard Ring. Validate touch-loss shutdown,
+  full storage, release during Flash backpressure and completed audio tails.
+- Qualify hold, double tap and triple tap on the fitted IQS7211E: initial safe
+  mask 0x08, verified fresh mappings mask 0x0C, optional double tap bit 0x02,
+  no single/palm/swipe or duplicate legacy actions, 0.5–10-second hold thresholds,
+  all action mappings and persisted choices after upgrade/reboot.
+- Validate SDK/app events under disconnect/backpressure, sequence gaps,
+  press/release/cancel and absent app execution. They are live input events,
+  not an offline action queue or an exactly-once remote execution guarantee.
+- Validate firmware light/haptic switches and strength/start/stop timing on
+  hardware through SETTINGS/TUNING, including readback, mute and reboot.
+- Confirm required-task allocation faults reach the Nordic fatal-error/recovery
+  path on target. Host injection covers the LED worker; all nine corrected
+  task sites require the same success result and fatal error handling.
+- Keep the published S03 RC unchanged. S04 needs supplier compiler/signing and
+  physical audio/BLE/power qualification before a release or device flash.
+- Wider supplier command-surface reduction still requires a supported-command
+  inventory. Keep identity, pairing, time, battery, motion, update compatibility
+  and old-recording retrieval intact; do not remove callers without evidence.

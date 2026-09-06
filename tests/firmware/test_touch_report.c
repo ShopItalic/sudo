@@ -47,6 +47,7 @@ static void test_valid_statuses(void)
     CHECK(report.contact);
     CHECK(!report.hold);
     CHECK(!report.double_tap);
+    CHECK(!report.triple_tap);
 
     status[0] = BC_TOUCH_REPORT_GESTURE_HOLD;
     CHECK(bc_touch_report_decode(status, sizeof(status), true, &report));
@@ -59,6 +60,10 @@ static void test_valid_statuses(void)
     CHECK(report.valid);
     CHECK(report.double_tap);
     CHECK(!report.hold);
+    CHECK(!report.triple_tap);
+    status[0] = BC_TOUCH_REPORT_GESTURE_TRIPLE_TAP;
+    CHECK(bc_touch_report_decode(status, sizeof(status), true, &report));
+    CHECK(report.triple_tap && !report.double_tap && !report.hold);
 }
 
 static void test_release_and_hold_without_contact(void)
@@ -72,6 +77,7 @@ static void test_release_and_hold_without_contact(void)
     CHECK(!report.contact);
     CHECK(!report.hold);
     CHECK(!report.double_tap);
+    CHECK(!report.triple_tap);
 
     status[0] = BC_TOUCH_REPORT_GESTURE_DOUBLE_TAP;
     CHECK(bc_touch_report_decode(status, sizeof(status), true, &report));
@@ -106,6 +112,7 @@ static void test_invalid_readings(void)
     CHECK(!report.contact);
     CHECK(!report.hold);
     CHECK(!report.double_tap);
+    CHECK(!report.triple_tap);
     CHECK(report.error_flags == 0U);
     CHECK(report.reset_flags == BC_TOUCH_REPORT_INFO_RESET);
 
@@ -125,6 +132,7 @@ static void test_invalid_readings(void)
     CHECK(!report.contact);
     CHECK(!report.hold);
     CHECK(!report.double_tap);
+    CHECK(!report.triple_tap);
 
     CHECK(!bc_touch_report_decode(status, sizeof(status) - 1U, true, &report));
     CHECK(!report.valid);

@@ -24,6 +24,9 @@ enum bc_voice_kind {
     BC_VOICE_TUNING_SET = 14,/* + touch set/clear/strength u8, start/stop ms u16 */
     BC_VOICE_TUNING_GET = 15,
     BC_VOICE_PHONE_OUTCOME = 16, /* + recording u64, live token u32, outcome u8 */
+    BC_VOICE_INPUTS_SET = 17, /* + hold_ms u16, hold/double/triple action u8 */
+    BC_VOICE_INPUTS_GET = 18,
+    BC_VOICE_INPUT_EVENT = 0x43, /* sequence u32, input/phase/action/reserved u8 */
     BC_VOICE_STATE = 0x40,   /* snapshot; request ID is 0 */
     BC_VOICE_LIVE = 0x41,    /* stream token u32, sequence u32, 220 raw bytes */
     BC_VOICE_FILE = 0x42     /* transfer token u32, absolute offset u32, raw */
@@ -50,7 +53,10 @@ enum bc_voice_capability {
     BC_VOICE_CAP_CUSTODY = 1U << 5,
     BC_VOICE_CAP_SETTINGS = 1U << 6,
     BC_VOICE_CAP_TUNING = 1U << 7,
-    BC_VOICE_CAP_PHONE_OUTCOME = 1U << 8
+    BC_VOICE_CAP_PHONE_OUTCOME = 1U << 8,
+    BC_VOICE_CAP_TRIPLE_TAP = 1U << 9,
+    BC_VOICE_CAP_PTT_UNTIL_RELEASE = 1U << 10,
+    BC_VOICE_CAP_INPUT_MAPPINGS = 1U << 11
 };
 
 /* Snapshot response payload:

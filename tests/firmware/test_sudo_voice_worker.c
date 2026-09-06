@@ -133,6 +133,7 @@ typedef struct {
 typedef struct {
     uint8_t touch_thresholds[2];
     uint8_t gesture_mask[2];
+    uint8_t hold_time[2];
     unsigned write_calls;
     unsigned read_calls;
 } tuning_sensor_fixture;
@@ -923,6 +924,12 @@ static void init_fixture(worker_fixture *fixture)
         (uint8_t)(BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK >> 8);
     memset(fixture->ram.bytes, 0xff, sizeof(fixture->ram.bytes));
     CHECK(fs_format_mount(&fixture->fs, &fixture->ram));
+    {
+        uint8_t legacy_settings[20] = {'S', 'V', 'S', '1', 6U};
+        bc_voice_put32(legacy_settings + 8U, 10000U);
+        bc_voice_put32(legacy_settings + 16U, bc_voice_crc32(legacy_settings, 16U));
+        CHECK(lfs_setattr(&fixture->fs.lfs, "/", 0xa6U, legacy_settings, sizeof(legacy_settings)) == 0);
+    }
     /* The application mounts its own worker-owned lfs_t. Keep only the RAM
      * NOR contents from setup so the fixture never has two live LittleFS
      * handles operating on the same block device. */
@@ -1184,6 +1191,8 @@ static bool worker_tuning_write(void *ctx, uint8_t reg, uint8_t *data,
     ++sensor->write_calls;
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG)
         memcpy(sensor->touch_thresholds, data, 2U);
+    else if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG)
+        memcpy(sensor->hold_time, data, 2U);
     else if (reg == BC_TOUCH_TUNING_GESTURE_ENABLE_REG)
         memcpy(sensor->gesture_mask, data, 2U);
     else
@@ -1201,6 +1210,8 @@ static bool worker_tuning_read(void *ctx, uint8_t reg, uint8_t *data,
     ++sensor->read_calls;
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG)
         memcpy(data, sensor->touch_thresholds, 2U);
+    else if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG)
+        memcpy(data, sensor->hold_time, 2U);
     else if (reg == BC_TOUCH_TUNING_GESTURE_ENABLE_REG)
         memcpy(data, sensor->gesture_mask, 2U);
     else
@@ -1223,16 +1234,21 @@ static bool worker_tuning_snapshot_matches(uint8_t touch_set,
 }
 
 static bool inject_touch(worker_fixture *fixture, bool valid, bool contact,
-                         bool hold, bool double_tap)
+                         bool hold, bool triple_tap)
 {
     bc_touch_report_t report;
     memset(&report, 0, sizeof(report));
     report.valid = valid;
     report.contact = contact;
     report.hold = hold;
-    report.double_tap = double_tap;
+    report.triple_tap = triple_tap;
     if (fixture->hardware.touch_callback == NULL)
         return false;
+    /* Model the preceding valid no-contact sensor window before a new
+     * action. Separate tuning tests exercise pending/error/reset windows. */
+    if (hold || triple_tap)
+        bc_touch_tuning_on_sample(true, false, false, worker_tuning_write,
+                                  worker_tuning_read, &fixture->tuning_sensor);
     fixture->hardware.touch_callback(&report);
     return true;
 }
@@ -1267,6 +1283,8 @@ static void restart_script(worker_fixture *fixture)
                                  fixture->epoch));
             CHECK(enqueue_native(BC_VOICE_SETTINGS_GET, 133U, NULL, 0U,
                                  fixture->epoch));
+            CHECK(enqueue_native(BC_VOICE_INPUTS_GET, 134U, NULL, 0U,
+                                 fixture->epoch));
             fixture->script_stage = 43U;
         }
         break;
@@ -1287,11 +1305,15 @@ static void restart_script(worker_fixture *fixture)
         break;
     case 44:
         response = find_response(fixture, BC_VOICE_SETTINGS_GET, 133U);
-        if (response != NULL) {
+        if (response != NULL && find_response(fixture, BC_VOICE_INPUTS_GET, 134U) != NULL) {
+            const bc_voice_message *mapped = find_response(fixture, BC_VOICE_INPUTS_GET, 134U);
+            CHECK(mapped->length == 11U && mapped->payload[4] == BC_REC_OK);
+            CHECK(get16(mapped->payload + 5U) == 5000U && mapped->payload[7] == BC_VOICE_INPUT_PTT &&
+                  mapped->payload[8] == BC_VOICE_INPUT_DISABLED && mapped->payload[9] == BC_VOICE_INPUT_MEMO);
             CHECK(fixture->hardware.lights_enabled && fixture->hardware.haptics_enabled);
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->length == 16U);
-            CHECK(bc_voice_get32(response->payload + 5U) == 1234U &&
+            CHECK(bc_voice_get32(response->payload + 5U) == 0U &&
                   bc_voice_get32(response->payload + 9U) == 2345U);
             CHECK(response->payload[13] == 1U && response->payload[14] == 1U &&
                   response->payload[15] == 1U);
@@ -1441,7 +1463,7 @@ static void worker_script(worker_fixture *fixture)
             fixture->script_stage = 62U;
             break;
         }
-        /* Fresh devices ignore accidental double taps. Validate this through
+        /* The migrated S03 opt-out ignores triple taps. Validate this through
          * the actual worker before proving hold/release still works offline. */
         if (fixture->clock_wrap_ready &&
             fixture->hardware.touch_callback != NULL) {
@@ -1863,7 +1885,7 @@ static void worker_script(worker_fixture *fixture)
                 fixture->hardware.motor_pulse_calls;
             /* Muting immediately after the callback must cancel any queued
              * confirmation pulse, including its second pulse. */
-            encode_settings(extra, 10000U, 0U, false, true, false);
+            encode_settings(extra, 0U, 0U, false, true, false);
             CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 143U, extra, 11U,
                                  fixture->epoch));
             fixture->script_stage = 58U;
@@ -1903,7 +1925,7 @@ static void worker_script(worker_fixture *fixture)
             CHECK(fixture->hardware.motor_pulse_calls ==
                   fixture->outcome_pulses_before_mute);
             /* Restore the master before the remaining regression script. */
-            encode_settings(extra, 10000U, 0U, false, true, true);
+            encode_settings(extra, 0U, 0U, false, true, true);
             CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 146U, extra, 11U,
                                  fixture->epoch));
             fixture->script_stage = 61U;
@@ -2000,7 +2022,7 @@ static void worker_script(worker_fixture *fixture)
         response = find_response(fixture, BC_VOICE_SETTINGS_SET, 113U);
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_INVALID);
-            encode_settings(extra, 1234U, 2345U, false, true, true);
+            encode_settings(extra, 0U, 2345U, false, true, true);
             CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 114U, extra, 11U,
                                  fixture->epoch));
             fixture->script_stage = 23U;
@@ -2012,7 +2034,7 @@ static void worker_script(worker_fixture *fixture)
             bc_voice_settings persisted;
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(settings_attr(fixture, &persisted));
-            CHECK(persisted.ptt_limit_ms == 1234U &&
+            CHECK(persisted.ptt_limit_ms == 0U &&
                   persisted.memo_limit_ms == 2345U &&
                   !persisted.memo_enabled && persisted.led_enabled &&
                   persisted.haptic_enabled);
@@ -2026,7 +2048,7 @@ static void worker_script(worker_fixture *fixture)
         if (response != NULL) {
             fixture->haptic_before_error = fixture->hardware.motor_pulse_calls;
             CHECK(response->payload[4] == BC_REC_OK);
-            CHECK(bc_voice_get32(response->payload + 5U) == 1234U &&
+            CHECK(bc_voice_get32(response->payload + 5U) == 0U &&
                   bc_voice_get32(response->payload + 9U) == 2345U &&
                   response->payload[13] == 0U && response->payload[14] == 1U &&
                   response->payload[15] == 1U);
@@ -2133,9 +2155,9 @@ static void worker_script(worker_fixture *fixture)
                   response->payload[7] == 100U);
             CHECK(get16(response->payload + 8U) == 120U &&
                   get16(response->payload + 10U) == 280U);
-            CHECK(response->payload[12] == BC_TOUCH_TUNING_PENDING);
+            CHECK(response->payload[12] == BC_TOUCH_TUNING_APPLIED);
             CHECK(worker_tuning_snapshot_matches(54U, 52U, false,
-                                                 BC_TOUCH_TUNING_PENDING));
+                                                 BC_TOUCH_TUNING_APPLIED));
             encode_tuning(extra, 64U, 60U, 75U, 200U, 340U);
             CHECK(enqueue_native(BC_VOICE_TUNING_SET, 123U, extra, 7U,
                                  fixture->epoch));
@@ -2161,12 +2183,14 @@ static void worker_script(worker_fixture *fixture)
                              sizeof(fixture->saved_tuning_attr)));
             CHECK(worker_tuning_snapshot_matches(64U, 60U, false,
                                                  BC_TOUCH_TUNING_PENDING));
+            unsigned prior_writes = fixture->tuning_sensor.write_calls;
+            unsigned prior_reads = fixture->tuning_sensor.read_calls;
             bc_touch_tuning_on_sample(true, false, false,
                                       worker_tuning_write,
                                       worker_tuning_read,
                                       &fixture->tuning_sensor);
-            CHECK(fixture->tuning_sensor.write_calls == 2U &&
-                  fixture->tuning_sensor.read_calls == 2U);
+            CHECK(fixture->tuning_sensor.write_calls == prior_writes + 3U &&
+                  fixture->tuning_sensor.read_calls == prior_reads + 3U);
             CHECK(fixture->tuning_sensor.touch_thresholds[0] == 64U &&
                   fixture->tuning_sensor.touch_thresholds[1] == 60U);
             CHECK(fixture->tuning_sensor.gesture_mask[0] ==
@@ -2256,25 +2280,28 @@ static void worker_script(worker_fixture *fixture)
             CHECK(fixture->tuning_sensor.gesture_mask[0] ==
                       BC_TOUCH_TUNING_GESTURE_HOLD &&
                   fixture->tuning_sensor.gesture_mask[1] == 0U);
-            encode_settings(extra, 1234U, 2345U, true, true, true);
-            CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 128U, extra, 11U,
+            bc_voice_put16(extra, 5000U);
+            extra[2] = BC_VOICE_INPUT_PTT; extra[3] = BC_VOICE_INPUT_DISABLED;
+            extra[4] = BC_VOICE_INPUT_MEMO;
+            CHECK(enqueue_native(BC_VOICE_INPUTS_SET, 128U, extra, 5U,
                                  fixture->epoch));
             fixture->script_stage = 38U;
         }
         break;
     case 38:
-        response = find_response(fixture, BC_VOICE_SETTINGS_SET, 128U);
+        response = find_response(fixture, BC_VOICE_INPUTS_SET, 128U);
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_OK);
-            CHECK(response->payload[13] == 1U && response->payload[14] == 1U &&
-                  response->payload[15] == 1U);
+            CHECK(response->length == 11U && get16(response->payload + 5U) == 5000U);
+            CHECK(response->payload[7] == BC_VOICE_INPUT_PTT && response->payload[8] == 0U &&
+                  response->payload[9] == BC_VOICE_INPUT_MEMO);
             CHECK(worker_tuning_snapshot_matches(70U, 65U, true,
                                                  BC_TOUCH_TUNING_PENDING));
             bc_touch_tuning_on_sample(true, false, false,
                                       worker_tuning_write,
                                       worker_tuning_read,
                                       &fixture->tuning_sensor);
-            CHECK(fixture->tuning_sensor.gesture_mask[0] == 0x0AU &&
+            CHECK(fixture->tuning_sensor.gesture_mask[0] == 0x0CU &&
                   fixture->tuning_sensor.gesture_mask[1] == 0U);
             CHECK(worker_tuning_snapshot_matches(70U, 65U, true,
                                                  BC_TOUCH_TUNING_APPLIED));
@@ -2299,7 +2326,7 @@ static void worker_script(worker_fixture *fixture)
             encode_tuning(extra, 72U, 70U, 90U, 280U, 400U);
             CHECK(enqueue_native(BC_VOICE_TUNING_SET, 130U, extra, 7U,
                                  fixture->epoch));
-            encode_settings(extra, 4321U, 5432U, false, false, false);
+            encode_settings(extra, 0U, 5432U, true, false, false);
             CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 131U, extra, 11U,
                                  fixture->epoch));
             fixture->script_stage = 40U;
@@ -2318,6 +2345,10 @@ static void worker_script(worker_fixture *fixture)
             uint8_t current_attr[20];
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(!fixture->hardware.lights_enabled && !fixture->hardware.haptics_enabled);
+            /* Simulate an S03 settings record with a persisted PTT cap. */
+            bc_voice_put32(fixture->saved_settings_attr + 8U, 10000U);
+            bc_voice_put32(fixture->saved_settings_attr + 16U,
+                           bc_voice_crc32(fixture->saved_settings_attr, 16U));
             CHECK(lfs_setattr(worker_lfs, "/", 0xa6U,
                               fixture->saved_settings_attr,
                               sizeof(fixture->saved_settings_attr)) == 0);
@@ -2349,6 +2380,8 @@ static void archive_worker_script(worker_fixture *fixture)
     switch (fixture->script_stage) {
     case 63:
         if (fixture->loop_count == 1U) {
+            bc_touch_tuning_on_sample(true, false, false, worker_tuning_write,
+                                      worker_tuning_read, &fixture->tuning_sensor);
             clear_sink(fixture);
             fixture->att_limit = 20U;
             fixture->archive_start_calls = fixture->capture.start_calls;
@@ -2452,6 +2485,26 @@ static void archive_worker_script(worker_fixture *fixture)
     }
 }
 
+static void fresh_inputs_script(worker_fixture *fixture)
+{
+    const bc_voice_message *mapped, *settings;
+    if (fixture->loop_count == 1U) {
+        clear_sink(fixture);
+        CHECK(enqueue_native(BC_VOICE_INPUTS_GET, 900U, NULL, 0U, fixture->epoch));
+        CHECK(enqueue_native(BC_VOICE_SETTINGS_GET, 901U, NULL, 0U, fixture->epoch));
+    }
+    mapped = find_response(fixture, BC_VOICE_INPUTS_GET, 900U);
+    settings = find_response(fixture, BC_VOICE_SETTINGS_GET, 901U);
+    if (!mapped || !settings) return;
+    CHECK(mapped->payload[4] == BC_REC_OK && get16(mapped->payload + 5U) == 1000U);
+    CHECK(mapped->payload[7] == BC_VOICE_INPUT_PTT && mapped->payload[8] == BC_VOICE_INPUT_DISABLED &&
+          mapped->payload[9] == BC_VOICE_INPUT_MEMO);
+    CHECK(settings->payload[4] == BC_REC_OK && bc_voice_get32(settings->payload + 5U) == 0U);
+    CHECK(settings->payload[13] == 1U && settings->payload[14] == 1U && settings->payload[15] == 1U);
+    fixture->script_stage = 90U;
+    stop_worker(fixture);
+}
+
 static void test_worker_end_to_end(void)
 {
     worker_fixture fixture;
@@ -2481,6 +2534,11 @@ static void test_worker_end_to_end(void)
     CHECK(fixture.script_stage == 71U);
     CHECK(fixture.loop_count < 600U);
     CHECK(test_critical_depth == 0U);
+    CHECK(lfs_removeattr(worker_lfs, "/", 0xa6U) == 0);
+    CHECK(lfs_removeattr(worker_lfs, "/", 0xa8U) == 0);
+    fixture.yield_hook = fresh_inputs_script;
+    run_worker(&fixture, 40U);
+    CHECK(fixture.script_stage == 90U && fixture.loop_count < 40U);
     fixture_destroy(&fixture);
 }
 

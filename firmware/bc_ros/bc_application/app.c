@@ -226,7 +226,9 @@ void app_init(void)
     || HARDWARE_1231_ENABLED == 1)
 
 //    /*   初始化ppg文件处理相关资源 */	
+#if !defined(SUDO_VOICE_ONLY)
    app_ppg_file_init();
+#endif
    
 #endif
 

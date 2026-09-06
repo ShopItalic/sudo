@@ -4,6 +4,34 @@ This document records the candidate voice protocol implemented by the firmware a
 
 Primary firmware sources are firmware/bc_ros/bc_module/recording/bc_voice_wire.h and .c for framing, bc_voice_protocol.h and bc_voice_service.c for messages and service behavior, bc_recording.h for state/results, and firmware/bc_ros/bc_application/app_sudo_voice.c for the standard worker. The app mirror is apps/ios/Sudo/Services/RingVoiceWire.swift, RingVoiceProtocol.swift, RingVoiceConnection.swift, RingVoiceRecordingTransport.swift, RingVoiceLiveReceiver.swift, RingVoiceLivePreview.swift, and RingProductionBoard.swift.
 
+## S04 controls
+
+S04 requires a zero PTT limit (until release) in SETTINGS_SET and PTT START.
+Memo/app limits remain independent. Exactly three physical inputs are mappable:
+hold, double tap and triple tap. Fresh defaults are a one-second hold → PTT,
+double tap → disabled, and triple tap → memo toggle. Hold activation delay is
+500–10,000 ms; it delays activation rather than capping capture duration.
+
+INPUTS_SET/GET configure hold delay and all three mappings. Actions are disabled
+0, PTT 1 (hold only), memo toggle 2 and SDK/app event 3. Host integrations must
+require exact S04 identity and HELLO bits 9, 10 and 11, while preserving older
+firmware behavior. S04 app adoption is outside this firmware-only change. S04 SETTINGS memo-enabled is a compatibility mirror of whether any
+mapping uses memo toggle; changing that field through SETTINGS_SET is rejected.
+Feedback saves preserve it. TUNING controls thresholds and haptic parameters.
+
+Valid older SVS1 settings load with PTT forced to zero. In the absence of SVI1
+mappings, old memo-enable choices seed triple tap on/off, retaining opt-out.
+The S03 PHONE_OUTCOME and S02 application feedback policies remain.
+
+INPUT_EVENT is a connection-scoped live event for the SDK/app action mapping:
+sequence u32 at 0; input u8 at 4 (hold 1, double 2, triple 3); phase u8 at 5
+(activated 1, released 2, cancelled 3); action 3 at 6; reserved zero at 7.
+Hold emits activation then release/cancellation; taps emit activation only.
+The four-entry queue and an in-flight event expire after one second; link
+changes clear them. The SDK rejects invalid/duplicate sequences within an epoch
+and does not persist or replay events. Consumers must handle loss, cancellation
+and disconnect rather than assuming reliable offline action execution.
+
 ## Application controls in S02
 
 The post-RC1 S02 candidate uses the existing acknowledged SETTINGS and TUNING
@@ -31,7 +59,8 @@ recording**. Explicit app Start/Stop and hold/release still work when it is off.
 ## S03 phone confirmation
 
 HELLO capability bit 8 advertises PHONE_OUTCOME when its feedback port is
-installed. The app requires both exact S03 board/version and this capability.
+installed. Hosts must require an exact supported board/version and this capability;
+the existing S03 client does not imply S04 client support.
 PHONE_OUTCOME returns the ordinary five-byte response. It confirms neither
 archive custody nor permission to delete. Only the current complete saved
 recording and its READY-accepted live token in the same connection qualify,
@@ -83,7 +112,10 @@ Every request begins with a nonzero request ID u32 at payload offset 0. The leng
 | 13 CANCEL | request | 8 | transfer token u32 at 4 |
 | 14 TUNING_SET | request | 11 | touch set u8 at 4; touch clear u8 at 5; haptic strength u8 at 6; start-active ms u16 at 7; stop-active ms u16 at 9 |
 | 15 TUNING_GET | request | 4 | none |
-| 16 PHONE_OUTCOME (S03) | request | 17 | recording ID u64 at 4; live token u32 at 12; outcome u8 at 16 (1 = keyboard inserted) |
+| 16 PHONE_OUTCOME (S03+) | request | 17 | recording ID u64 at 4; live token u32 at 12; outcome u8 at 16 (1 = keyboard inserted) |
+| 17 INPUTS_SET (S04) | request | 9 | hold ms u16 at 4; hold/double/triple action u8 at 6, 7, 8 |
+| 18 INPUTS_GET (S04) | request | 4 | none |
+| 0x43 INPUT_EVENT (S04) | event | 8 | sequence u32; input/phase/action/reserved u8, as above |
 
 Trigger values are PTT 1, memo 2, and app 3. START IDs are persistent idempotency keys across reconnects and reboots. Lengths, IDs, tokens, booleans, duration bounds, and tuning bounds are enforced by [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h), [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c), and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
@@ -105,6 +137,7 @@ Every response begins with request ID u32 at offset 0 and result u8 at offset 4.
 |---|---:|---|
 | HELLO | 20 | capabilities u32 at 5; sample rate u16 at 9; samples/block u16 at 11; bytes/block u16 at 13; checkpoint interval ms u16 at 15; release bound ms u16 at 17; transfer window u8 at 19 |
 | READY | 17 | live token u32 at 5; current recording ID u64 at 9 |
+| INPUTS_GET or INPUTS_SET | 11 | hold ms u16 at 5; hold/double/triple action u8 at 7, 8, 9; sensor apply status u8 at 10 |
 | SETTINGS_GET or SETTINGS_SET | 16 | PTT limit u32 at 5; memo limit u32 at 9; memo, LED, haptic u8 at 13, 14, 15 |
 | TUNING_GET or TUNING_SET | 13 | touch set u8 at 5; touch clear u8 at 6; haptic strength u8 at 7; start-active ms u16 at 8; stop-active ms u16 at 10; apply status u8 at 12 |
 | RESUME | 29 | recording ID u64 at 5; transfer token u32 at 13; file bytes u32 at 17; raw CRC u32 at 21; requested offset u32 at 25 |
@@ -140,7 +173,7 @@ Phase values are idle 0, starting 1, recording 2, stopping 3, saved 4, partial 5
 
 The complete result enum is: 0 OK; 1 INVALID; 2 BUSY; 3 WRONG_SESSION; 4 DUPLICATE; 5 NO_SPACE; 6 OPEN_ERROR; 7 WRITE_ERROR; 8 SYNC_ERROR; 9 CLOSE_ERROR; 10 CAPTURE_ERROR; 11 CAPTURE_OVERFLOW; 12 SEQUENCE_GAP; 13 STOP_TIMEOUT; 14 ALREADY_EXISTS; 15 EMPTY_AUDIO; 16 INTERRUPTED; 17 TOUCH_ERROR; 18 NOT_FOUND; 19 CUSTODY_REQUIRED; 20 UNSUPPORTED; 21 CANCELLED; 22 CRC_ERROR. The enum is [bc_recording.h](../../firmware/bc_ros/bc_module/recording/bc_recording.h) and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
-HELLO capability bits are local storage 0, PTT 1, memo 2, live 3, resume 4, custody 5, settings 6, tuning 7, and optional phone outcome 8 (S03, advertised only with an outcome handler): [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
+HELLO capability bits are local storage 0, PTT 1, memo 2, live 3, resume 4, custody 5, settings 6, tuning 7, optional phone outcome 8 (S03+, advertised only with an outcome handler), triple tap 9, PTT until release 10, and input mappings 11 (S04, advertised with the inputs port): [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
 ## 4. Handshake, epochs, and ordering
 
@@ -181,7 +214,7 @@ RECEIPT is accepted only with exact ID/size/CRC; firmware records the receipt an
 
 ## 7. Settings and touch tuning
 
-Standard defaults are PTT limit 10,000 ms, memo limit 0 for unlimited, double tap disabled, and application LED/haptics enabled: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
+S04 defaults are PTT limit 0 for until release, memo limit 0 for unlimited, hold after 1 second mapped to PTT, double tap disabled, triple tap mapped to memo toggle, and application LED/haptics enabled: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
 
 Settings persist in a 20-byte A6 attribute: SVS1 bytes 0-3; flags byte 4 with memo bit 0, LED bit 1, haptic bit 2; reserved bytes 5-7; PTT u32 at 8; memo u32 at 12; CRC32 over bytes 0-15 at 16. The firmware reads back the attribute before reporting SET success: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c).
 
@@ -189,7 +222,21 @@ Tuning defaults are set 54, clear 52, haptic strength 100, start-active 120 ms, 
 
 Tuning persists in A7: SVT1 bytes 0-3; set 4; clear 5; haptic 6; reserved 7; start u16 at 8; stop u16 at 10; reserved 12-15; CRC32 over bytes 0-15 at 16. Response status is pending 0, applied/verified 1, or I/O error 2. SET confirms durable desired values; the IQS sensor applies them on the next valid no-contact/release report and reads them back. I/O error retains desired values while reporting unapplied state: [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c); [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [bc_touch_tuning.h](../../firmware/bc_ros/bc_module/recording/bc_touch_tuning.h); [bc_touch_tuning.c](../../firmware/bc_ros/bc_module/recording/bc_touch_tuning.c).
 
-SUDO_VOICE_ONLY enables hold and, when memo is enabled, double tap; the bits are hold 0x0008 and double tap 0x0002: [bc_touch_tuning.h](../../firmware/bc_ros/bc_module/recording/bc_touch_tuning.h); [bc_touch_tuning.c](../../firmware/bc_ros/bc_module/recording/bc_touch_tuning.c).
+Input mappings persist in a separate 16-byte A8 attribute: SVI1 bytes 0–3;
+hold milliseconds u16 at 4; hold/double/triple action u8 at 6/7/8; reserved zero
+at 9–11; CRC32 over bytes 0–11 at 12. SET verifies the saved bytes before
+publishing desired mappings. Input and tuning responses report the shared
+sensor status only when threshold, hold delay and gesture mask match.
+
+S04 admits only enabled hold (0x08), double-tap (0x02) and triple-tap (0x04)
+bits. Initial sensor setup is hold only; applying fresh mappings gives 0x0C.
+Enabling all three gives 0x0E. No single, swipe or palm bit is enabled. In the
+valid no-contact I2C window, firmware writes/readbacks threshold register 0x38,
+hold time 0x4F and gesture enable 0x4B. Old/unverified queued gesture flags cannot
+start an action under new mappings; release/fault handling remains active.
+See [input types](../../firmware/bc_ros/bc_module/recording/bc_voice_inputs.h) and
+[sensor tuning](../../firmware/bc_ros/bc_module/recording/bc_touch_tuning.c).
+
 
 ## 8. Legacy controls
 
@@ -209,14 +256,14 @@ Legacy delete 0x12, format 0x13, and batch 0x1a do not claim success. Root legac
 
 BCL remains the CBPeripheral delegate. RingVoiceConnection installs a BCL public peripheral observer, which filters notifications by characteristic and 0x7e command marker and forwards ordered copied values to the native client. This source-level forwarding does not verify physical notification delivery; public observer physical forwarding is UNVERIFIED: [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
-The direct gate accepts hardware 603V1.23.2 and firmware 6.0.3.3S01, 6.0.3.3S02 or 6.0.3.3S03 after fixed-field trimming. S02 and S03 use application-wide feedback semantics through that exact version gate. Other board or firmware combinations do not pass the voice-protocol gate: [RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingProductionBoard.swift); [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
+The direct gate accepts hardware 603V1.23.2 and firmware 6.0.3.3S01, 6.0.3.3S02, 6.0.3.3S03 or 6.0.3.3S04 after fixed-field trimming. S02, S03 and S04 use application-wide feedback semantics through that exact version gate. Other board or firmware combinations do not pass the voice-protocol gate: [RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingProductionBoard.swift); [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
 ### S02 hold-to-stop escape
 
-When an enabled double-tap recording is active, a hold requests Stop through
-the same drain-and-finalize path as a second double tap. Repeated hold reports
+When an enabled triple-tap recording is active (S04), a hold requests Stop through
+the same drain-and-finalize path as a second triple tap. Repeated hold reports
 and release cannot start another clip; a new hold after release can start PTT.
 This does not interrupt an app-owned recording. It provides another gesture
-when a double tap is missed, but still needs a functioning touch sensor.
+when a triple tap is missed, but still needs a functioning touch sensor.
 Supplier testing must reproduce the reported stuck double-tap behavior on
 physical hardware; passing host tests does not establish its original cause.

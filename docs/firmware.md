@@ -1,5 +1,9 @@
 # Production firmware baseline
 
+Current source is **6.0.3.3S04**, with PTT until release, three mappable inputs,
+configurable hold activation, persisted light/haptic controls and conservative cleanup. The published S03 RC1
+remains the prior unsigned engineering release. See the [S04 change ledger](reference/supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026).
+
 The source task inspected `Firmware/1.23.2_6033固件SDK.zip` in the Sudo Google
 Drive folder on the MBA. Its source board selection agrees with the production
 Ring baseline for `603V1.23.2`. The recovered [raw factory firmware
@@ -11,7 +15,7 @@ distribution.
 
 The reviewed SDK is imported under `firmware/`, with its unmodified source
 baseline saved at commit `102bfd2`. The factory distribution is exactly
-`6.0.3.3Z62`. The separate Sudo Voice engineering profile is `6.0.3.3S02`, a
+`6.0.3.3Z62`. The separate Sudo Voice engineering profile is `6.0.3.3S04`, a
 ten-byte build string plus NUL in the legacy version field; it is not a factory
 version, signed release, or anti-rollback-approved image. The matching iOS
 adapter is [ShopItalic/app](https://github.com/ShopItalic/app).
@@ -43,12 +47,12 @@ The current firmware source provides:
   tuning. Custody deletion requires a nonzero exact byte count and matching CRC,
   a persisted checked receipt tombstone, and a terminal complete/recovered
   record; raw removal remains retryable and tombstones are retained.
-- Configurable PTT and memo limits, touch tuning, checked SUDO ADC/power error
-  handling, a fixed-window battery filter with charging-epoch monotonicity, and
-  haptic settings. The profile default is a 10-second PTT limit and
-  `memo_limit_ms=0` for an unlimited app recording. Double tap is opt-in; lights
-  and haptics have persisted master switches for normal application output. Host tests cover these paths; sensor
-  calibration, physical ranges, power draw, and device behavior remain open.
+- PTT until release, optional memo limits, three independently mapped inputs,
+  adjustable hold activation, checked ADC/power errors, a battery filter with
+  charging-phase resets and recovery, and persisted light/haptic controls.
+  Fresh defaults are one-second hold to PTT, double tap off and triple tap to
+  memo toggle. Host tests cover these paths; sensor calibration, physical
+  ranges, power draw and device behavior remain open.
 
 All public storage calls are serialized by the recording/archive worker, and the
 store receives its already mounted shared `lfs_t` from the platform. The store
@@ -83,19 +87,21 @@ replace the supplier pin map or adapt the older Nordic prototype by assumption.
 The recording, capture, protocol, touch-tuning, battery, and LittleFS fault tests
 have recorded sanitizer-backed host runs, including RAM-NOR erase/program
 semantics and bounded power-cut cases. `sh tools/firmware/test.sh` remains the
-host validation entry point. The September 6 integrated run passed 13,174 C
-checks across 24 suites and six archive-normalizer tests; baseline verification
-matched all 7,056 original files.
+host validation entry point. The S03 validation passed 14,330 C checks across
+24 suites and six archive-normalizer tests; baseline verification matched all 7,056 original
+files. See the [S03 reliability report](reference/ring-s03-reliability.md)
+for the S03 validation and [final audit](reference/ring-s03-final-audit.html)
+for the feature inventory and remaining gates.
 
 The integrated Arm GNU 15.2.rel1 target compiles and links all 225 sources with
-zero undefined symbols and passing startup/vector checks. The load image is
-309,364 bytes; static RAM is 203,856 bytes plus separate 8 KiB C-heap and 8 KiB
-main-stack reservations. The [candidate record](reference/ring-firmware-candidate.md)
-documents runtime locking, ABI warnings and exact local artifact hashes.
+zero undefined symbols and passing startup/vector checks. The local S03 load
+image is 311,452 bytes; static RAM is 203,968 bytes plus separate 8 KiB C-heap
+and 8 KiB main-stack reservations. The released Linux image has its own hashes
+and sizes in the [release guide](how-to/test-s03-release-candidate.md).
 Vendor Arm Compiler 5.06 update 7 (build 960) reproduction, physical stack/heap
 high-water measurements, signing/package and recovery review remain pending.
-No physical ring has been dumped or flashed; no hardware acceptance or firmware
-release is claimed.
+S03 RC1 is published as an unsigned engineering prerelease. No physical Ring
+has been dumped or flashed here; hardware acceptance is not established.
 
 ## Remaining build and hardware gates
 

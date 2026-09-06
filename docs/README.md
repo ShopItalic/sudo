@@ -1,17 +1,23 @@
 # Documentation
 
-Start with the **[S03 RC1 download, flashing and test guide](how-to/test-s03-release-candidate.md)**.
+For the latest published binary, use the **[S03 RC1 download, flashing and test guide](how-to/test-s03-release-candidate.md)**.
 The **[GitHub prerelease](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)**
 contains downloadable application/debug files and a supplier review bundle.
+It does not contain the newer S04 source changes.
 
 ## Candidate engineering
 
 - [Supplier change log: factory baseline to current source](reference/supplier-firmware-change-log.md).
 
-Current source is S03: bounded faster fragment scheduling, delayed-ACK recovery,
-archive stall expiry, motor-aware battery sampling, verified-download reuse
-in the matching app, and a separate keyboard-insertion acknowledgment cue.
-It retains S02 double-tap opt-in, hold-to-stop and SDK lights/haptics controls. S03 RC1 and historical S01 RC1 have separate pinned source and binaries.
+Current source candidate is **S04**, in [firmware PR #3](https://github.com/ShopItalic/sudo/pull/3):
+PTT until release, three independently mapped inputs, adjustable hold activation,
+persisted light/haptic controls and conservative cleanup. Fresh defaults are
+one-second hold to PTT, double tap off and triple tap to memo toggle.
+
+S04 passes 16,902 C checks, six archive-normalizer tests and the 225-source GNU
+ARM build, including GitHub CI. It is not merged, packaged or physically
+qualified. S04 client integration is outside this firmware-only change.
+Published S03 RC1 and historical S01 RC1 retain their pinned source and binaries.
 
 - [S03 changes and qualification plan](reference/ring-s03-reliability.md).
 - [Build, validation evidence and Caption comparison](reference/ring-firmware-candidate.md).
@@ -19,7 +25,7 @@ It retains S02 double-tap opt-in, hold-to-stop and SDK lights/haptics controls. 
 - [BLE wire contract](reference/ring-voice-protocol.md).
 - [Source import, baseline and build workflow](firmware.md).
 - [Engineering follow-ups](backlog.md).
-- [Matching app candidate](https://github.com/ShopItalic/app/pull/12).
+- [Published S03 app candidate](https://github.com/ShopItalic/app/pull/12).
 
 The [historical S01 RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1)
 preserves the matching documentation for those downloads.

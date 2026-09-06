@@ -655,7 +655,7 @@ static void send_gamepad_report( uint8_t buttons, int8_t x, int8_t y, int8_t z, 
 {
     uint32_t err_code;
     uint8_t report[6];
-    if(*m_conn_handle == NULL)
+    if(m_conn_handle == NULL || *m_conn_handle == BLE_CONN_HANDLE_INVALID)
     {
         return;
     }

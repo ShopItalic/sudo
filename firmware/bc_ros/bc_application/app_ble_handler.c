@@ -1,3 +1,6 @@
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
 #include "app_ble_handler.h"
 
 
@@ -743,7 +746,7 @@ void app_ble_handler_thread_create(void)
                                      (void*          )&app_ble_thread[i].thread_parameters,				
                                      (UBaseType_t    )app_ble_thread[i].thread_priority,	
                                      (TaskHandle_t*  )&app_ble_thread[i].thread_handler); 
-		if(x_return != NULL)
+		if(x_return == bc_pdPASS)
 		{
 			BC_LOG_INFO("create %s succeed \r\n",app_ble_thread[i].thread_name);
 //      bc_rtos_thread_suspend(app_ble_thread[i].thread_handler);
@@ -751,6 +754,9 @@ void app_ble_handler_thread_create(void)
 		else
 		{
 			BC_LOG_ERROR("create  %s fail",app_ble_thread[i].thread_name);
+#if defined(SUDO_VOICE_ONLY)
+            APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+#endif
 		}	
 	}
   app_ble_time_create();

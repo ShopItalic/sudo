@@ -393,10 +393,10 @@ static bool runtime_init(fixture *f, uint32_t epoch)
                            &recording_config))
         return false;
 
-    gesture_config.ptt_limit_ms = 5000U;
+    gesture_config.ptt_limit_ms = 0U;
     gesture_config.memo_limit_ms = 3000U;
     gesture_config.touch_timeout_ms = 250U;
-    gesture_config.double_tap_debounce_ms = 200U;
+    gesture_config.tap_debounce_ms = 200U;
     gesture_config.memo_enabled = true;
     if (!bc_voice_gesture_init(&f->gesture, &f->recording, &gesture_config,
                                next_id, f))
@@ -644,7 +644,7 @@ static void test_handshake_queue_and_wire_rejection(void)
 {
     fixture f;
     uint8_t start_extra[13];
-    bc_rec_start start = start_value(0x101U, BC_REC_PTT, 2000U);
+    bc_rec_start start = start_value(0x101U, BC_REC_PTT, 0U);
     unsigned before;
     const bc_voice_message *response;
     unsigned i;
@@ -661,10 +661,12 @@ static void test_handshake_queue_and_wire_rejection(void)
           (bc_voice_get32(response->payload + 5) &
            (BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT | BC_VOICE_CAP_MEMO |
             BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
-            BC_VOICE_CAP_SETTINGS)) ==
+            BC_VOICE_CAP_SETTINGS | BC_VOICE_CAP_TRIPLE_TAP |
+            BC_VOICE_CAP_PTT_UNTIL_RELEASE)) ==
               (BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT | BC_VOICE_CAP_MEMO |
                BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
-               BC_VOICE_CAP_SETTINGS));
+               BC_VOICE_CAP_SETTINGS | BC_VOICE_CAP_TRIPLE_TAP |
+               BC_VOICE_CAP_PTT_UNTIL_RELEASE));
 
     before = f.sink.message_count;
     CHECK(send_request(&f, BC_VOICE_SETTINGS_GET, 2U, NULL, 0U, 244U, 20U,
@@ -672,7 +674,7 @@ static void test_handshake_queue_and_wire_rejection(void)
     CHECK(pump(&f, 20U, 244U) != 0U);
     response = find_response(&f, before, BC_VOICE_SETTINGS_GET, 2U);
     CHECK(response != NULL && response->length == 16U &&
-          bc_voice_get32(response->payload + 5) == 5000U &&
+          bc_voice_get32(response->payload + 5) == 0U &&
           bc_voice_get32(response->payload + 9) == 3000U);
 
     before = f.sink.message_count;
@@ -730,7 +732,7 @@ static void test_handshake_queue_and_wire_rejection(void)
 static void test_start_stop_idempotency_and_recovery(void)
 {
     fixture f;
-    bc_rec_start start = start_value(0x1111222233334444ULL, BC_REC_PTT, 4000U);
+    bc_rec_start start = start_value(0x1111222233334444ULL, BC_REC_PTT, 0U);
     bc_rec_start wrong = start;
     uint8_t extra[13];
     uint8_t frame[BC_REC_FRAME_MAX];
@@ -917,7 +919,7 @@ static void test_ready_live_ack_lease_and_disconnect(void)
 
     fill_pattern(frame, sizeof(frame), 0x10U);
     CHECK(!bc_voice_service_live(&f.service, start.id, 0U, frame, sizeof(frame)));
-    CHECK(!f.service.live_pending && f.service.live_count == 0U);
+    CHECK(f.service.live_count == 0U);
     CHECK(bc_recording_frame(&f.recording, start.id, 1U, frame,
                              sizeof(frame), 30U) == BC_REC_OK);
     CHECK(pump(&f, 30U, 20U) != 0U);
@@ -2162,7 +2164,19 @@ static void test_settings_errors_and_archive_cancellation(void)
     CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
     CHECK(f.settings_count == 0U);
 
-    encode_settings(settings_extra, BC_REC_MAX_INTERVAL + 1UL, 2222U,
+    /* S04 rejects the old ten-second PTT request before opening a file. */
+    start.duration_limit_ms = 10000U;
+    encode_start(start_extra, &start);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_START, 5002U, start_extra, 13U,
+                       244U, 12U, false));
+    CHECK(pump(&f, 12U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_START, 5002U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
+    CHECK(f.open_count == 0U && f.capture_start_count == 0U);
+    start.duration_limit_ms = 0U;
+
+    encode_settings(settings_extra, 10000U, 2222U,
                     false, false, true);
     before = f.sink.message_count;
     CHECK(send_request(&f, BC_VOICE_SETTINGS_SET, 5001U, settings_extra, 11U,
@@ -2172,7 +2186,7 @@ static void test_settings_errors_and_archive_cancellation(void)
     CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
     CHECK(f.settings_count == 0U);
 
-    encode_settings(settings_extra, 1111U, 2222U, false, false, true);
+    encode_settings(settings_extra, 0U, 2222U, false, false, true);
     f.settings_result = BC_REC_WRITE_ERROR;
     settings_calls = f.settings_count;
     before = f.sink.message_count;
@@ -2182,7 +2196,7 @@ static void test_settings_errors_and_archive_cancellation(void)
     response = find_response(&f, before, BC_VOICE_SETTINGS_SET, 501U);
     CHECK(response != NULL && response->payload[4] == BC_REC_WRITE_ERROR);
     CHECK(f.settings_count == settings_calls + 1U &&
-          f.gesture.config.ptt_limit_ms == 5000U &&
+          f.gesture.config.ptt_limit_ms == 0U &&
           f.gesture.config.memo_limit_ms == 3000U);
 
     f.settings_result = BC_REC_OK;
@@ -2192,7 +2206,7 @@ static void test_settings_errors_and_archive_cancellation(void)
     CHECK(pump(&f, 30U, 20U) != 0U);
     response = find_response(&f, before, BC_VOICE_SETTINGS_SET, 502U);
     CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    CHECK(f.gesture.config.ptt_limit_ms == 1111U &&
+    CHECK(f.gesture.config.ptt_limit_ms == 0U &&
           f.gesture.config.memo_limit_ms == 2222U &&
           !f.gesture.config.memo_enabled);
 
@@ -2504,6 +2518,89 @@ static void test_tuning_contract_and_busy(void)
     fixture_destroy(&f);
 }
 
+typedef struct { bc_voice_inputs value; bc_rec_result result; unsigned writes; } inputs_fixture;
+static bool test_inputs_get(void *ctx, bc_voice_inputs *value, uint8_t *status)
+{
+    *value = ((inputs_fixture *)ctx)->value; *status = 0U; return true;
+}
+static bc_rec_result test_inputs_set(void *ctx, const bc_voice_inputs *value)
+{
+    inputs_fixture *inputs = ctx; ++inputs->writes;
+    if (inputs->result == BC_REC_OK) inputs->value = *value;
+    return inputs->result;
+}
+static void test_input_settings_and_live_events(void)
+{
+    fixture f;
+    inputs_fixture inputs = {{1000U, BC_VOICE_INPUT_PTT, 0U, BC_VOICE_INPUT_MEMO}, BC_REC_OK, 0U};
+    bc_voice_inputs_port port = {&inputs, test_inputs_get, test_inputs_set};
+    uint8_t extra[5] = {0};
+    const bc_voice_message *response;
+    unsigned before, i;
+    CHECK(fixture_setup(&f));
+    CHECK(bc_voice_service_set_inputs_port(&f.service, &port));
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 800U, NULL, 0U, 20U, 10U, false));
+    (void)pump(&f, 10U, 20U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 800U);
+    CHECK(response && (bc_voice_get32(response->payload + 5U) & BC_VOICE_CAP_INPUT_MAPPINGS));
+    bc_voice_put16(extra, 5000U);
+    extra[2] = BC_VOICE_INPUT_APP; extra[3] = BC_VOICE_INPUT_APP; extra[4] = BC_VOICE_INPUT_MEMO;
+    before = f.sink.message_count;
+    inputs.result = BC_REC_SYNC_ERROR;
+    CHECK(send_request(&f, BC_VOICE_INPUTS_SET, 801U, extra, 5U, 20U, 20U, false));
+    (void)pump(&f, 20U, 20U);
+    response = find_response(&f, before, BC_VOICE_INPUTS_SET, 801U);
+    CHECK(response && response->length == 11U && response->payload[4] == BC_REC_SYNC_ERROR);
+    CHECK(inputs.value.hold_ms == 1000U && f.gesture.inputs.hold_action == BC_VOICE_INPUT_PTT);
+    inputs.result = BC_REC_OK;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_INPUTS_SET, 802U, extra, 5U, 244U, 30U, false));
+    (void)pump(&f, 30U, 244U);
+    response = find_response(&f, before, BC_VOICE_INPUTS_SET, 802U);
+    CHECK(response && response->payload[4] == BC_REC_OK && response->payload[7] == BC_VOICE_INPUT_APP);
+    CHECK(f.gesture.inputs.hold_ms == 5000U && f.service.settings.memo_enabled);
+    extra[3] = BC_VOICE_INPUT_PTT;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_INPUTS_SET, 803U, extra, 5U, 244U, 40U, false));
+    (void)pump(&f, 40U, 244U);
+    response = find_response(&f, before, BC_VOICE_INPUTS_SET, 803U);
+    CHECK(response && response->payload[4] == BC_REC_INVALID && inputs.writes == 2U);
+    extra[3] = BC_VOICE_INPUT_APP;
+    f.gesture.contact_active = true;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_INPUTS_SET, 804U, extra, 5U, 244U, 50U, false));
+    (void)pump(&f, 50U, 244U);
+    response = find_response(&f, before, BC_VOICE_INPUTS_SET, 804U);
+    CHECK(response && response->payload[4] == BC_REC_BUSY && inputs.writes == 2U);
+    f.gesture.contact_active = false;
+    before = f.sink.message_count;
+    CHECK(!bc_voice_service_input(&f.service, BC_VOICE_INPUT_TRIPLE, BC_VOICE_INPUT_ACTIVATED));
+    CHECK(!bc_voice_service_input(&f.service, BC_VOICE_INPUT_DOUBLE, BC_VOICE_INPUT_RELEASED));
+    CHECK(bc_voice_service_input(&f.service, BC_VOICE_INPUT_DOUBLE, BC_VOICE_INPUT_ACTIVATED));
+    (void)pump(&f, 60U, 20U);
+    CHECK(count_kind(&f, before, BC_VOICE_INPUT_EVENT) == 1U);
+    for (i = before; i < f.sink.message_count; ++i) {
+        response = &f.sink.messages[i];
+        if (response->kind == BC_VOICE_INPUT_EVENT) {
+            CHECK(response->direction == BC_VOICE_EVENT && response->length == 8U);
+            CHECK(bc_voice_get32(response->payload) == 1U && response->payload[4] == BC_VOICE_INPUT_DOUBLE);
+            CHECK(response->payload[5] == BC_VOICE_INPUT_ACTIVATED && response->payload[6] == BC_VOICE_INPUT_APP && response->payload[7] == 0U);
+        }
+    }
+    before = f.sink.message_count;
+    CHECK(bc_voice_service_input(&f.service, BC_VOICE_INPUT_DOUBLE, BC_VOICE_INPUT_ACTIVATED));
+    (void)pump(&f, 1060U, 20U);
+    CHECK(count_kind(&f, before, BC_VOICE_INPUT_EVENT) == 0U);
+    CHECK(bc_voice_service_input(&f.service, BC_VOICE_INPUT_HOLD, BC_VOICE_INPUT_ACTIVATED));
+    bc_voice_service_link(&f.service, f.service.epoch + 1U, false);
+    bc_voice_service_link(&f.service, f.service.epoch + 1U, true);
+    CHECK(!bc_voice_service_input(&f.service, BC_VOICE_INPUT_HOLD, BC_VOICE_INPUT_RELEASED));
+    (void)pump(&f, 1070U, 20U);
+    CHECK(count_kind(&f, before, BC_VOICE_INPUT_EVENT) == 0U);
+    fixture_destroy(&f);
+}
+
 int main(void)
 {
     test_handshake_queue_and_wire_rejection();
@@ -2524,6 +2621,7 @@ int main(void)
     test_settings_errors_and_archive_cancellation();
     test_phone_outcome_lease_and_callback();
     test_tuning_contract_and_busy();
+    test_input_settings_and_live_events();
     fprintf(stdout, "%u checks, %u failures\n", checks, failures);
     return failures == 0U ? 0 : 1;
 }

@@ -1,12 +1,14 @@
 # Italic Ring — firmware, downloads and hardware
 
 Firmware and hardware evidence for the **standard Bravechip 603V1.23.2 Ring**.
-Current candidate: **6.0.3.3S03**.
+Current source candidate: **6.0.3.3S04**, in [firmware PR #3](https://github.com/ShopItalic/sudo/pull/3).
+Latest published release: **S03 RC1**. S04 is not merged, packaged or physically
+qualified; client integration is outside this firmware-only change.
 
 **[Supplier change log: what changed from factory firmware and why](docs/reference/supplier-firmware-change-log.md)**
 records additions, exclusions, refinements and verification status as work proceeds.
 
-## Download S03 RC1
+## Download the published S03 RC1
 
 **[Release assets: v6.0.3.3S03-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)**
 
@@ -14,7 +16,7 @@ Start with **`italic-ring-603v1.23.2-6.0.3.3S03-rc.1-supplier-review.zip`**.
 The bundle contains the application, debug files, checksums, build provenance,
 supplier change log and instructions. It is an **unsigned engineering prerelease**
 for supplier bench testing on a recoverable spare standard board.
-The review ZIP is **not a signed OTA update package**.
+The review ZIP is **not a signed OTA update package** and does not contain S04 changes.
 
 **[Download, flash and test guide →](docs/how-to/test-s03-release-candidate.md)**
 
@@ -23,7 +25,7 @@ The review ZIP is **not a signed OTA update package**.
 | Download / identify each file / choose SWD or OTA | [S03 guide](docs/how-to/test-s03-release-candidate.md), [release assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1) |
 | Review every change from factory and its rationale | [Supplier change log](docs/reference/supplier-firmware-change-log.md) |
 | Build the firmware | [Candidate build guide](docs/reference/ring-firmware-candidate.md) |
-| Build the matching iPhone SDK/client | [App PR #12](https://github.com/ShopItalic/app/pull/12), exact SDK commit [492af2a](https://github.com/ShopItalic/app/tree/492af2ad40949de3d54419df5e2fa140c912b94f) |
+| Review the published S03 iPhone SDK/client | [App PR #12](https://github.com/ShopItalic/app/pull/12), exact SDK commit [492af2a](https://github.com/ShopItalic/app/tree/492af2ad40949de3d54419df5e2fa140c912b94f) |
 | Implement Bluetooth / settings / feedback | [Wire protocol](docs/reference/ring-voice-protocol.md) |
 | Validate behavior and remaining physical work | [S03 reliability report](docs/reference/ring-s03-reliability.md), [acceptance matrix](docs/reference/ring-recording-and-ptt.md) |
 | Identify components and supplier BOM | [Hardware reference](docs/reference/sudo-ring-hardware.md), [component BOM](docs/reference/sudo-ring/bom.csv), [quoted cost BOM](docs/reference/sudo-ring/quoted-bom.csv) |
@@ -58,11 +60,17 @@ and charging-case parts, and unresolved specifications.
 
 ## Features and refinements
 
-- **Hold to record, release to stop.** Audio is stored on Ring whether connected
-  or standalone. Optional live preview supports same-iPhone dictation; phone
+- **Three mappable inputs.** Press-and-hold, double tap and triple tap each map
+  to disabled, memo toggle or a live host event; hold can additionally map to
+  PTT. No single-tap or swipe action is enabled.
+- **Hold to record, release to stop.** Initial hold activation is configurable
+  from 0.5–10 seconds, including 1, 2 and 5 seconds. PTT has no duration cap.
+  Audio is stored on Ring whether connected or standalone. Optional live preview supports same-iPhone dictation; phone
   failure falls back to later archive sync.
-- **Double tap is off on fresh settings.** It can be enabled for hands-free
-  recording; holding stops that recording. Existing saved choices persist.
+- **Fresh defaults:** one-second hold → PTT, double tap → off, triple tap →
+  memo toggle. Previous memo opt-out remains respected during migration.
+  Mappings persist independently from lights/haptics. A hold mapped to PTT
+  also stops an active memo; other hold mappings follow their selected action.
 - **Faster bounded packet scheduling.** Up to four fragments of one message per
   worker pass, with the same wire bytes and one archive read/verification step.
   A full FILE block at ATT payload 20 takes 8 host-harness polls instead of 29;
@@ -87,18 +95,20 @@ and charging-case parts, and unresolved specifications.
 
 The onboard codec is **IMA ADPCM, 8 kHz mono**, approximately 32 kbps.
 Opus source is preserved in the supplier SDK but excluded from this target.
-Default PTT limit is ten seconds, configurable. Optional hands-free recording
-is unlimited when its configured limit is zero.
+PTT runs until release; capture/touch faults, full storage or power loss can
+still end capture. Memo/app recording keeps its separate optional duration limit.
 
-Host fault tests and the GNU ARM build validate software behavior and image
-layout. The release's `provenance.json` identifies the exact source, CI run,
+S04 passes **16,902 checks across 24 C suites**, six archive-normalizer tests,
+and a **225-source GNU ARM build** with zero undefined symbols. GitHub CI
+confirms the source checks; physical measurements remain outstanding.
+The published S03 release's `provenance.json` identifies the exact source, CI run,
 matching SDK and hashes. No Ring was flashed during preparation; physical
 audio/radio/power qualification, supplier compiler/ABI review, signing and
 proven recovery are still required.
 
-## Candidate versus factory
+## Published S03 release versus factory
 
-| | S03 candidate | Preserved factory distribution |
+| | Published S03 candidate | Preserved factory distribution |
 | --- | --- | --- |
 | Firmware readback | `6.0.3.3S03` | `6.0.3.3Z62` |
 | Board | Standard `603V1.23.2` | Standard `603V1.23.2` |
@@ -111,8 +121,9 @@ Ring**. This repository is private; testers need GitHub access.
 
 ## Repository map
 
-The default branch contains the current S03 firmware, tests, tools and hardware
-evidence. Each release tag preserves the exact source for its own downloads. S01 RC1
+S04 source and current integration documentation are in [PR #3](https://github.com/ShopItalic/sudo/pull/3);
+`main` remains S03 until that PR is merged. Each release tag preserves the exact
+source for its own downloads. S01 RC1
 remains available unchanged for historical comparison.
 
 | Location | Contents |

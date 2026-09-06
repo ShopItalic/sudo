@@ -742,6 +742,37 @@ tests passed as recorded above; separate remote
 ended cancelled and is not a passing validation result. No physical Ring was
 flashed. Later decision notes in this log do not alter the tagged RC or its ZIP.
 
+## Final S03 software audit — September 6, 2026
+
+Status: **validated in software; physical qualification pending**. Source HEAD
+`f217db959aa2f42da70cb6be17410f1976d0f7c2` has identical firmware/tools/tests to
+the published S03 source `e1b196292934fbc62fa3b5effbfa4e5265b310d1`.
+The fresh run on MBA passed 14,330 C checks in 24 ASan/UBSan suites and six
+archive-normalizer tests; all 7,056 factory source blobs match the import.
+The fresh GNU build compiles/links 225/225 sources with zero undefined symbols
+and reproduces the local BIN hash
+`f86ed4863af35c4e5cee7249f75838bfe137b82a26f5c72093a478ddfdbb5d69`.
+[Main CI 34042683808](https://github.com/ShopItalic/sudo/actions/runs/34042683808)
+is now verified successful for both host and GNU jobs.
+
+The [full feature inventory and audit](ring-s03-final-audit.html) records the
+reviewed paths, residual warnings, opaque supplier-codec test boundary and
+physical gates. No new recording/storage/transfer defect was identified in the reviewed paths.
+The final warning review found nine inherited task-start checks comparing the
+integer result with `NULL`; FreeRTOS allocation failure is `-1`, so failure can
+be logged as success. The new Sudo worker correctly checks `pdPASS`. This remains
+a recorded follow-up, not a correction included in the released RC. Ten
+pointer/integer compiler warnings, two wchar ABI warnings and eight libnosys
+warnings remain. This is not a proof of every vendor SDK line or a physical Ring test.
+
+Documentation-only corrections identify S03 as current in `docs/firmware.md`,
+`ring-firmware-candidate.md` and `ring-recording-and-ptt.md`, distinguish older
+S01 RC1 defaults, and replace stale current build/filter statements. Existing
+unrelated edits to the root README, docs index, factory firmware reference and
+hardware reference are preserved. The report and backlog also record proposed
+simplifications and long-lived catalog/tombstone measurements. No proposed
+firmware deletion or Opus change was implemented; release assets are unchanged.
+
 ## README component overview — September 7, 2026
 
 Added a component table to the repository README covering the ring PCBA, SiP,
@@ -750,6 +781,150 @@ size-specific battery choices, power/clock functions and unspecified support
 parts. The table follows the existing hardware reference and BOM, distinguishes
 SiP-internal functions from separate components, and retains unresolved fitted
 part and battery-rating qualifications. No firmware or release asset changes.
+
+## S04 controls and cleanup — September 7, 2026
+
+**Request:** remove the push-to-talk duration cap; provide exactly three
+mappable physical inputs—press-and-hold, double tap (off by default), triple
+tap—with an adjustable hold activation threshold; expose persisted light/haptic
+controls and apply the concrete cleanup findings. This is new **6.0.3.3S04 source
+work**. Published S03 RC1 assets and checksums remain unchanged. No Ring was flashed.
+
+### S04-001 — PTT runs until release
+
+- Fresh PTT settings and gesture configuration use zero. Valid older SVS1
+  settings load with PTT forced to zero while retaining memo and feedback
+  preferences; a successful subsequent save persists zero with readback.
+- S04 SETTINGS_SET and PTT START reject nonzero limits before persistence or
+  capture. Memo/app recording retains its independent optional limit. Touch
+  activation delay is a separate setting: it delays the start, not the end.
+- Capture/touch faults, storage exhaustion and power loss remain real end
+  conditions. Normal PTT ends on release, without an artificial duration cap.
+
+### S04-002 — Three independently mapped inputs and hold activation delay
+
+- The only physical action inputs are hold, double tap and triple tap. Each
+  maps to disabled, memo toggle or an SDK/app event; hold additionally maps to
+  PTT until release. A tap cannot map to PTT because it has no ongoing hold.
+- Fresh defaults are **hold 1 second → PTT**, **double tap → disabled**,
+  **triple tap → memo toggle**. Existing SVS1 memo opt-out is preserved as a
+  disabled triple tap on upgrade. All mappings persist in a separate checked
+  SVI1 LittleFS attribute. Feedback saves preserve the mappings.
+- Hold activation accepts **500–10,000 ms**. The sensor's 16-bit millisecond
+  hold register **0x4F** is written and read back in the existing valid
+  no-contact communication window. Its units and gesture behavior are defined
+  by the [Azoteq IQS7211E datasheet, sections 8 and 12](https://www.azoteq.com/images/stories/pdf/iqs7211e_datasheet.pdf).
+  This is a configured threshold, not a measured physical activation time.
+- The sensor mask contains only enabled hold/double/triple bits (**0x08,
+  0x02, 0x04**). Initial setup enables hold only; verified defaults apply 0x0C.
+  Single tap, palm and swipes remain disabled; legacy single/swipe callbacks
+  cannot produce a second action when the Sudo input consumer is installed.
+- Queued reports carry the sensor configuration generation and apply status.
+  Old or unverified gesture flags cannot start an action under a new mapping;
+  release/fault reports still reach the active recording owner.
+- Mapped SDK/app events are live, bounded and connection-scoped. Hold produces
+  activated then released/cancelled; taps produce activated only. Events expire
+  after one second of unsent/backpressured time and never replay on reconnect.
+  They do not claim offline delivery or exactly-once execution in another app.
+- Files: new `bc_voice_inputs.h`; `bc_voice_gesture.[ch]`,
+  `bc_touch_report.[ch]`, `bc_touch_tuning.[ch]`, `bc_voice_protocol.h`,
+  `bc_voice_service.[ch]`, `app_sudo_voice.c`, `sudo_voice_profile.h`,
+  `IQS7211E.c` and `IQS7211E_init_1232.h`. Electrode maps and channel cycles
+  remain unchanged.
+
+### S04-003 — Firmware control API and compatibility
+
+- Exact S04 identity plus HELLO bits **9: triple tap**, **10: PTT until release**,
+  **11: input mappings** identify the new firmware contract. INPUTS_SET/GET add
+  acknowledged mappings and threshold readback with pending/applied/error sensor
+  status. INPUT_EVENT is a separate typed event stream for host integrations.
+- SETTINGS keeps its prior payload layout; memo-enabled becomes a compatibility
+  mirror of whether any input maps to memo toggle. Hosts must edit mappings
+  through INPUTS_SET and preserve this mirror in feedback saves. Changes require
+  no active capture or held contact. Failed writes do not publish unconfirmed
+  drafts as current settings.
+- Firmware provides persisted light/haptic enable switches through SETTINGS and
+  strength/start/stop duration through TUNING. S04 inherits S03 PHONE_OUTCOME and
+  S02 master feedback semantics. No unsupported light brightness/color control
+  or physical motor calibration is implied.
+- Scope is **firmware only**, per the user's final clarification. Experimental
+  app edits were stopped and parked locally, with the app checkout restored and
+  no app commit, PR or publication. Matching app UI/SDK adoption is outside this
+  firmware change; the protocol document specifies the integration contract.
+
+### S04-004 — Remove proven dead state and duplicate recording paths
+
+- Removed the unused `bc_voice_service.live` message and never-true
+  `live_pending` flag; the existing prefix FIFO and transmit message own live
+  delivery. Removed ten unused online/health/file stubs after checking every
+  selected ARM object for references.
+- Excluded the supplier PDM/history dispatch functions and switch cases from
+  Sudo. The Sudo worker already unconditionally intercepts both command families.
+  Preserved these functions for other vendor profiles. Removed the unused
+  Sudo health-file initialization and IPC health-list no-op/delay.
+- Kept the legacy archive reader and any compatibility entry point with a
+  remaining caller. Identity, time, battery, bonding, motion, update and
+  non-recording command behavior remain outside this pruning.
+
+### S04-005 — Truthful task-start failures
+
+- Nine inherited `xTaskCreate` result checks now require `bc_pdPASS`; FreeRTOS
+  allocation failure is **-1**, so comparison against NULL could log success.
+  In Sudo, failure enters the Nordic fatal-error handler with `NRF_ERROR_NO_MEM`
+  instead of continuing after loss of a required worker. The configured Nordic
+  handler resets in release and halts for a debugger in DEBUG builds.
+- Sites: BLE, RTC, hardware check, IMU, linear motor, touch, hardline TSDB,
+  IC LED and watchdog task creation. Other vendor profiles retain their existing
+  failure policy with the corrected success test.
+- Corrected the retained gamepad helper's disconnected-handle check to compare
+  against `BLE_CONN_HANDLE_INVALID` and check the pointer before dereference.
+  Connection handle zero is valid.
+
+### S04 validation and remaining work
+
+- Full sanitizer-backed host run passed **16,894 checks across 24 C suites**
+  and **six archive-normalizer tests**. The final gesture-only rerun passed
+  **2,751 checks** (eight added checks), bringing current suite coverage to
+  **16,902 checks**. It also verifies an SDK tap cannot discard the release of
+  an active SDK hold and that an expired hold emits cancellation.
+- Arm GNU **15.2.Rel1** compiled/linked **225/225 sources**, with **zero undefined
+  symbols**. Startup/vector, newlib locking and memory-layout checks passed.
+  The gesture object was built after the final gesture source edit.
+- Local BIN: **312,436 bytes**, SHA-256
+  `27b6f33f33fd8cf1bbd831508f779997aafe0b96164bc4f4e61f57a32cc5dbe5`.
+  Static RAM: **203,800 bytes**, plus separate **8 KiB C heap** and **8 KiB MSP**;
+  the remaining link-layout gap is **23,696 bytes**, not measured free RTOS heap.
+- The link still reports **one supplier wchar ABI warning** and **eight newlib
+  syscall-stub warnings**. These remain qualifications, not target acceptance.
+- Factory provenance verification passed: all **7,056** baseline source files
+  match commit `102bfd2`; the private supplier archive remains outside Git.
+- Evidence is retained locally under `.local/s04-validation/` (host log,
+  final gesture log, GNU report/summary/artifacts and baseline log). The binary
+  is an unsigned local application image; published release assets are unchanged.
+- Remote source commit `36a645e63aec511e95ddec65515c35aaad761ace` passed both
+  [push CI](https://github.com/ShopItalic/sudo/actions/runs/34047940409) and
+  [PR CI](https://github.com/ShopItalic/sudo/actions/runs/34047970004), including
+  the complete **16,902-check** host run and GNU target build. Source review is
+  [firmware PR #3](https://github.com/ShopItalic/sudo/pull/3).
+- App compilation/testing is not part of firmware validation or acceptance.
+
+Tests cover held
+PTT beyond the former limits, all three mappings, disabled inputs, sensor
+hold/mask readback, custom hold release/cancellation, stale/expired events,
+migration from an old persisted cap, rejected nonzero PTT requests,
+muting/readback, and negative FreeRTOS task-allocation injection in the LED
+worker. Physical IQS behavior, microphone/BLE timing, vibration, light output,
+battery consumption, power interruption and supplier signing/recovery remain
+qualification gates in `docs/backlog.md`.
+
+### S04 documentation synchronization
+
+The root README and documentation index now distinguish S04 source review from
+published S03 RC1, remove the stale ten-second PTT default, summarize the three
+mappings and record current validation. The protocol, requirements, candidate
+build record and backlog describe S04. Versioned release guides and historical
+audit records retain their original version-specific evidence. Existing
+uncommitted branding and hardware-reference edits remain separate.
 
 ## How to append future changes
 

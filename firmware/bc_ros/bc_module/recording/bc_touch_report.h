@@ -27,6 +27,7 @@ typedef struct
     bool contact;
     bool hold;
     bool double_tap;
+    bool triple_tap;
     uint8_t error_flags;
     uint8_t reset_flags;
 } bc_touch_report_t;
