@@ -1,0 +1,3 @@
+#ifndef TEST_MOTOR_NRF_DRV_TWI_H
+#define TEST_MOTOR_NRF_DRV_TWI_H
+#endif

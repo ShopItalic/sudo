@@ -16,3 +16,7 @@ dist/
 .env
 .env.*
 __pycache__/
+.local/
+*.key
+*.pem
+!artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/verification/dfu-public-key.pem

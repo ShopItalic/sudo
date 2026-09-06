@@ -9,10 +9,51 @@ OTA ZIP, and seven exact memory regions. SHA-256, ZIP CRC, HEX consistency, DFU
 metadata, and ECDSA signature checks passed against the saved factory
 distribution.
 
-The vendor SDK source tree is still not imported as a buildable tree. No
-compiler command, reproducible rebuild, or approved release has been
-established. No physical device has been dumped or flashed, and no source
-rebuild has been performed.
+The reviewed SDK is imported under `firmware/`, with its unmodified source
+baseline saved at commit `102bfd2`. The factory distribution is exactly
+`6.0.3.3Z62`. The separate Sudo Voice engineering profile is `6.0.3.3S02`, a
+ten-byte build string plus NUL in the legacy version field; it is not a factory
+version, signed release, or anti-rollback-approved image. The matching iOS
+adapter is [ShopItalic/app](https://github.com/ShopItalic/app).
+
+## Implemented source tranche
+
+The current firmware source provides:
+
+- A single worker-owned recording/archive lifecycle. The capture adapter uses
+  the standard 1.23.2 mono PDM path, an eight-slot bounded queue, and a
+  completed-block tail guard. Stop drains complete blocks after capture is
+  quiesced and never fabricates an unfinished DMA tail.
+- A bounded LittleFS store using the vendor `lfs.c` and `lfs_util.c` directly.
+  Raw ADPCM lives at `/.sudo-rec/<16 lowercase hex recording ID>.raw`; the
+  binary ID path is validated and the legacy export filename remains metadata.
+  Checksummed/versioned attributes on the same audio file carry the original
+  Start parameters, durable bytes and frames, raw CRC-32/ISO-HDLC, completion
+  and recovery flags, and the NUL-terminated legacy name.
+- Atomic metadata checkpoints and honest failure handling. Append advances
+  counts only for bytes accepted by LittleFS; a failed write or sync leaves the
+  last durable prefix available. Normal successful finish uses the running CRC,
+  commits and verifies metadata/counts/file length, and then marks completion.
+  It does not rescan the complete raw file. The staged archive reader performs
+  the full raw CRC in bounded `reader_verify_step` work before exposing reads;
+  read-only recovery marks partial records as recovered and never repairs or
+  truncates their original data.
+- Versioned native voice operations for Start, Stop, state/query, live data,
+  catalog, resume, transfer, receipt, cancellation, settings, and touch
+  tuning. Custody deletion requires a nonzero exact byte count and matching CRC,
+  a persisted checked receipt tombstone, and a terminal complete/recovered
+  record; raw removal remains retryable and tombstones are retained.
+- Configurable PTT and memo limits, touch tuning, checked SUDO ADC/power error
+  handling, a fixed-window battery filter with charging-epoch monotonicity, and
+  haptic settings. The profile default is a 10-second PTT limit and
+  `memo_limit_ms=0` for an unlimited app recording. Double tap is opt-in; lights
+  and haptics have persisted master switches for normal application output. Host tests cover these paths; sensor
+  calibration, physical ranges, power draw, and device behavior remain open.
+
+All public storage calls are serialized by the recording/archive worker, and the
+store receives its already mounted shared `lfs_t` from the platform. The store
+uses a 256-byte file cache/read buffer and has no platform or FreeRTOS
+requirement.
 
 ## Evidence to retain on import
 
@@ -34,23 +75,42 @@ and [source manifest](reference/sudo-ring/sources.json) preserve the related har
 provenance. Preserve the vendor's filenames, copyright notices, licenses, build
 projects, linker scripts, bootloader, and SoftDevice requirements. The reviewed
 factory images are preserved under `artifacts/ring-firmware`; keep new local
-build output and device-specific provisioning material out of Git. Do not generate
-replacement pin maps or adapt the older Nordic prototype by assumption.
+build output and device-specific provisioning material out of Git. Do not
+replace the supplier pin map or adapt the older Nordic prototype by assumption.
 
-## Build and hardware acceptance
+## Current validation boundary
 
-1. Review and import the vendor source tree with its archive SHA-256 and revision.
-   Identify the exact supported compiler, SDK, target, and packaging tools from
-   the supplied project files.
-2. Reproduce the unmodified vendor build before changing firmware. Record
-   tool versions, command, output hashes, and memory use.
-3. Read back the physical board and firmware identity. Verify audio rate and
-   ADPCM framing against the app's current 8 kHz mono interpretation; older
-   16 kHz / Opus requirements do not establish the fitted firmware contract.
+The recording, capture, protocol, touch-tuning, battery, and LittleFS fault tests
+have recorded sanitizer-backed host runs, including RAM-NOR erase/program
+semantics and bounded power-cut cases. `sh tools/firmware/test.sh` remains the
+host validation entry point. The September 6 integrated run passed 13,174 C
+checks across 24 suites and six archive-normalizer tests; baseline verification
+matched all 7,056 original files.
+
+The integrated Arm GNU 15.2.rel1 target compiles and links all 225 sources with
+zero undefined symbols and passing startup/vector checks. The load image is
+309,364 bytes; static RAM is 203,856 bytes plus separate 8 KiB C-heap and 8 KiB
+main-stack reservations. The [candidate record](reference/ring-firmware-candidate.md)
+documents runtime locking, ABI warnings and exact local artifact hashes.
+Vendor Arm Compiler 5.06 update 7 (build 960) reproduction, physical stack/heap
+high-water measurements, signing/package and recovery review remain pending.
+No physical ring has been dumped or flashed; no hardware acceptance or firmware
+release is claimed.
+
+## Remaining build and hardware gates
+
+1. Verify the saved source baseline with `tools/firmware/verify_baseline.py` and
+   review the candidate diff from `102bfd2`.
+2. Reproduce the unmodified vendor build and the candidate with recorded tool
+   versions, commands, output hashes, memory use, and supplier confirmation.
+3. Read back a correctly identified physical board. Verify audio rate and ADPCM
+   framing against the app's current 8 kHz mono interpretation; older 16 kHz /
+   Opus requirements do not establish the fitted firmware contract.
 4. Verify live streaming and stored-file transfer, interruption/resume,
    battery and charging states, touch, motion, haptics, and recording cleanup
    through the current app adapter.
 5. Validate the upgrade path and recovery on the correct hardware before
    publishing a firmware release.
 
-The extraction involved no physical-device operations or firmware rebuild.
+The factory extraction remains unchanged. The GNU build is an engineering
+candidate; source checks and a successful link do not establish physical behavior.

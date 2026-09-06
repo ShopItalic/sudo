@@ -1,0 +1,2 @@
+if %time:~0,2% leq 9 (set hour=0%time:~1,1%) else (set hour=%time:~0,2%)
+nrfutil pkg generate --bootloader .\dfu\s2p_diy_mac_boot.hex --bootloader-version 2 --hw-version 52 --sd-req 0x0100 --key-file .\dfu\private.key s2p_boot_dfu_%date:~0,4%%date:~5,2%%date:~8,2%_%hour%%time:~3,2%%time:~6,2%.zip

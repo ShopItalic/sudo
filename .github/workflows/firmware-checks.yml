@@ -1,0 +1,117 @@
+name: Firmware source checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    env:
+      CC: clang
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Verify preserved factory source
+        run: python3 tools/firmware/verify_baseline.py
+      - name: Check generated Keil profile
+        run: |
+          python3 tools/firmware/make_voice_project.py
+          git diff --exit-code -- firmware/BCL603S2X/app/project/mdk5/sudo_voice.uvprojx firmware/voice-profile.json
+      - name: Identify host sanitizer compiler
+        run: clang --version
+      - name: Run recording and transfer fault tests
+        run: sh tools/firmware/test.sh
+
+  gnu-build:
+    name: GNU ARM candidate build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    env:
+      ARM_GNU_VERSION: 15.2.rel1
+      ARM_GNU_ARCHIVE: arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
+      ARM_GNU_SHA256: 597893282ac8c6ab1a4073977f2362990184599643b4c5ee34870a8215783a16
+      ARM_GNU_URL: https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
+      GNU_BUILD_DIR: build/firmware/gnu/sudo_voice
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify preserved factory source first
+        run: python3 tools/firmware/verify_baseline.py
+
+      - name: Verify Linux runner architecture
+        run: test "$(uname -m)" = x86_64
+
+      - name: Set runtime toolchain paths
+        shell: bash
+        run: |
+          printf 'ARM_GNU_CACHE_DIR=%s/arm-gnu-toolchain-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'ARM_GNU_TOOLCHAIN_ROOT=%s/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Cache pinned Arm GNU archive
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # verified v4 ref
+        with:
+          path: ${{ runner.temp }}/arm-gnu-toolchain-cache
+          key: arm-gnu-toolchain-linux-x86_64-${{ env.ARM_GNU_VERSION }}-${{ env.ARM_GNU_SHA256 }}
+
+      - name: Download and verify Arm GNU archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ARM_GNU_CACHE_DIR"
+          archive="$ARM_GNU_CACHE_DIR/$ARM_GNU_ARCHIVE"
+          if [ ! -s "$archive" ]; then
+            curl --fail --location --retry 5 --retry-all-errors --silent --show-error --output "$archive" "$ARM_GNU_URL"
+          fi
+          printf '%s  %s\n' "$ARM_GNU_SHA256" "$archive" | sha256sum --check --status
+
+      - name: Extract and identify Arm GNU toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$ARM_GNU_CACHE_DIR/$ARM_GNU_ARCHIVE"
+          mkdir -p "$GNU_BUILD_DIR"
+          tar --extract --file "$archive" --directory "$RUNNER_TEMP"
+          test -x "$ARM_GNU_TOOLCHAIN_ROOT/bin/arm-none-eabi-gcc"
+          "$ARM_GNU_TOOLCHAIN_ROOT/bin/arm-none-eabi-gcc" --version | tee "$GNU_BUILD_DIR/toolchain-version.txt"
+
+      - name: Build GNU firmware candidate
+        id: gnu-build
+        run: |
+          python3 tools/firmware/build_gnu.py \
+            --toolchain "$ARM_GNU_TOOLCHAIN_ROOT/bin" \
+            --output "$GNU_BUILD_DIR"
+
+      - name: Validate and summarize candidate
+        id: gnu-summary
+        if: always()
+        run: |
+          python3 tools/firmware/summarize_gnu_build.py \
+            --build-dir "$GNU_BUILD_DIR" \
+            --output "$GNU_BUILD_DIR/build-summary.json" \
+            --toolchain-url "$ARM_GNU_URL" \
+            --toolchain-sha256 "$ARM_GNU_SHA256" \
+            --toolchain-archive "$ARM_GNU_CACHE_DIR/$ARM_GNU_ARCHIVE"
+
+      - name: Upload GNU candidate artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sudo-voice-gnu-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            build/firmware/gnu/sudo_voice/sudo_voice.elf
+            build/firmware/gnu/sudo_voice/sudo_voice.map
+            build/firmware/gnu/sudo_voice/sudo_voice.bin
+            build/firmware/gnu/sudo_voice/build-summary.json
+            build/firmware/gnu/sudo_voice/undefined-symbols.txt
+            build/firmware/gnu/sudo_voice/logs/link.log
+            build/firmware/gnu/sudo_voice/toolchain-version.txt

@@ -1,5 +1,11 @@
 # RC1 — download, flash and test
 
+This guide describes the immutable **S01 RC1 downloads**. Current `main` source
+is **S02** and includes later gesture and feedback changes; build it using the
+[current candidate guide](../reference/ring-firmware-candidate.md). A separately
+packaged S02 RC and physical qualification remain pending.
+
+
 **Release:** [v6.0.3.3S01-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)
 
 **Target:** standard Bravechip `603V1.23.2` / Nordic nRF52840

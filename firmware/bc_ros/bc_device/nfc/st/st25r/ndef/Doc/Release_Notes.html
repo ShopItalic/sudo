@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Release Notes for X-CUBE-NFC6 NDEF Middleware</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <link rel="stylesheet" href="_htmresc/mini-st.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <link rel="icon" type="image/x-icon" href="_htmresc/favicon.png" />
+</head>
+<body>
+<div class="row">
+<div class="col-sm-12 col-lg-4">
+<center>
+<h1 id="release-notes-for-x-cube-nfc6-projects">Release Notes for X-CUBE-NFC6 NDEF Middlewares</h1>
+<p>Copyright © 2022 STMicroelectronics<br />
+</p>
+<a href="https://www.st.com" class="logo"><img src="_htmresc/st_logo.png" alt="ST logo" /></a>
+</center>
+<h1 id="purpose">Purpose</h1>
+<p>The NDEF library provides an API to NDEF message and record management. </p>
+</div>
+<div class="col-sm-12 col-lg-8">
+<h1 id="update-history">Update History</h1>
+<div class="collapse">
+<input type="checkbox" id="collapse-section1" checked aria-hidden="true"> <label for="collapse-section1" aria-hidden="true">V1.2.0 / October 20th 2020</label>
+<div>
+<h2 id="main-changes">Main Changes</h2>
+<h3 id="maintenance-release">Product Update</h3>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Headline</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Compiled with RFAL v2.2.0, tested on NFC03 and NFC06. The release brings many improvements.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Regarding the Poller layer specifically:
+<ul style=“list-style-type:square”>
+<li>Improvements to comply with NFC Forum CR12 (systems tests based on NFC Forum CR12 Micropross test suite)</li>
+<li>Support of transition to Read Only</li>
+<li>Full support of T2T memory dynlock TLV and reserved area TLV</li>
+</ul>
+</td>
+<tr class="odd">
+<td style="text-align: left;">Regarding the Message layer specifically:
+<ul style=“list-style-type:square”>
+<li>No adherence between the NDEF wrapper and the message layers, i.e. the message/record/type API can easily be reused</li>
+<li>New types supported:
+   <ul style=“list-style-type:square”><li>Bluetooth BR/EDR and LE (Basic Rate/Enhanced Data Rate, Low Energy and Secure variants) </li></ul>
+   <ul style=“list-style-type:square”><li>Wireless Charging (WLC Capability, Status and Information, Poll Information and Listen Control) </li></ul>
+   <ul style=“list-style-type:square”><li>Empty and flat types for internal consistency </li></ul>
+   </li>
+</ul>
+</td>
+<tr class="odd">
+<td style="text-align: left;">Globally:
+<ul style=“list-style-type:square”>
+<li>Compile time configuration for scalability:
+   <ul style=“list-style-type:square”><li>Enable Read or Read/Write APIs </li></ul>
+   <ul style=“list-style-type:square”><li>Embed only the NDEF types required </li></ul>
+   <ul style=“list-style-type:square”><li>Ability to remove well-known type support for applications that do not need NDEF type handling </li></ul>
+   </li>
+<li>Bug Fixes</li>
+</ul>
+</td>
+</tbody>
+</table>
+</div>
+</div>
+<div class="collapse">
+<input type="checkbox" id="collapse-section2" checked aria-hidden="true"> <label for="collapse-section2" aria-hidden="true">V1.0.4 / July 22nd 2019</label>
+<div>
+<h2 id="main-changes">Main Changes</h2>
+<h3 id="maintenance-release">Product Update</h3>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Headline</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Tested with RFAL 2.0.10</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Updates to fix MISRA warnings reported by IAR</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="collapse">
+<input type="checkbox" id="collapse-section3" checked aria-hidden="true"> <label for="collapse-section3" aria-hidden="true">V1.0.2 / April 11th 2019</label>
+<div>
+<h2 id="main-changes">Main Changes</h2>
+<h3 id="maintenance-release">Product Update</h3>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Headline</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Release of RFAL v2.0.6, providing Higher Layer API.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="collapse">
+<input type="checkbox" id="collapse-section4" checked aria-hidden="true"> <label for="collapse-section4" aria-hidden="true">V1.0.0 / March 29th 2019</label>
+<div>
+<h2 id="main-changes">Main Changes</h2>
+<h3 id="maintenance-release">Initial NDEF library release</h3>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Headline</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">The Software design is split in RF Technology-independent layer and RF Technology-dependent layer:
+<ul style=“list-style-type:square”>
+<li>Message, record and supported types management layer (Technology independent)</li>
+<li>NDEF wrapper layer abstracting the underlying technologies</li>
+<li>NDEF Technology layer defining a common API on top of the RFAL (Technology dependent)</li>
+</ul>
+</td>
+<tr class="even">
+<td style="text-align: left;">The NDEF wrapper on top of the NDEF Technology-dependent components allows to manage NDEF tags without
+taking care of the underlying NFC Technologies. </td>
+<tr class="odd">
+<td style="text-align: left;">The types currently supported are the following:
+<ul style=“list-style-type:square”>
+<li>RTD Device Information</li>
+<li>RTD Text</li>
+<li>RTD URI</li>
+<li>AAR (Android Application Record)</li>
+<li>vCard</li>
+<li>Wifi</li>
+</ul>
+</td>
+<tr class="even">
+<td style="text-align: left;">The NFC technologies currently supported by the NDEF layer are: T2T, T3T, T4AT, T4BT and T5T.
+See the ndef.chm documentation for further details and use examples.</td>
+<tr class="odd">
+<td style="text-align: left;">Tested on hardware: Nucleo STM32L476RG + X-NUCLEO-NFC05A1 (ST25R3911).
+Software dependency: RFAL above v2.0.4 (needs RFAL Higher Layer)
+C99, MISRA C 2012 compliant.</td>
+<tr class="even">
+<td style="text-align: left;">Tests:
+<ul style=“list-style-type:square”>
+<li>Unitary tests: Passed</li>
+<li>Smoke tests:  <ul style=“list-style-type:square”><li>Write supported types (T2T, T3T, T4AT, T4BT, T5T): Passed </li></ul>
+                  <ul style=“list-style-type:square”><li>Read  supported types (T2T, T3T, T4AT, T4BT, T5T): Passed </li></ul>
+                  <ul style=“list-style-type:square”><li>Check presence (T2T, T3T, T4AT, T4BT, T5T): Passed </li></ul>
+                  <ul style=“list-style-type:square”><li>Format (T2T, T3T, T4AT, T4BT, T5T): Passed </li></ul>
+                  </li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<footer class="sticky">
+<div class="columns">
+<div class="column" style="width:95%;">
+<p>For complete documentation on <strong>X-CUBE-NFC6</strong> , visit: <a href="https://www.st.com/en/embedded-software/x-cube-nfc7.html">www.st.com</a></p>
+</div><div class="column" style="width:5%;">
+<p><abbr title="Based on template cx566953 version 2.0">Info</abbr></p>
+</div>
+</div>
+</footer>
+</body>
+</html>

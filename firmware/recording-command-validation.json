@@ -1,0 +1,60 @@
+{
+  "validated_on": "2026-09-06",
+  "host": "mba",
+  "reviewed_parent_commit": "d0c0d6217512c0e272f5ccaa1d2cab66b1a54c20",
+  "fix": "Preserve Start payload in two internal recording producers; reject truncated 0x71/0x05 and 0x71/0xFE packets.",
+  "source_hashes": {
+    "firmware/bc_ros/bc_application/app_package.c": "ccbf418e197c8d31a359eacee0e8b9ff8c35215af776f0ba4bfc6f4c244f0a8b",
+    "firmware/bc_ros/bc_application/app_cmd_handler.c": "979a2ab019ce002bc095da41e5e34a75ea7de4390b7f2a0e61ae6e8f18ffb7f4",
+    "tests/firmware/test_recording_commands.c": "5d06912d8bf9f22d53a8daf27f781df000a471b0cd32699e529444b31d2dfa09",
+    "tests/firmware/recording_test_shim.h": "86e167940714a624dbab2e9e915f9cb184d51eca251a183b5958b981470063d6",
+    "tools/firmware/extract_recording_sources.py": "89c90da293eacce76dcc4f27eee841a204dc1e580d65a93ad3992986a6264371",
+    "tools/firmware/test.sh": "f783fa5ecf5ca0ca8a98b90042a4265216c73b977424afc27c5626dd9d318e79"
+  },
+  "recording_host_checks": {
+    "checks_passed": 99,
+    "address_sanitizer": true,
+    "undefined_behavior_sanitizer": true,
+    "scope": "Seven actual source packet producers, bounded app command parser and PDM dispatcher extracted byte-for-byte and compiled using checked-in packet headers. Queue, PDM and unrelated command effects are stubbed; RTOS, sensor, flash and radio are not emulated.",
+    "reproduction": "sh tools/firmware/test.sh",
+    "existing_transfer_checks_passed": 462,
+    "total_checks_passed": 561
+  },
+  "arm_objects": {
+    "compiler": "arm-none-eabi-gcc (GCC) 16.2.0",
+    "command": "python3 tools/firmware/check_arm.py app_package.c app_cmd_handler.c",
+    "configuration": "Candidate Sudo Voice1.23.2 target defines and vendor headers; Cortex-M4 Thumb hard-float; GCC Nordic FreeRTOS port; pinned Newlib headers",
+    "compiled": [
+      {
+        "source": "firmware/bc_ros/bc_application/app_package.c",
+        "source_sha256": "ccbf418e197c8d31a359eacee0e8b9ff8c35215af776f0ba4bfc6f4c244f0a8b",
+        "exit_code": 0,
+        "object_sha256": "f5595be2e2b6025b5b7961c1d4d7d3c13aa45bb8b1004c01a8bea2fc738a4295"
+      },
+      {
+        "source": "firmware/bc_ros/bc_application/app_cmd_handler.c",
+        "source_sha256": "979a2ab019ce002bc095da41e5e34a75ea7de4390b7f2a0e61ae6e8f18ffb7f4",
+        "exit_code": 0,
+        "object_sha256": "68e3646a7a3a3e99dd058bbd2e867f8aa2f8d72aea31bab8750c3d29858578e2"
+      }
+    ]
+  },
+  "not_verified": [
+    "Complete production Arm Compiler5 link",
+    "Hold/release behavior",
+    "Connected Flash recording",
+    "File finalization or power-loss recovery",
+    "Physical app interoperability",
+    "Signed update, device flashing or installed firmware identity"
+  ],
+  "physical_operations": [],
+  "pre_fix_regression": {
+    "source_commit": "d0c0d6217512c0e272f5ccaa1d2cab66b1a54c20",
+    "test_exit_code": 1,
+    "observed": [
+      "Both internal Start commands dispatch as Stop",
+      "Truncated recording-control packets trigger Stop effects"
+    ],
+    "reproduction": "Extract the two production C files from d0c0d62 with git show, then set RECORDING_APP_PACKAGE_SOURCE and RECORDING_CMD_HANDLER_SOURCE to those files when running sh tools/firmware/test.sh."
+  }
+}

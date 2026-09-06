@@ -2,6 +2,29 @@
 
 Firmware and hardware evidence for the **standard Bravechip 603V1.23.2 Ring**.
 
+## Current source: S02
+
+`main` contains the full firmware and hardware evidence, including the
+`6.0.3.3S02` application controls update. **The downloadable RC1 below remains
+`6.0.3.3S01`; it does not contain these newer S02 changes.**
+
+- Double-tap recording is off on fresh settings and can be enabled in the app.
+  Existing saved choices are preserved; hold-to-talk stays available.
+- Holding during a double-tap recording stops it and drains its final audio.
+  Release before a new hold can start PTT.
+- The SDK settings now mute normal application lights and haptics, including
+  manual output. Haptic strength, pulse durations and touch thresholds remain
+  configurable and persisted. Startup/bootloader output is separate.
+- The matching [app source](https://github.com/ShopItalic/app) labels the controls
+  according to the connected firmware: recording feedback on S01, broader
+  Ring feedback on S02.
+
+See the [current source/build guide](docs/reference/ring-firmware-candidate.md),
+[protocol](docs/reference/ring-voice-protocol.md), and
+[physical acceptance matrix](docs/reference/ring-recording-and-ptt.md).
+S02 is source- and build-tested; physical qualification and a separate S02
+release candidate remain pending.
+
 ## Download RC1
 
 **[Open the RC1 release and download its assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)**
@@ -63,17 +86,18 @@ an individual Ring**. The repository is private; testers need GitHub access.
 
 ## Repository map
 
-The default branch is the download/documentation front door. The RC tag contains
-all candidate source; the full firmware change remains in PR #1 for review.
+The default branch contains the current S02 firmware, tests, tools and hardware
+evidence. The immutable RC1 tag preserves the exact source of the published S01
+downloads.
 
 | Location | Contents |
 | --- | --- |
 | [`docs/`](docs/README.md) | Documentation index, download guide, hardware and factory evidence |
 | [`docs/reference/sudo-ring/`](docs/reference/sudo-ring) | BOM CSVs, workbook extracts and source manifests |
 | [`artifacts/ring-firmware/`](artifacts/ring-firmware) | Preserved factory artifacts, hashes and notices |
-| [`firmware/` on RC1](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1/firmware) | Candidate/vendor source; `bc_ros` owns application logic, `BCL603S2X` board/SDK support |
-| [`tools/firmware/` on RC1](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1/tools/firmware) | Baseline verification, profile generator, GNU build and host test entry points |
-| [`tests/firmware/` on RC1](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1/tests/firmware) | Production-code fault harnesses |
+| [`firmware/`](firmware) | Candidate/vendor source; `bc_ros` owns application logic, `BCL603S2X` board/SDK support |
+| [`tools/firmware/`](tools/firmware) | Baseline verification, profile generator, GNU build and host test entry points |
+| [`tests/firmware/`](tests/firmware) | Production-code fault harnesses |
 | [`build/firmware/gnu/sudo_voice/`](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-firmware-candidate.md) | Local generated output after building; not checked into Git |
 
 The iOS/web/backend client lives in [ShopItalic/app](https://github.com/ShopItalic/app),

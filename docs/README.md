@@ -6,14 +6,19 @@ contains downloadable application/debug files and a supplier review bundle.
 
 ## Candidate engineering
 
-The RC source is pinned on its tag; these links work from the default branch.
+Current `main` source is S02: double-tap opt-in, a hold-to-stop escape for
+hands-free recordings, and broader SDK lights/haptics controls. RC1 downloads
+remain the separately pinned S01 source and binaries.
 
-- [Build, validation evidence and Caption comparison](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-firmware-candidate.md).
-- [Recording/PTT requirements and physical acceptance matrix](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-recording-and-ptt.md).
-- [BLE wire contract](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-voice-protocol.md).
-- [Source import, baseline and build workflow](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/firmware.md).
-- [Engineering follow-ups](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/backlog.md).
+- [Build, validation evidence and Caption comparison](reference/ring-firmware-candidate.md).
+- [Recording/PTT requirements and physical acceptance matrix](reference/ring-recording-and-ptt.md).
+- [BLE wire contract](reference/ring-voice-protocol.md).
+- [Source import, baseline and build workflow](firmware.md).
+- [Engineering follow-ups](backlog.md).
 - [Matching app candidate](https://github.com/ShopItalic/app/pull/10).
+
+The [RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1)
+preserves the matching documentation for those downloads.
 
 ## Hardware and original files
 

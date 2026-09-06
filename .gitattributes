@@ -4,3 +4,11 @@
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/BCL603S2P_6.0.3.3Z62.hex -whitespace
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/ota-manifest.json -whitespace
 /artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/licenses/** -whitespace
+
+# Retain supplier source encodings and CRLF bytes for baseline provenance.
+/firmware/** -text -whitespace
+
+# Retain exact historical requirements, including their original trailing lines.
+/docs/reference/sudo-ring/requirements/master-feature-spec-2026-04-13.md -text -whitespace
+/docs/reference/sudo-ring/requirements/supplier-pre-read-2026-06-13.md -text -whitespace
+/docs/reference/sudo-ring/requirements/supplier-call-agenda-2026-06-13.md -text -whitespace

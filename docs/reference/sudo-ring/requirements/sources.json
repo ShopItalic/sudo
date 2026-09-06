@@ -1,0 +1,40 @@
+{
+  "captured_on": "2026-09-06",
+  "host": "mba",
+  "source_root": "Sudo Google Drive folder",
+  "purpose": "Historical requirements evidence; conflicts and current requirements are resolved in ../../ring-recording-and-ptt.md",
+  "sources": [
+    {
+      "id": "R1",
+      "original_path": "PD/Sudo Ring/PRD & Specs/Sudo Ring Master Feature Spec - 2026-04-13.md",
+      "snapshot": "master-feature-spec-2026-04-13.md",
+      "bytes": 6778,
+      "sha256": "03d10fbb38c2ed13e38474694291ea08a50d85ec4ef682a84a534f36eb70f81f",
+      "status": "historical; not a claim of implemented behavior"
+    },
+    {
+      "id": "R2",
+      "original_path": "Sourcing/Factories/Fit Feiyang Fitwatch/Sudo Firmware Requirements - Pre-Read for 2026-06-13 Call.md",
+      "snapshot": "supplier-pre-read-2026-06-13.md",
+      "bytes": 17626,
+      "sha256": "e0232c0c82188c22c46f8cb3a1d57c148a787febfdbcccf2ca0a173063480db8",
+      "status": "historical; not a claim of implemented behavior"
+    },
+    {
+      "id": "R3",
+      "original_path": "Sourcing/Factories/Fit Feiyang Fitwatch/Firmware Call Agenda & Change Requests - 2026-06-13.md",
+      "snapshot": "supplier-call-agenda-2026-06-13.md",
+      "bytes": 14226,
+      "sha256": "dc13855013de0c617055455713ee675f22c7746fc372f4bc81df1262ae0fa848",
+      "status": "historical; not a claim of implemented behavior"
+    },
+    {
+      "id": "R4",
+      "origin": "User message in Document Ring BOM and stack, task 01a06fff-8ef1-74e0-973d-778e366ed72f, 2026-09-06",
+      "snapshot": "connected-recording-request-2026-09-06.zh.md",
+      "bytes": 3098,
+      "sha256": "85cbd5225d2a07c70654f22cc95025693c64c6c9e65e7906279d291415e8a70e",
+      "status": "Current user request; snapshot includes a provenance heading and preserves the supplied Chinese body. Hash identifies this repository snapshot, not an original external file."
+    }
+  ]
+}
