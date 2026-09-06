@@ -1,13 +1,14 @@
 # Sudo Voice firmware candidate
 
-The **6.0.3.3S04** unpublished source candidate implements local-first recording,
+The **6.0.3.3S04** engineering release candidate implements local-first recording,
 hold/release push-to-talk, three mappable physical inputs, checked storage and
 resumable BLE for the production **603V1.23.2** Ring. App adapters live separately in [ShopItalic/app](https://github.com/ShopItalic/app);
 S04 client adoption is outside this firmware-only change.
 
 Production source and host fault harnesses share the same recording, capture,
 gesture, storage and protocol logic. The integrated GNU target compiles and links
-all 225 sources with no undefined symbols. S03 RC1 is published as an unsigned
+all 225 sources with no undefined symbols. S04 RC1 is the current unsigned
+engineering prerelease. Historical S03 RC1 is also retained as an unsigned
 engineering prerelease; the older S01 RC1 remains unchanged. S02 was an
 intermediate source version. No candidate has been flashed or signed here. Physical
 radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
@@ -223,7 +224,7 @@ Nine inherited task-start checks now compare against FreeRTOS success and enter
 the Nordic fatal-error path if a required Sudo worker cannot be allocated.
 See the [change ledger](supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026)
 for changed files, validation and qualification gaps. The S03 release and its
-checksums below remain historical evidence; S04 has not been flashed or published.
+checksums below remain historical evidence; S04 RC1 is the current unsigned engineering prerelease; it has not been flashed here.
 
 ## Published S03 work
 

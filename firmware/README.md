@@ -3,14 +3,14 @@
 This directory contains the production Ring firmware source for the
 Bravechip 603V1.23.2 / nRF52840 target. It preserves the vendor baseline and
 adds the Sudo Voice recording, BLE, power, touch, and haptic work. The source
-is an engineering candidate; it is not a signed, flashed, or released image.
+is S04, published as an unsigned engineering RC. No physical qualification is claimed.
 
 ## Source status
 
 - The vendor source baseline is preserved at commit `102bfd2`. The factory
   distribution is identified as `6.0.3.3Z62`; its extraction and hashes are
   documented in the [factory firmware evidence](../docs/reference/ring-firmware.md).
-- The Sudo Voice engineering profile is `6.0.3.3S01`, a ten-byte build string
+- The Sudo Voice engineering profile is `6.0.3.3S04`, a ten-byte build string
   plus NUL in the legacy version field. It is distinct from the factory
   `6.0.3.3Z62` image and has no release or anti-rollback approval.
 - One Sudo worker owns recording and archive operations. The durable store
@@ -32,9 +32,9 @@ is an engineering candidate; it is not a signed, flashed, or released image.
   A phone receipt is custody evidence only after the exact durable byte count
   and CRC have been checked and a receipt tombstone has been persisted before
   raw deletion.
-- Configurable PTT/memo limits, touch tuning, battery error propagation and
-  filtering, and haptic settings are wired into the Sudo profile. The default
-  PTT limit is 10 seconds; a memo limit of `0` means unlimited. Device ranges,
+- PTT until release, three mappable inputs, configurable hold activation and memo limits, touch tuning, battery error propagation and
+  filtering, and haptic settings are wired into the Sudo profile. PTT has no
+  artificial duration cap; a memo limit of `0` means unlimited. Device ranges,
   calibration, power draw, and physical behavior still require measurement.
 
 ## Validation boundary
@@ -47,13 +47,13 @@ The test script remains the entry point:
 sh tools/firmware/test.sh
 ```
 
-The integrated host run passes 13,174 C checks and six archive-normalizer
+The integrated host run passes 16,902 C checks and six archive-normalizer
 tests. Arm GNU 15.2.rel1 compiles and links all 225 sources with zero undefined
 symbols and passing startup/vector checks. See the [candidate record](../docs/reference/ring-firmware-candidate.md)
 for memory use, runtime locking, ABI warnings and local artifact hashes.
 Vendor Arm Compiler 5.06 update 7 (build 960) reproduction, physical stack/heap
 measurements and release-package checks remain pending. No physical ring has
-been dumped or flashed; no hardware qualification or release is claimed.
+been dumped or flashed; S04 RC1 is an unsigned prerelease, not hardware qualification.
 
 ## Evidence and build references
 

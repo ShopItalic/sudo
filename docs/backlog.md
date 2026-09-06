@@ -39,14 +39,14 @@ product decisions:
   capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
   Keep the factory `6.0.3.3Z62` identity distinct from the engineering
   candidates S01 (historical RC1), S02, S03 (published RC1) and S04 (current
-  source review). S04 host adoption is separate from this firmware-only change;
+  unsigned RC). S04 host adoption is separate from this firmware-only change;
   no app workaround establishes a release.
 - **Keep release and source documentation aligned.** S04 supersedes the old
   ten-second default: PTT runs until release; memo is unlimited when
   `memo_limit_ms=0`. The three mappings and configurable hold activation are
   recorded in [the requirements record](reference/ring-recording-and-ptt.md).
-  When S04 is merged or released, update the review/release status and publish
-  exact provenance; retain the historical release guides unchanged.
+  Keep S04 release status and exact provenance current; retain historical
+  release guides unchanged.
 - **Qualify keyboard dictation and settle additional hosts.** The provisional
   same-iPhone path now has finite background PTT and final-only keyboard
   admission. Verify BLE wake, model execution, actual host-field insertion,
@@ -107,8 +107,8 @@ product decisions:
 - Confirm required-task allocation faults reach the Nordic fatal-error/recovery
   path on target. Host injection covers the LED worker; all nine corrected
   task sites require the same success result and fatal error handling.
-- Keep the published S03 RC unchanged. S04 needs supplier compiler/signing and
-  physical audio/BLE/power qualification before a release or device flash.
+- Keep the published S03 RC unchanged. The unsigned S04 RC still needs supplier compiler/signing and
+  physical audio/BLE/power qualification before production release.
 - Wider supplier command-surface reduction still requires a supported-command
   inventory. Keep identity, pairing, time, battery, motion, update compatibility
   and old-recording retrieval intact; do not remove callers without evidence.

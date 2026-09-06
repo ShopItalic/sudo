@@ -2,7 +2,7 @@
 
 Reviewed September 7, 2026 for **603V1.23.2**, standard **1.23.2**. Factory
 artifact version is **6.0.3.3Z62**; the engineering candidate identifies itself
-as **6.0.3.3S04** (unpublished source candidate). The published S03 RC1 remains unchanged. It does not select `1.23.2_one_sec`.
+as **6.0.3.3S04** (engineering release candidate). The published S03 RC1 remains unchanged. It does not select `1.23.2_one_sec`.
 
 The candidate now implements a firmware-owned recording lifecycle, complete
 local capture while connected, three mappable physical inputs (hold, double tap and triple tap). Client adapters belong in `ShopItalic/app`; S04 client adoption is outside this

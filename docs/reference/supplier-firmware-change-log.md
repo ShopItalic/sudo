@@ -926,6 +926,22 @@ build record and backlog describe S04. Versioned release guides and historical
 audit records retain their original version-specific evidence. Existing
 uncommitted branding and hardware-reference edits remain separate.
 
+## S04 RC1 publication
+
+S04 was merged through PR #3 as `338f7f69223a4cdcebf545faf3ac9af1ba4bdd45`.
+S04 RC1 (`v6.0.3.3S04-rc.1`) is the primary unsigned engineering RC; the root
+README and docs index point to its dedicated guide and release. Package
+`provenance.json` pins the exact main source and successful CI artifact used
+for the BIN/ELF/map; the HEX is reconstructed and checked against that BIN.
+S01/S03 tags and assets remain unchanged. No matching S04 client is included.
+
+The repository is public at the user's explicit request. Supplier headers and
+license notices remain; visibility does not relicense third-party components.
+A targeted scan of 4,818 reachable Git blobs found no complete private-key PEM
+blocks or matches for the tested GitHub/AWS/OpenAI/Slack token formats. Two
+private-key-header matches are parser/writer string constants in mbedTLS.
+This records the scan's scope, not an exhaustive security or legal audit.
+
 ## How to append future changes
 
 Append a new monotonically named entry such as S03-007 or S04-001; do not

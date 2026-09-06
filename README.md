@@ -1,28 +1,28 @@
 # Italic Ring — firmware, downloads and hardware
 
 Firmware and hardware evidence for the **standard Bravechip 603V1.23.2 Ring**.
-Current source candidate: **6.0.3.3S04**, in [firmware PR #3](https://github.com/ShopItalic/sudo/pull/3).
-Latest published release: **S03 RC1**. S04 is not merged, packaged or physically
-qualified; client integration is outside this firmware-only change.
+Current main firmware and primary release candidate: **6.0.3.3S04 / S04 RC1**.
+S04 is an unsigned engineering prerelease for supplier bench testing; physical
+qualification and signed OTA packaging remain pending. This release is firmware only.
 
 **[Supplier change log: what changed from factory firmware and why](docs/reference/supplier-firmware-change-log.md)**
 records additions, exclusions, refinements and verification status as work proceeds.
 
-## Download the published S03 RC1
+## Download S04 RC1 (current RC)
 
-**[Release assets: v6.0.3.3S03-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)**
+**[Release assets: v6.0.3.3S04-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)**
 
-Start with **`italic-ring-603v1.23.2-6.0.3.3S03-rc.1-supplier-review.zip`**.
+Start with **`italic-ring-603v1.23.2-6.0.3.3S04-rc.1-supplier-review.zip`**.
 The bundle contains the application, debug files, checksums, build provenance,
 supplier change log and instructions. It is an **unsigned engineering prerelease**
 for supplier bench testing on a recoverable spare standard board.
-The review ZIP is **not a signed OTA update package** and does not contain S04 changes.
+The review ZIP is **not a signed OTA update package**.
 
-**[Download, flash and test guide →](docs/how-to/test-s03-release-candidate.md)**
+**[Download, flash and test guide →](docs/how-to/test-s04-release-candidate.md)**
 
 | What you need | Where to go |
 | --- | --- |
-| Download / identify each file / choose SWD or OTA | [S03 guide](docs/how-to/test-s03-release-candidate.md), [release assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1) |
+| Download / identify each file / choose SWD or OTA | [S04 guide](docs/how-to/test-s04-release-candidate.md), [release assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1) |
 | Review every change from factory and its rationale | [Supplier change log](docs/reference/supplier-firmware-change-log.md) |
 | Build the firmware | [Candidate build guide](docs/reference/ring-firmware-candidate.md) |
 | Review the published S03 iPhone SDK/client | [App PR #12](https://github.com/ShopItalic/app/pull/12), exact SDK commit [492af2a](https://github.com/ShopItalic/app/tree/492af2ad40949de3d54419df5e2fa140c912b94f) |
@@ -101,30 +101,29 @@ still end capture. Memo/app recording keeps its separate optional duration limit
 S04 passes **16,902 checks across 24 C suites**, six archive-normalizer tests,
 and a **225-source GNU ARM build** with zero undefined symbols. GitHub CI
 confirms the source checks; physical measurements remain outstanding.
-The published S03 release's `provenance.json` identifies the exact source, CI run,
-matching SDK and hashes. No Ring was flashed during preparation; physical
+The S04 release's `provenance.json` identifies the exact source, CI run,
+client compatibility boundary and hashes. No Ring was flashed during preparation; physical
 audio/radio/power qualification, supplier compiler/ABI review, signing and
 proven recovery are still required.
 
-## Published S03 release versus factory
+## Current S04 release versus factory
 
-| | Published S03 candidate | Preserved factory distribution |
+| | S04 candidate | Preserved factory distribution |
 | --- | --- | --- |
-| Firmware readback | `6.0.3.3S03` | `6.0.3.3Z62` |
+| Firmware readback | `6.0.3.3S04` | `6.0.3.3Z62` |
 | Board | Standard `603V1.23.2` | Standard `603V1.23.2` |
-| Files | S03 GitHub release assets | [`artifacts/ring-firmware/603v1.23.2-6.0.3.3z62`](artifacts/ring-firmware/603v1.23.2-6.0.3.3z62) |
+| Files | S04 GitHub release assets | [`artifacts/ring-firmware/603v1.23.2-6.0.3.3z62`](artifacts/ring-firmware/603v1.23.2-6.0.3.3z62) |
 | OTA status | Supplier must sign/package | Original signed package; applicability to a particular unit is unverified |
 
 Do not substitute `1.23.2_one_sec`, another board, or the historical Nordic/Seeed
 prototype. Factory files are a distribution, **not a backup of an individual
-Ring**. This repository is private; testers need GitHub access.
+Ring**. This repository is public; retained supplier and third-party license terms apply.
 
 ## Repository map
 
-S04 source and current integration documentation are in [PR #3](https://github.com/ShopItalic/sudo/pull/3);
-`main` remains S03 until that PR is merged. Each release tag preserves the exact
-source for its own downloads. S01 RC1
-remains available unchanged for historical comparison.
+`main` contains S04 firmware, tests and current documentation. Each release tag
+preserves its exact source and assets. [S03 RC1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)
+and S01 RC1 remain available unchanged for historical comparison.
 
 | Location | Contents |
 | --- | --- |
