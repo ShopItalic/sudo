@@ -12,6 +12,7 @@
 
 #if defined(SUDO_VOICE_ONLY)
 #include "bc_rtos.h"
+#include "bc_linear_motor.h"
 #endif
 
 extern void power_manage(void);
@@ -29,6 +30,40 @@ static uint8_t pre_bat_percent = 100;
  * measurement.  Keep it at this module boundary so a failed/reentrant
  * measurement never powers down another caller's divider. */
 static volatile bool vbat_adc_transaction_active;
+
+/*
+ * Motor load and recovery can transiently bias the divider reading around
+ * LDO/PWM activity.  Use a wrap-safe tick window; this is a nonblocking
+ * acquisition exclusion, and the existing PMIC protections remain unchanged.
+ */
+#define BC_POWER_MOTOR_SETTLING_MS    250U
+#define BC_POWER_MOTOR_SETTLING_TICKS \
+    ((uint32_t)(((uint64_t)BC_POWER_MOTOR_SETTLING_MS * \
+                 (uint64_t)configTICK_RATE_HZ + 999U) / 1000U))
+
+static bool bc_power_motor_adc_allowed(uint32_t *generation)
+{
+    bc_linear_motor_activity_t activity;
+    uint32_t now;
+
+    bc_linear_motor_activity_get(&activity);
+    if(activity.active)
+        return false;
+
+    if(activity.has_finished)
+    {
+        now = (uint32_t)bc_rtos_task_get_tick_count();
+        if((uint32_t)(now - activity.last_finished_tick) <
+            BC_POWER_MOTOR_SETTLING_TICKS)
+        {
+            return false;
+        }
+    }
+
+    if(generation != NULL)
+        *generation = activity.generation;
+    return true;
+}
 
 static bool bc_power_try_acquire_adc(void)
 {
@@ -140,9 +175,19 @@ uint16_t bc_power_get_adc_value(void)
 	bool powered = false;
 	bool opened = false;
 	int result;
+	uint32_t motor_generation;
+	bc_linear_motor_activity_t motor_activity;
+
+	if(!bc_power_motor_adc_allowed(&motor_generation))
+		return BC_POWER_ADC_ERROR;
 
 	if(!bc_power_try_acquire_adc())
 		return BC_POWER_ADC_ERROR;
+	if(!bc_power_motor_adc_allowed(&motor_generation))
+	{
+		bc_power_release_adc();
+		return BC_POWER_ADC_ERROR;
+	}
 
 	if(vbat_adc_device_handler != NULL)
 	{
@@ -170,6 +215,13 @@ cleanup:
 		value = BC_POWER_ADC_ERROR;
 	if(powered)
 		bc_ldo_bat_power_off();
+	if(value != BC_POWER_ADC_ERROR)
+	{
+		bc_linear_motor_activity_get(&motor_activity);
+		if(motor_activity.active ||
+			motor_activity.generation != motor_generation)
+			value = BC_POWER_ADC_ERROR;
+	}
 	bc_power_release_adc();
 
 	if(value != BC_POWER_ADC_ERROR)

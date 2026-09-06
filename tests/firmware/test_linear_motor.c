@@ -37,6 +37,9 @@ static int power_off_calls;
 static int delay_calls;
 static uint32_t last_delay_ms;
 static bool motor_powered;
+static bool activity_seen_during_delay;
+static bool activity_seen_at_start;
+static bool io_seen_in_critical;
 static bool fail_callback_register;
 static bool callback_during_setup_delay;
 static bool mute_during_delay, unmute_during_delay, mute_during_config;
@@ -53,6 +56,15 @@ static enum
 } failure_stage;
 
 static int failures_left;
+
+uint32_t test_ticks;
+unsigned test_critical_depth;
+
+static void note_io(void)
+{
+    if(test_critical_depth != 0U)
+        io_seen_in_critical = true;
+}
 
 /* The retained legacy timer table references this callback even when the
  * Sudo tests exercise only finite pulses. Keep the platform boundary linked
@@ -140,6 +152,7 @@ bool nrfx_pwm_stop(nrfx_pwm_t const *instance, bool wait_until_stopped)
 
 int q_device_open(q_device_t *dev)
 {
+    note_io();
     if(dev == NULL)
         return RESULT_DEV_POINTER_NULL_ERROR;
     ++open_calls;
@@ -148,6 +161,7 @@ int q_device_open(q_device_t *dev)
 
 int q_device_close(q_device_t *dev)
 {
+    note_io();
     if(dev == NULL)
         return RESULT_DEV_POINTER_NULL_ERROR;
     ++close_calls;
@@ -156,6 +170,7 @@ int q_device_close(q_device_t *dev)
 
 int q_device_cfg(q_device_t *dev, void *args, void *var)
 {
+    note_io();
     struct pwm_config *config = (struct pwm_config *)args;
     (void)var;
     if(dev == NULL || config == NULL)
@@ -180,6 +195,9 @@ int q_device_cfg(q_device_t *dev, void *args, void *var)
 
 int q_device_ctrl(q_device_t *dev, int cmd, void *arg)
 {
+    bc_linear_motor_activity_t activity;
+
+    note_io();
     (void)arg;
     if(dev == NULL)
         return RESULT_DEV_POINTER_NULL_ERROR;
@@ -191,6 +209,9 @@ int q_device_ctrl(q_device_t *dev, int cmd, void *arg)
     if(cmd == PWM_CTRL_START)
     {
         ++control_start_calls;
+        bc_linear_motor_activity_get(&activity);
+        if(activity.active && motor_powered)
+            activity_seen_at_start = true;
         return should_fail(FAIL_START) ? RESULT_CONTROL_POINTER_NULL_ERROR : RESULT_Q_DEVICE_OK;
     }
     return RESULT_CONTROL_POINTER_NULL_ERROR;
@@ -210,20 +231,31 @@ int q_device_reg_callback(q_device_t *dev, int pos, void *callback)
 
 void bc_ldo_motor_power_on(void)
 {
+    note_io();
     ++power_on_calls;
     motor_powered = true;
 }
 
 void bc_ldo_motor_power_off(void)
 {
+    note_io();
     ++power_off_calls;
     motor_powered = false;
 }
 
 void bc_delay_ms(uint32_t ms)
 {
+    bc_linear_motor_activity_t activity;
+
+    note_io();
     ++delay_calls;
     last_delay_ms = ms;
+    if(ms == 20U)
+    {
+        bc_linear_motor_activity_get(&activity);
+        if(activity.active && motor_powered)
+            activity_seen_during_delay = true;
+    }
     if(mute_during_delay && ms == 20U)
     {
         mute_during_delay = false;
@@ -261,6 +293,11 @@ static void reset_observations(void)
     mock_nrfx_last_flags = 0;
     memset(&mock_nrfx_last_sequence0, 0, sizeof(mock_nrfx_last_sequence0));
     motor_powered = false;
+    activity_seen_during_delay = false;
+    activity_seen_at_start = false;
+    io_seen_in_critical = false;
+    test_ticks = 0U;
+    test_critical_depth = 0U;
     callback_during_setup_delay = false;
     callback_during_setup_delay_calls = 0;
     mute_during_delay = false; unmute_during_delay = false; mute_during_config = false;
@@ -369,10 +406,19 @@ static void test_invalid_arguments(void)
 
 static void test_minimum_pulse(void)
 {
+    bc_linear_motor_activity_t activity;
+    uint32_t started_generation;
+
     reset_observations();
+    test_ticks = 1234U;
     CHECK(bc_linear_motor_pulse(1, 20), "minimum pulse starts");
+    bc_linear_motor_activity_get(&activity);
+    started_generation = activity.generation;
+    CHECK(activity.active && activity.active_since_tick == 1234U,
+          "pulse publishes its start tick while active");
     CHECK(power_on_calls == 1 && motor_powered, "minimum pulse powers motor");
     CHECK(delay_calls == 1 && last_delay_ms == 20, "minimum pulse keeps power settle delay");
+    CHECK(activity_seen_during_delay, "pulse publishes activity through motor settle");
     CHECK(close_calls == 1 && config_calls == 1 && open_calls == 1,
           "minimum pulse checks the PWM setup sequence");
     CHECK(control_start_calls == 1 && control_stop_calls == 0,
@@ -386,7 +432,13 @@ static void test_minimum_pulse(void)
           "minimum pulse uses one stop playback with zero repeats");
     CHECK(last_sequence[0] == 9932 && last_sequence[1] == 9932 &&
           last_sequence[2] == 10000, "minimum strength waveform is bounded");
+    test_ticks = 1300U;
     finish_pulse();
+    bc_linear_motor_activity_get(&activity);
+    CHECK(!activity.active && activity.has_finished &&
+          activity.last_finished_tick == 1300U &&
+          activity.generation != started_generation,
+          "completion publishes a finished tick and new generation");
     CHECK(power_off_calls == 1 && !motor_powered, "completion powers motor off");
     finish_pulse();
     CHECK(power_off_calls == 1, "duplicate completion does not power off twice");
@@ -400,6 +452,8 @@ static void test_maximum_pulse(void)
           last_sequence[2] == 10000, "maximum strength waveform matches factory ceiling");
     CHECK(last_config.pwm_parameter_config.repeats == 19,
           "maximum duration uses nineteen repeats");
+    CHECK(activity_seen_during_delay && activity_seen_at_start,
+          "maximum pulse keeps activity through settle and PWM start");
     finish_pulse();
     CHECK(power_off_calls == 1, "maximum pulse completes once");
 }
@@ -417,6 +471,8 @@ static void test_app_finite_after_loop(void)
     CHECK(last_config.pwm_parameter_config.flags == PWM_FLAG_STOP &&
           last_config.pwm_parameter_config.playback_count == 1,
           "finite preset uses STOP and one playback");
+    CHECK(activity_seen_during_delay && activity_seen_at_start,
+          "legacy app publishes activity through settle and PWM start");
     CHECK(power_off_calls == 1 && motor_powered,
           "replacing the loop powers it down before the finite preset");
     finish_pulse();
@@ -465,6 +521,63 @@ static void test_driver_failures(void)
     failures_left = 1;
     CHECK(!bc_linear_motor_pulse(50, 100), "stop failure rejected");
     CHECK(power_off_calls == 1 && !motor_powered, "stop failure powers motor off");
+
+    bc_linear_motor_activity_t activity;
+    bc_linear_motor_activity_get(&activity);
+    CHECK(activity.active, "failed stop keeps motor activity conservatively active");
+    failure_stage = FAIL_NONE;
+    failures_left = 0;
+    bc_linear_motor_stop();
+    bc_linear_motor_activity_get(&activity);
+    CHECK(!activity.active && activity.has_finished,
+          "successful cleanup finishes the previously failed activity");
+}
+
+static void test_direct_entry_activity_paths(void)
+{
+    bc_linear_motor_activity_t activity;
+
+    reset_observations();
+    bc_linear_motor_start(LINEAR_MOTOR_MIC_START);
+    CHECK(activity_seen_during_delay && activity_seen_at_start,
+          "direct start publishes activity before LDO and PWM");
+    bc_linear_motor_stop();
+    bc_linear_motor_activity_get(&activity);
+    CHECK(!activity.active, "direct start stop finishes activity");
+
+    reset_observations();
+    bc_linear_motor_strong_vibration_start();
+    CHECK(activity_seen_at_start,
+          "strong vibration publishes activity before PWM");
+    bc_linear_motor_stop();
+
+    reset_observations();
+    bc_linear_motor_continuous_vibration_start();
+    CHECK(activity_seen_at_start,
+          "continuous vibration publishes activity before PWM");
+    bc_linear_motor_stop();
+}
+
+static void test_callback_close_failure_is_conservative(void)
+{
+    bc_linear_motor_activity_t activity;
+
+    reset_observations();
+    CHECK(bc_linear_motor_pulse(50U, 100U),
+          "pulse starts before callback close failure");
+    failure_stage = FAIL_CLOSE;
+    failures_left = 1;
+    finish_pulse();
+    bc_linear_motor_activity_get(&activity);
+    CHECK(activity.active && !motor_powered,
+          "callback close failure keeps activity active after power off");
+
+    failure_stage = FAIL_NONE;
+    failures_left = 0;
+    bc_linear_motor_stop();
+    bc_linear_motor_activity_get(&activity);
+    CHECK(!activity.active && activity.has_finished,
+          "later stop completes conservatively retained activity");
 }
 
 static void test_master_feedback_policy(void)
@@ -520,7 +633,11 @@ int main(void)
     test_replacing_active_pulse_ignores_late_callback();
     test_app_finite_after_loop();
     test_driver_failures();
+    test_callback_close_failure_is_conservative();
+    test_direct_entry_activity_paths();
     test_master_feedback_policy();
+    CHECK(test_critical_depth == 0U && !io_seen_in_critical,
+          "activity publication critical sections contain no I/O");
 
     if(failures != 0)
     {

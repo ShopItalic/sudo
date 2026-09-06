@@ -189,6 +189,36 @@ bool bc_voice_service_set_tuning_port(bc_voice_service *s, const bc_voice_tuning
     return true;
 }
 
+bool bc_voice_service_set_outcome_port(bc_voice_service *s,
+                                       const bc_voice_outcome_port *port)
+{
+    if (!s || !port || !port->set_outcome) return false;
+    s->outcome_port = *port;
+    return true;
+}
+
+static void outcome_clear(bc_voice_service *s)
+{
+    s->outcome_recording_id = 0U;
+    s->outcome_ready_recording_id = 0U;
+    s->outcome_live_token = 0U;
+    s->outcome_epoch = 0U;
+    s->outcome_terminal_ms = 0U;
+    s->outcome_ready_accepted = false;
+    s->outcome_terminal_ready = false;
+    s->outcome_reported = false;
+}
+
+static bool outcome_terminal_valid(const bc_rec_snapshot *r)
+{
+    if (!r || !r->start.id || !r->file.complete || r->file.recovered ||
+        !r->file.bytes)
+        return false;
+    if (r->phase == BC_REC_SAVED)
+        return !r->file.delivered;
+    return r->phase == BC_REC_DELIVERED && r->file.delivered;
+}
+
 static void tuning_reply(bc_voice_service *s, const bc_voice_message *request,
                           bc_rec_result result)
 {
@@ -259,6 +289,7 @@ void bc_voice_service_link(bc_voice_service *s, uint32_t epoch, bool connected)
     s->connected = false;
     (void)bc_voice_service_cancel_archive(s);
     s->epoch = epoch; s->connected = connected; s->ready = false;
+    outcome_clear(s);
     s->control_read = 0; s->control_count = 0; s->tx_active = false;
     live_transport_clear(s);
     s->stop_pending = false; s->stop_ready = false;
@@ -283,6 +314,7 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
         s->stop_ready = true;
     }
     if (r->start.id != s->token_recording) {
+        outcome_clear(s);
         s->token_recording = r->start.id;
         s->ready = false;
         s->ready_ms = s->now_ms;
@@ -293,6 +325,15 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
         s->live_disabled = s->live_token == 0U ? true : false;
         s->live_sequence = 1U;
         s->live_progress_ms = s->now_ms;
+    }
+    if (!s->outcome_terminal_ready && s->outcome_ready_accepted &&
+        s->outcome_ready_recording_id == r->start.id &&
+        s->outcome_epoch == s->epoch && outcome_terminal_valid(r)) {
+        /* Keep only the first complete terminal transition. A later receipt
+         * may change SAVED to DELIVERED, but must not extend this window. */
+        s->outcome_recording_id = r->start.id;
+        s->outcome_terminal_ms = s->now_ms;
+        s->outcome_terminal_ready = true;
     }
 }
 
@@ -367,7 +408,8 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         bc_voice_put32(response.payload + 5, BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT |
             BC_VOICE_CAP_MEMO | BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME |
             BC_VOICE_CAP_CUSTODY | BC_VOICE_CAP_SETTINGS |
-            (s->tuning_port.get && s->tuning_port.set ? BC_VOICE_CAP_TUNING : 0U));
+            (s->tuning_port.get && s->tuning_port.set ? BC_VOICE_CAP_TUNING : 0U) |
+            (s->outcome_port.set_outcome ? BC_VOICE_CAP_PHONE_OUTCOME : 0U));
         bc_voice_put16(response.payload + 9, 8000);
         bc_voice_put16(response.payload + 11, 440);
         bc_voice_put16(response.payload + 13, BC_REC_FRAME_MAX);
@@ -424,6 +466,10 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         if (m->length != 5 || p[4] > 1) break;
         if (!p[4]) {
             s->ready_ms = s->now_ms;
+            s->outcome_ready_accepted = false;
+            s->outcome_ready_recording_id = 0U;
+            s->outcome_live_token = 0U;
+            s->outcome_epoch = 0U;
             if (s->token_recording != 0U)
                 s->live_disabled = true;
             live_preview_disable(s);
@@ -469,10 +515,73 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
             return;
         }
         bc_recording_link(s->recording, s->connected);
+        if (s->outcome_ready_accepted &&
+            s->outcome_ready_recording_id == s->token_recording &&
+            s->outcome_epoch == s->epoch) {
+            /* Renewal retains the original READY admission for this link. */
+        } else if (bc_recording_active(s->recording) &&
+                   s->token_recording != 0U) {
+            s->outcome_ready_accepted = true;
+            s->outcome_ready_recording_id = s->token_recording;
+            s->outcome_live_token = s->live_token;
+            s->outcome_epoch = s->epoch;
+        } else {
+            /* READY after finalization can serve live metadata, but cannot
+             * authorize a keyboard outcome for an old terminal recording. */
+            s->outcome_ready_accepted = false;
+            s->outcome_ready_recording_id = 0U;
+            s->outcome_live_token = 0U;
+            s->outcome_epoch = 0U;
+        }
         reply_init(&response, m, BC_REC_OK);
         bc_voice_put32(response.payload + 5, s->live_token);
         bc_voice_put64(response.payload + 9, s->token_recording);
         response.length = 17; (void)queue(s, &response); return;
+    case BC_VOICE_PHONE_OUTCOME:
+        if (m->length != 17U) break;
+        id = bc_voice_get64(p + 4U);
+        if (p[16] != BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED) break;
+        if (!s->outcome_port.set_outcome) {
+            result = BC_REC_UNSUPPORTED;
+            break;
+        }
+        if (bc_recording_active(s->recording) || s->stop_pending ||
+            s->verifying || s->transferring) {
+            result = BC_REC_BUSY;
+            break;
+        }
+        if (!s->connected || s->epoch != s->outcome_epoch ||
+            !s->outcome_ready_accepted || s->outcome_live_token == 0U ||
+            bc_voice_get32(p + 12U) != s->outcome_live_token ||
+            bc_voice_get32(p + 12U) != s->live_token ||
+            s->outcome_ready_recording_id != id ||
+            !s->outcome_terminal_ready ||
+            s->outcome_recording_id != id ||
+            s->latest.start.id != id ||
+            !outcome_terminal_valid(&s->latest) ||
+            bc_recording_snapshot(s->recording)->start.id != id) {
+            result = BC_REC_WRONG_SESSION;
+            break;
+        }
+        if ((uint32_t)(s->now_ms - s->outcome_terminal_ms) >=
+            BC_VOICE_PHONE_OUTCOME_WINDOW_MS) {
+            result = BC_REC_INVALID;
+            break;
+        }
+        /* A previously accepted outcome is idempotent for this link and
+         * recording. It never calls into the feedback worker twice. */
+        if (s->outcome_reported) {
+            result = BC_REC_OK;
+            break;
+        }
+        /* The request path reserved a response slot before entering this
+         * switch. Queue the ordinary result before changing confirmation
+         * state or invoking the application callback. */
+        reply_init(&response, m, BC_REC_OK);
+        if (!queue(s, &response)) return;
+        s->outcome_reported = true;
+        s->outcome_port.set_outcome(s->outcome_port.ctx, id, p[16]);
+        return;
     case BC_VOICE_LIVE_ACK:
         if (m->length != 12 || !s->ready || s->live_disabled ||
             bc_voice_get32(p + 4) != s->live_token) break;
@@ -546,8 +655,14 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
              (bc_voice_get64(p + 4) != s->archive_start.id ||
               bc_voice_get32(p + 12) != s->transfer_offset))) break;
         if (bc_recording_active(s->recording)) { result = BC_REC_BUSY; break; }
-        if ((s->verifying || s->transferring) &&
-            bc_voice_get32(p + 16) == s->transfer_token) {
+        if (bc_voice_get32(p + 16) == s->transfer_token) {
+            /* A retired attempt cannot be revived by a queued retry. New
+             * reads allocate a higher token; only an active attempt is
+             * idempotent under the same recording and original offset. */
+            if (!s->verifying && !s->transferring) {
+                result = BC_REC_CANCELLED;
+                break;
+            }
             /* Lost handshake response: retain bounded verification progress
              * and the current ACK window instead of starting the scan over. */
             s->resume_request = *m;
@@ -565,7 +680,9 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         if (s->archive_file.bytes == 0 || s->transfer_offset > s->archive_file.bytes) {
             (void)bc_voice_service_cancel_archive(s); result = BC_REC_INVALID; break;
         }
-        s->resume_request = *m; s->verifying = true; return;
+        s->resume_request = *m; s->verifying = true;
+        s->archive_progress_ms = s->now_ms;
+        return;
     case BC_VOICE_TRANSFER_ACK:
         if (m->length != 12 || bc_voice_get32(p + 4) != s->transfer_token)
             break;
@@ -577,7 +694,12 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         id = s->transfer_ack;
         result = acknowledge(s->transfer_ends, &s->transfer_count, &s->transfer_ack,
                                bc_voice_get32(p + 8));
-        if (result == BC_REC_OK && s->transfer_ack != id) s->transfer_progress_ms = s->now_ms;
+        if (result == BC_REC_OK && s->transfer_ack != id) {
+            s->transfer_progress_ms = s->now_ms;
+            s->archive_progress_ms = s->now_ms;
+            if (s->transfer_next < s->transfer_ack)
+                s->transfer_next = s->transfer_ack;
+        }
         if (result == BC_REC_OK && s->transfer_ack == s->archive_file.bytes)
             result = bc_voice_service_cancel_archive(s);
         break;
@@ -627,11 +749,22 @@ static void resume_reply(bc_voice_service *s)
 
 static void archive_tick(bc_voice_service *s)
 {
+    /* Bound both a verification starved of response slots and an abandoned
+     * transfer, including a blocked first fragment or a resume at EOF. */
+    if ((s->verifying || s->transferring) &&
+        (uint32_t)(s->now_ms - s->archive_progress_ms) >= BC_VOICE_ARCHIVE_STALL_MS) {
+        (void)bc_voice_service_cancel_archive(s);
+        return;
+    }
     if (s->verifying && s->control_count < BC_VOICE_CONTROL_SLOTS) {
+        uint32_t before = s->reader.verify_offset;
         bc_rec_store_status status = bc_rec_store_reader_verify_step(&s->reader, 1024U);
+        if (s->reader.verify_offset != before)
+            s->archive_progress_ms = s->now_ms;
         if (status == BC_REC_STORE_OK) {
             s->verifying = false; s->transferring = true;
             s->transfer_progress_ms = s->now_ms;
+            s->archive_progress_ms = s->now_ms;
             resume_reply(s);
         } else if (status != BC_REC_STORE_MORE) {
             s->verifying = false;
@@ -644,7 +777,9 @@ static void archive_tick(bc_voice_service *s)
         /* Rewind only to the phone's acknowledged offset. In-progress framed
          * messages finish first, so fragments from two messages never mix. */
         if (!s->tx_active) {
-            s->transfer_next = s->transfer_ack; s->transfer_count = 0;
+            /* Preserve the sent boundaries: a delayed ACK can still prove
+             * progress anywhere in this outstanding window during replay. */
+            s->transfer_next = s->transfer_ack;
             s->transfer_progress_ms = s->now_ms;
         }
     }
@@ -654,6 +789,8 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
 {
     uint8_t packet[BC_VOICE_PACKET_MAX];
     uint16_t length, next;
+    unsigned burst;
+    bool sent = false;
     if (!s) return false;
     s->now_ms = now_ms;
     if (s->ready && ((uint32_t)(now_ms - s->ready_ms) >= BC_VOICE_READY_MS ||
@@ -698,7 +835,8 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
                                             BC_VOICE_LIVE_PREFIX_SLOTS);
             --s->live_prefix_count;
         } else if (s->transferring && !bc_recording_active(s->recording) &&
-                    s->transfer_count < BC_VOICE_TRANSFER_WINDOW &&
+                    (s->transfer_count < BC_VOICE_TRANSFER_WINDOW ||
+                     s->transfer_next < s->transfer_ends[s->transfer_count - 1U]) &&
                     s->transfer_next < s->archive_file.bytes) {
             int32_t read_count;
             s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_FILE;
@@ -716,21 +854,32 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
         } else return false;
         s->tx_active = true; s->tx_offset = 0;
     }
-    length = bc_voice_fragment(&s->tx, s->tx_offset, att_limit, packet, sizeof(packet), &next);
-    if (length == 0 || !s->port.send(s->port.ctx, packet, length, s->epoch)) return false;
-    s->tx_offset = next;
-    if (next == s->tx.length + 4U) {
+    /* Batch only this message's fragments. Never perform another archive
+     * read or start another message before the worker checks capture/touch. */
+    for (burst = 0U; burst < BC_VOICE_TX_BURST; ++burst) {
+        length = bc_voice_fragment(&s->tx, s->tx_offset, att_limit, packet, sizeof(packet), &next);
+        if (length == 0 || !s->port.send(s->port.ctx, packet, length, s->epoch)) return sent;
+        sent = true;
+        s->tx_offset = next;
+        if (next != s->tx.length + 4U) continue;
         if (s->tx.kind == BC_VOICE_LIVE && s->ready && !s->live_disabled &&
             bc_voice_get32(s->tx.payload) == s->live_token && s->live_count < 4U) {
             if (s->live_count == 0) s->live_progress_ms = now_ms;
             s->live_ends[s->live_count++] = bc_voice_get32(s->tx.payload + 4) + 1U;
         } else if (s->tx.kind == BC_VOICE_FILE && s->transferring &&
-            bc_voice_get32(s->tx.payload) == s->transfer_token &&
-            s->transfer_count < BC_VOICE_TRANSFER_WINDOW) {
-            s->transfer_next = bc_voice_get32(s->tx.payload + 4) + s->tx.length - 8U;
-            s->transfer_ends[s->transfer_count++] = s->transfer_next;
+            bc_voice_get32(s->tx.payload) == s->transfer_token) {
+            uint32_t end = bc_voice_get32(s->tx.payload + 4) + s->tx.length - 8U;
+            uint32_t high = s->transfer_count ?
+                s->transfer_ends[s->transfer_count - 1U] : s->transfer_ack;
+            /* A delayed ACK may overtake an in-flight retransmission. Finish
+             * its framing, but do not regress the cursor or re-add its end. */
+            if (s->transfer_next < end) s->transfer_next = end;
+            if (s->transfer_next < s->transfer_ack) s->transfer_next = s->transfer_ack;
+            if (end > high && s->transfer_count < BC_VOICE_TRANSFER_WINDOW)
+                s->transfer_ends[s->transfer_count++] = end;
         }
         s->tx_active = false;
+        break;
     }
-    return true;
+    return sent;
 }

@@ -184,6 +184,7 @@ build/firmware/tests/test_battery_filter
   -g -fsanitize=address,undefined \
   -DSUDO_VOICE_ONLY -DHANDWARE_1_23_2 \
   -Itests/firmware/battery_power \
+  -Ifirmware/bc_ros/bc_module/motor \
   -Ifirmware/bc_ros/bc_module/pmic \
   tests/firmware/test_battery_power.c \
   -o build/firmware/tests/test_battery_power

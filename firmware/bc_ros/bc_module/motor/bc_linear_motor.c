@@ -8,6 +8,10 @@
 #include "string.h"
 #include "bc_delay.h"
 
+#if defined(SUDO_VOICE_ONLY)
+#include "bc_rtos.h"
+#endif
+
 
 static q_device_t *linear_motor_pwm_dev = NULL;
 
@@ -71,6 +75,80 @@ static  struct pwm_config  continuous_vibration_pwm_config = {
 /* The worker applies the persisted policy; a fresh process starts enabled. */
 static volatile bool sudo_feedback_enabled = true;
 static volatile uint32_t sudo_feedback_generation;
+
+/*
+ * These are intentionally bounded, naturally aligned scalar publications.
+ * Publication and snapshots use the task/ISR critical-section variants only
+ * around these scalars; no PWM, GPIO, or I/O is held in that section.  The
+ * ADC compares generation around its whole transaction, so a publication
+ * racing a snapshot cannot validate a stale sample.
+ */
+static volatile uint32_t sudo_motor_activity_generation;
+static volatile uint32_t sudo_motor_activity_active_since_tick;
+static volatile uint32_t sudo_motor_activity_last_finished_tick;
+static volatile uint32_t sudo_motor_activity_active;
+static volatile uint32_t sudo_motor_activity_has_finished;
+
+static void linear_motor_activity_begin(void)
+{
+	bc_rtos_taskENTER_CRITICAL();
+  if(sudo_motor_activity_active == 0U)
+  {
+    sudo_motor_activity_active_since_tick =
+      (uint32_t)bc_rtos_task_get_tick_count();
+    sudo_motor_activity_active = 1U;
+    ++sudo_motor_activity_generation;
+  }
+	bc_rtos_taskEXIT_CRITICAL();
+}
+
+static void linear_motor_activity_finish_publish(uint32_t finished_tick)
+{
+	/* Caller holds either the task or ISR publication critical section. */
+  if(sudo_motor_activity_active != 0U)
+  {
+    sudo_motor_activity_last_finished_tick = finished_tick;
+    sudo_motor_activity_has_finished = 1U;
+    sudo_motor_activity_active = 0U;
+    ++sudo_motor_activity_generation;
+  }
+
+}
+
+static void linear_motor_activity_finished_task(void)
+{
+	bc_rtos_taskENTER_CRITICAL();
+	linear_motor_activity_finish_publish(
+		(uint32_t)bc_rtos_task_get_tick_count());
+	bc_rtos_taskEXIT_CRITICAL();
+}
+
+static void linear_motor_activity_finished_from_isr(void)
+{
+	UBaseType_t saved_interrupt_mask = taskENTER_CRITICAL_FROM_ISR();
+	linear_motor_activity_finish_publish(
+		(uint32_t)xTaskGetTickCountFromISR());
+	taskEXIT_CRITICAL_FROM_ISR(saved_interrupt_mask);
+}
+
+void bc_linear_motor_activity_begin(void)
+{
+  linear_motor_activity_begin();
+}
+
+void bc_linear_motor_activity_get(bc_linear_motor_activity_t *activity)
+{
+  if(activity == NULL)
+    return;
+
+	bc_rtos_taskENTER_CRITICAL();
+  activity->generation = sudo_motor_activity_generation;
+  activity->active_since_tick = sudo_motor_activity_active_since_tick;
+  activity->last_finished_tick = sudo_motor_activity_last_finished_tick;
+  activity->active = sudo_motor_activity_active != 0U;
+  activity->has_finished = sudo_motor_activity_has_finished != 0U;
+	bc_rtos_taskEXIT_CRITICAL();
+}
 #endif
 
 
@@ -80,8 +158,10 @@ static bool linear_motor_pwm_stop_existing(void)
 {
 	int stop_result = RESULT_Q_DEVICE_OK;
 	int close_result = RESULT_Q_DEVICE_OK;
+	bc_linear_motor_activity_t activity;
 
-	if(pwm_falsh.pwm_status == LINEAR_MOTOR_PWM_IDIE)
+	bc_linear_motor_activity_get(&activity);
+	if(pwm_falsh.pwm_status == LINEAR_MOTOR_PWM_IDIE && !activity.active)
 	{
 		return true;
 	}
@@ -96,21 +176,46 @@ static bool linear_motor_pwm_stop_existing(void)
 	stop_result = q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
 	close_result = q_device_close(linear_motor_pwm_dev);
 	bc_ldo_motor_power_off();
+	if(stop_result == RESULT_Q_DEVICE_OK &&
+		close_result == RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_activity_finished_task();
+	}
 
 	return stop_result == RESULT_Q_DEVICE_OK &&
 		close_result == RESULT_Q_DEVICE_OK;
 }
 
-static void linear_motor_pwm_cleanup(void)
+static bool linear_motor_pwm_cleanup(void)
 {
+	int stop_result = RESULT_Q_DEVICE_OK;
+	int close_result = RESULT_Q_DEVICE_OK;
+	bc_linear_motor_activity_t activity;
+	bool had_activity;
+
+	bc_linear_motor_activity_get(&activity);
+	had_activity = activity.active;
+
 	pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
 	pwm_falsh.pwm_mode = PWM_STOP;
 	if(linear_motor_pwm_dev != NULL)
 	{
-		(void)q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
-		(void)q_device_close(linear_motor_pwm_dev);
+		stop_result = q_device_ctrl(linear_motor_pwm_dev, PWM_CTRL_STOP, NULL);
+		close_result = q_device_close(linear_motor_pwm_dev);
+	}
+	else if(had_activity)
+	{
+		/* A lost device cannot prove that the motor transfer stopped. */
+		stop_result = RESULT_DEV_POINTER_NULL_ERROR;
 	}
 	bc_ldo_motor_power_off();
+	if(stop_result == RESULT_Q_DEVICE_OK &&
+		close_result == RESULT_Q_DEVICE_OK)
+	{
+		linear_motor_activity_finished_task();
+	}
+	return stop_result == RESULT_Q_DEVICE_OK &&
+		close_result == RESULT_Q_DEVICE_OK;
 }
 
 static bool linear_motor_pwm_start(struct pwm_config *linear_motor_config)
@@ -211,20 +316,27 @@ static void linear_motor_pwm_start(struct pwm_config *linear_motor_config)
 #if defined(SUDO_VOICE_ONLY)
 static void linear_motor_pwm_callback(void)
 {
+	int close_result;
+
 	if(pwm_falsh.pwm_status == LINEAR_MOTOR_PWM_BUSY &&
 		pwm_falsh.pwm_mode == PWM_STOP)
 	{
 		/* Mark idle first so a duplicate stopped event cannot power off twice. */
 		pwm_falsh.pwm_status = LINEAR_MOTOR_PWM_IDIE;
 		pwm_falsh.pwm_mode = PWM_STOP;
-		if(q_device_close(linear_motor_pwm_dev) != RESULT_Q_DEVICE_OK)
+		close_result = q_device_close(linear_motor_pwm_dev);
+		if(close_result != RESULT_Q_DEVICE_OK)
 		{
 			BC_LOG_ERROR("LINEAR MOTOR PWM close failed\r\n");
 		}
 		bc_ldo_motor_power_off();
-		if(linear_motor_pwm_idie_callback != NULL)
+		if(close_result == RESULT_Q_DEVICE_OK)
 		{
-			linear_motor_pwm_idie_callback();
+			linear_motor_activity_finished_from_isr();
+			if(linear_motor_pwm_idie_callback != NULL)
+			{
+				linear_motor_pwm_idie_callback();
+			}
 		}
 	}
 	BC_LOG_INFO("LINEAR MOTOR PWM IDIE\r\n");
@@ -288,6 +400,7 @@ bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 	pulse_config.pwm_parameter_config.playback_count = 1;
 	pulse_config.pwm_parameter_config.flags = PWM_FLAG_STOP;
 
+	linear_motor_activity_begin();
 	bc_ldo_motor_power_on();
 	bc_delay_ms(20);
 	if(policy_generation != sudo_feedback_generation)
@@ -315,6 +428,7 @@ void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode)
 	{
 		return;
 	}
+	linear_motor_activity_begin();
 #endif
   bc_ldo_motor_power_on();
     bc_delay_ms(20);
@@ -430,6 +544,10 @@ void bc_linear_motor_pwm_out(void *linear_motor_config)
 #endif
 	
 	struct pwm_config *cfg = (struct pwm_config *)linear_motor_config;
+#if defined(SUDO_VOICE_ONLY)
+	/* Covers callers that acquired the legacy LDO lease before pwm_out(). */
+	linear_motor_activity_begin();
+#endif
 	memcpy((uint8_t *)linear_motor_pwm_seq_values,(uint8_t*)cfg->pwm_parameter_config.p_common,cfg->pwm_parameter_config.length*2);
 	linear_motor_pwm_config = *(struct pwm_config *)linear_motor_config;
 	linear_motor_pwm_config.pwm_parameter_config.p_common = linear_motor_pwm_seq_values;
@@ -451,6 +569,7 @@ void bc_linear_motor_strong_vibration_start(void)
 	{
 		return;
 	}
+	linear_motor_activity_begin();
 #endif
 	bc_ldo_motor_power_on();
 	linear_motor_pwm_start(&strong_vibration_pwm_config);
@@ -471,6 +590,7 @@ void bc_linear_motor_continuous_vibration_start(void)
 	{
 		return;
 	}
+	linear_motor_activity_begin();
 #endif
 	bc_ldo_motor_power_on();
 	linear_motor_pwm_start(&continuous_vibration_pwm_config);

@@ -195,7 +195,14 @@ Static section fit alone cannot establish FreeRTOS heap high-water marks,
 worst-case stack or physical timing. No warning is silently equated with a
 successful hardware qualification.
 
-## Validation and reproduction
+## Current S03 work
+
+See the [supplier change log](supplier-firmware-change-log.md) for the ongoing
+factory-to-candidate rationale and the [S03 reliability report](ring-s03-reliability.md)
+for current behavior and validation. The numerical artifact and validation
+tables below are preserved S01 evidence, not hashes or memory claims for S03.
+
+## Historical S01 validation and reproduction
 
 From the firmware repository root:
 

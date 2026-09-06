@@ -90,19 +90,6 @@ uint8_t bc_battery_filter_update(bc_battery_filter *filter, uint8_t sample,
         ++filter->count;
 
     candidate = bc_battery_filter_average(filter);
-    if (filter->initialized)
-    {
-        if (filter->charging)
-        {
-            if (candidate < filter->value)
-                candidate = filter->value;
-        }
-        else if (candidate > filter->value)
-        {
-            candidate = filter->value;
-        }
-    }
-
     filter->value = candidate;
     filter->initialized = true;
     return candidate;

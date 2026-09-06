@@ -16,6 +16,7 @@
 
 typedef struct {
     uint8_t bytes[FLASH_SIZE];
+    unsigned read_calls;
     unsigned prog_calls;
     unsigned erase_calls;
     unsigned sync_calls;
@@ -38,6 +39,7 @@ typedef struct {
     unsigned message_count;
     unsigned packet_count;
     unsigned invalid_packets;
+    unsigned fail_packet;
     bool fail_next;
     bool fail_all;
 } sink;
@@ -71,6 +73,9 @@ typedef struct {
     unsigned tuning_writes;
     bc_rec_result tuning_result;
     bool capture_abort_quiescent;
+    unsigned outcome_calls;
+    uint64_t outcome_recording_id;
+    uint8_t outcome_value;
 } fixture;
 
 static unsigned checks;
@@ -93,6 +98,7 @@ static int ram_read(const struct lfs_config *config, lfs_block_t block,
 {
     ram_nor *ram = (ram_nor *)config->context;
     uint64_t address = (uint64_t)block * config->block_size + off;
+    ++ram->read_calls;
     if (buffer == NULL || block >= FLASH_BLOCK_COUNT ||
         off > config->block_size || size > config->block_size - off ||
         address + size > FLASH_SIZE)
@@ -299,6 +305,14 @@ static bc_rec_result settings_store(void *ctx,
     return f->settings_result;
 }
 
+static void outcome_set(void *ctx, uint64_t recording_id, uint8_t outcome)
+{
+    fixture *f = (fixture *)ctx;
+    ++f->outcome_calls;
+    f->outcome_recording_id = recording_id;
+    f->outcome_value = outcome;
+}
+
 static bc_rec_result next_id(void *ctx, uint64_t *id)
 {
     fixture *f = (fixture *)ctx;
@@ -316,7 +330,8 @@ static bool sink_send(void *ctx, const uint8_t *packet, uint16_t length,
     bc_voice_message message;
     bc_wire_result result;
     ++f->sink.packet_count;
-    if (f->sink.fail_all || f->sink.fail_next) {
+    if (f->sink.fail_all || f->sink.fail_next ||
+        f->sink.packet_count == f->sink.fail_packet) {
         f->sink.fail_next = false;
         return false;
     }
@@ -581,6 +596,14 @@ static void encode_receipt(uint8_t extra[17], uint64_t id, uint32_t bytes,
     bc_voice_put32(extra + 8, bytes);
     bc_voice_put32(extra + 12, crc);
     extra[16] = delete ? 1U : 0U;
+}
+
+static void encode_outcome(uint8_t extra[13], uint64_t id, uint32_t token,
+                           uint8_t outcome)
+{
+    bc_voice_put64(extra, id);
+    bc_voice_put32(extra + 8U, token);
+    extra[12] = outcome;
 }
 
 static bool record_complete(fixture *f, const bc_rec_start *start,
@@ -1623,6 +1646,341 @@ static void test_resume_window_retry_and_crc(void)
     fixture_destroy(&f);
 }
 
+/* Leave a verified transfer immediately after its handshake response, before
+ * the first FILE. Verification remains bounded even when it needs >1 poll. */
+static void begin_verified_transfer(fixture *f, uint64_t id, uint32_t offset,
+                                    uint32_t token, uint32_t now_ms)
+{
+    uint8_t extra[16];
+    unsigned polls = 0U;
+    encode_resume(extra, id, offset, token);
+    CHECK(send_request(f, BC_VOICE_RESUME, 800U + token, extra, sizeof(extra),
+                       244U, now_ms, false));
+    while (f->service.verifying && polls++ < 32U)
+        (void)bc_voice_service_poll(&f->service, now_ms, 244U);
+    CHECK(f->service.transferring && f->service.reader.open);
+    CHECK(!f->service.tx_active && f->service.transfer_count == 0U);
+}
+
+static void expect_retired_resume(fixture *f, uint64_t id, uint32_t offset,
+                                   uint32_t token, uint32_t now_ms,
+                                   bc_rec_result expected)
+{
+    uint8_t extra[16];
+    unsigned before = f->sink.message_count;
+    unsigned reads = f->ram.read_calls;
+    const bc_voice_message *response;
+    encode_resume(extra, id, offset, token);
+    CHECK(send_request(f, BC_VOICE_RESUME, 899U, extra, sizeof(extra), 244U,
+                       now_ms, false));
+    (void)pump(f, now_ms, 244U);
+    response = find_response(f, before, BC_VOICE_RESUME, 899U);
+    CHECK(response != NULL && response->payload[4] == expected);
+    CHECK(!f->service.verifying && !f->service.transferring && !f->service.reader.open);
+    CHECK(f->ram.read_calls == reads);
+}
+
+static void test_archive_retired_tokens_and_active_retry(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x3336U, BC_REC_APP, 0U);
+    uint8_t extra[16];
+    unsigned before;
+    const bc_voice_message *response;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 2U, 0x81U, NULL, 10U));
+    (void)pump(&f, 50U, 244U);
+    begin_verified_transfer(&f, start.id, 0U, 1U, 100U);
+    encode_resume(extra, start.id, 0U, 1U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RESUME, 890U, extra, sizeof(extra), 244U, 101U, false));
+    (void)pump(&f, 101U, 244U);
+    response = find_response(&f, before, BC_VOICE_RESUME, 890U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    CHECK(f.service.transferring && f.service.archive_progress_ms == 100U);
+    bc_voice_put32(extra, 1U);
+    CHECK(send_request(&f, BC_VOICE_CANCEL, 891U, extra, 4U, 244U, 102U, false));
+    (void)pump(&f, 102U, 244U);
+    expect_retired_resume(&f, start.id, 0U, 1U, 103U, BC_REC_CANCELLED);
+    expect_retired_resume(&f, start.id + 1U, 0U, 1U, 104U, BC_REC_INVALID);
+    expect_retired_resume(&f, start.id, BC_REC_FRAME_MAX, 1U, 105U, BC_REC_INVALID);
+    begin_verified_transfer(&f, start.id, 0U, 2U, 110U);
+    (void)pump(&f, 110U, 244U);
+    encode_ack(extra, 2U, 2U * BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 892U, extra, 8U, 244U, 111U, false));
+    (void)pump(&f, 111U, 244U);
+    expect_retired_resume(&f, start.id, 0U, 2U, 112U, BC_REC_CANCELLED);
+    begin_verified_transfer(&f, start.id, BC_REC_FRAME_MAX, 3U, 120U);
+    CHECK(bc_voice_service_cancel_archive(&f.service) == BC_REC_OK);
+    fixture_destroy(&f);
+}
+
+static void test_archive_fragment_burst_and_control_priority(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x3334U, BC_REC_APP, 0U);
+    uint8_t raw[8U * BC_REC_FRAME_MAX];
+    unsigned reads, packets, polls = 0U;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 8U, 0x21U, raw, 10U));
+    (void)pump(&f, 50U, 244U);
+    begin_verified_transfer(&f, start.id, 0U, 1U, 100U);
+    clear_messages(&f);
+    /* Reject the third fragment of a burst: only the accepted prefix moves. */
+    f.sink.fail_packet = 3U;
+    CHECK(bc_voice_service_poll(&f.service, 101U, 20U));
+    CHECK(f.sink.packet_count == 3U && f.service.tx_offset == 16U);
+    CHECK(f.service.tx_active && f.service.tx.kind == BC_VOICE_FILE);
+    reads = f.ram.read_calls;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 820U, NULL, 0U, 244U, 102U, false));
+    CHECK(f.service.control_count == 1U);
+    packets = f.sink.packet_count;
+    CHECK(bc_voice_service_poll(&f.service, 106U, 20U));
+    CHECK(f.sink.packet_count - packets == BC_VOICE_TX_BURST);
+    CHECK(f.service.tx_offset == 48U && f.ram.read_calls == reads);
+    while (f.service.tx_active && polls++ < 32U) {
+        packets = f.sink.packet_count;
+        CHECK(bc_voice_service_poll(&f.service, 106U + 5U * polls, 20U));
+        CHECK(f.sink.packet_count - packets <= BC_VOICE_TX_BURST);
+        CHECK(f.ram.read_calls == reads);
+    }
+    CHECK(!f.service.tx_active && f.service.control_count == 1U);
+    CHECK(f.sink.message_count == 1U && f.sink.invalid_packets == 0U);
+    CHECK(f.sink.messages[0].kind == BC_VOICE_FILE);
+    CHECK(memcmp(f.sink.messages[0].payload + 8U, raw, BC_REC_FRAME_MAX) == 0);
+    CHECK(f.service.transfer_count == 1U);
+    /* Completion stops the burst. The queued control wins the next poll. */
+    CHECK(bc_voice_service_poll(&f.service, 200U, 244U));
+    CHECK(f.sink.message_count == 2U && f.sink.messages[1].kind == BC_VOICE_HELLO);
+    CHECK(f.ram.read_calls == reads && f.service.transfer_count == 1U);
+    packets = f.sink.packet_count;
+    CHECK(bc_voice_service_poll(&f.service, 205U, 244U));
+    CHECK(f.sink.packet_count == packets + 1U && f.sink.message_count == 3U);
+    CHECK(f.sink.messages[2].kind == BC_VOICE_FILE && f.service.transfer_count == 2U);
+    CHECK(memcmp(f.sink.messages[2].payload + 8U, raw + BC_REC_FRAME_MAX,
+                  BC_REC_FRAME_MAX) == 0);
+    polls = 0U;
+    packets = f.sink.packet_count;
+    do {
+        CHECK(bc_voice_service_poll(&f.service, 210U + 5U * polls, 20U));
+        ++polls;
+    } while (f.service.tx_active && polls < 32U);
+    CHECK(polls == 8U && f.sink.packet_count - packets == 29U);
+    CHECK(f.sink.message_count == 4U && f.sink.messages[3].kind == BC_VOICE_FILE);
+    CHECK(memcmp(f.sink.messages[3].payload + 8U, raw + 2U * BC_REC_FRAME_MAX,
+                  BC_REC_FRAME_MAX) == 0);
+    CHECK(bc_voice_service_cancel_archive(&f.service) == BC_REC_OK);
+    fixture_destroy(&f);
+}
+
+static void test_archive_delayed_ack_during_retransmit(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x3335U, BC_REC_APP, 0U);
+    uint8_t extra[8];
+    uint32_t ack = 5U * BC_REC_FRAME_MAX;
+    unsigned polls = 0U, before;
+    const bc_voice_message *response;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 8U, 0x31U, NULL, 10U));
+    (void)pump(&f, 50U, 244U);
+    begin_verified_transfer(&f, start.id, 0U, 1U, 100U);
+    CHECK(pump(&f, 100U, 244U) == BC_VOICE_TRANSFER_WINDOW);
+    CHECK(f.service.transfer_count == BC_VOICE_TRANSFER_WINDOW);
+    CHECK(bc_voice_service_poll(&f.service, 100U + BC_VOICE_RETRY_MS, 20U));
+    CHECK(f.service.tx_active && f.service.tx.kind == BC_VOICE_FILE);
+    CHECK(bc_voice_get32(f.service.tx.payload + 4U) == 0U);
+    CHECK(f.service.transfer_count == BC_VOICE_TRANSFER_WINDOW);
+    /* A late ACK for the original fifth chunk overtakes an in-flight replay
+     * of the first. Finish that framing without re-adding an obsolete end. */
+    before = f.sink.message_count;
+    encode_ack(extra, 1U, ack);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 830U, extra, sizeof(extra),
+                       244U, 1601U, false));
+    CHECK(f.service.transfer_ack == ack && f.service.transfer_next == ack);
+    CHECK(f.service.transfer_count == 1U &&
+          f.service.transfer_ends[0] == 6U * BC_REC_FRAME_MAX);
+    while (f.service.tx_active && polls++ < 32U)
+        CHECK(bc_voice_service_poll(&f.service, 1602U, 20U));
+    CHECK(!f.service.tx_active && f.service.transfer_next == ack);
+    CHECK(f.service.transfer_count == 1U);
+    (void)pump(&f, 1602U, 244U);
+    response = find_response(&f, before, BC_VOICE_TRANSFER_ACK, 830U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    CHECK(f.service.transfer_count == 3U);
+    CHECK(f.service.transfer_ends[0] == 6U * BC_REC_FRAME_MAX &&
+          f.service.transfer_ends[1] == 7U * BC_REC_FRAME_MAX &&
+          f.service.transfer_ends[2] == 8U * BC_REC_FRAME_MAX);
+    CHECK(f.service.transfer_next == 8U * BC_REC_FRAME_MAX);
+    CHECK(f.sink.invalid_packets == 0U);
+    /* The original last boundary remains valid, and the final new boundary
+     * closes the reader normally after all bytes have been acknowledged. */
+    encode_ack(extra, 1U, 6U * BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 831U, extra, sizeof(extra),
+                       244U, 1700U, false));
+    CHECK(f.service.transfer_count == 2U &&
+          f.service.transfer_next == 8U * BC_REC_FRAME_MAX);
+    encode_ack(extra, 1U, 8U * BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 832U, extra, sizeof(extra),
+                       244U, 1701U, false));
+    CHECK(!f.service.transferring && !f.service.reader.open && !f.store.reader_active);
+    (void)pump(&f, 1701U, 244U);
+    /* A delayed final ACK can also arrive while the first replay fragment
+     * is active. Close normally and allow its response to replace that body. */
+    begin_verified_transfer(&f, start.id, 2U * BC_REC_FRAME_MAX, 2U, 1800U);
+    (void)pump(&f, 1800U, 244U);
+    CHECK(f.service.transfer_count == BC_VOICE_TRANSFER_WINDOW);
+    CHECK(bc_voice_service_poll(&f.service, 1800U + BC_VOICE_RETRY_MS, 20U));
+    CHECK(f.service.tx_active && f.service.tx.kind == BC_VOICE_FILE);
+    encode_ack(extra, 2U, 8U * BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 833U, extra, sizeof(extra),
+                       244U, 3301U, false));
+    CHECK(!f.service.reader.open && !f.service.tx_active);
+    (void)pump(&f, 3301U, 244U);
+    CHECK(f.sink.invalid_packets == 0U);
+    fixture_destroy(&f);
+}
+
+static void test_archive_stall_expiry_and_resume(void)
+{
+    unsigned mode;
+    for (mode = 0U; mode < 5U; ++mode) {
+        fixture f;
+        bc_rec_start start = start_value(0x3340U + mode, BC_REC_APP, 0U);
+        bc_rec_start stored;
+        bc_rec_file file;
+        uint8_t raw[8U * BC_REC_FRAME_MAX], reread[BC_REC_FRAME_MAX], extra[16];
+        uint32_t at = mode == 4U ? UINT32_MAX - 10000U : 100U;
+        uint32_t offset = mode == 3U ? sizeof(raw) : 0U;
+        uint32_t elapsed;
+
+        CHECK(fixture_setup(&f));
+        CHECK(record_complete(&f, &start, 8U, 0x41U, raw, 10U));
+        (void)pump(&f, 50U, 244U);
+        begin_verified_transfer(&f, start.id, offset, 1U, at);
+        if (mode == 1U) f.sink.fail_all = true; /* No first FILE accepted. */
+        if (mode == 2U) {
+            CHECK(bc_voice_service_poll(&f.service, at, 20U));
+            CHECK(f.service.tx_active && f.service.tx.kind == BC_VOICE_FILE);
+            f.sink.fail_all = true; /* Block a partially framed FILE. */
+        }
+        for (elapsed = 0U; elapsed < BC_VOICE_ARCHIVE_STALL_MS;
+             elapsed += BC_VOICE_RETRY_MS) {
+            (void)pump(&f, at + elapsed, 244U);
+            CHECK(f.service.transferring && f.service.reader.open);
+            CHECK(f.service.transfer_count <= BC_VOICE_TRANSFER_WINDOW);
+            CHECK(f.service.archive_progress_ms == at);
+        }
+        CHECK(!bc_voice_service_poll(&f.service, at + BC_VOICE_ARCHIVE_STALL_MS, 244U));
+        CHECK(!f.service.transferring && !f.service.verifying && !f.service.reader.open);
+        CHECK(!f.store.reader_active && !f.service.tx_active);
+        f.sink.fail_all = false;
+        for (elapsed = 1U; elapsed <= 3U; ++elapsed)
+            expect_retired_resume(&f, start.id, offset, 1U,
+                at + BC_VOICE_ARCHIVE_STALL_MS + elapsed, BC_REC_CANCELLED);
+        /* Expiry changes no raw data or custody. A fresh token can resume
+         * the same file and capture can start again after cancelling it. */
+        CHECK(bc_rec_store_stat(&f.store, start.id, &stored, &file) == BC_REC_STORE_OK);
+        CHECK(file.bytes == sizeof(raw) && file.crc32 == bc_voice_crc32(raw, sizeof(raw)));
+        CHECK(file.complete && !file.delivered);
+        CHECK(bc_rec_store_read(&f.store, start.id, 0U, reread, sizeof(reread)) ==
+              (int32_t)sizeof(reread));
+        CHECK(memcmp(raw, reread, sizeof(reread)) == 0);
+        f.sink.fail_all = false;
+        clear_messages(&f);
+        begin_verified_transfer(&f, start.id, BC_REC_FRAME_MAX, 2U,
+                                 at + BC_VOICE_ARCHIVE_STALL_MS + 10U);
+        CHECK(bc_voice_service_poll(&f.service, at + BC_VOICE_ARCHIVE_STALL_MS + 11U, 244U));
+        CHECK(f.service.transfer_next == 2U * BC_REC_FRAME_MAX);
+        bc_voice_put32(extra, 2U);
+        CHECK(send_request(&f, BC_VOICE_CANCEL, 840U, extra, 4U, 244U,
+                           at + BC_VOICE_ARCHIVE_STALL_MS + 12U, false));
+        start.id += 100U;
+        CHECK(record_complete(&f, &start, 1U, 0x51U, NULL,
+                               at + BC_VOICE_ARCHIVE_STALL_MS + 13U));
+        fixture_destroy(&f);
+    }
+}
+
+static void test_archive_only_real_progress_renews_stall(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x3350U, BC_REC_APP, 0U);
+    uint8_t extra[16];
+    uint32_t progress = 100U + BC_VOICE_ARCHIVE_STALL_MS - 1U;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 8U, 0x61U, NULL, 10U));
+    (void)pump(&f, 50U, 244U);
+    begin_verified_transfer(&f, start.id, 0U, 1U, 100U);
+    (void)pump(&f, 100U, 244U);
+    encode_ack(extra, 1U, BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 850U, extra, 8U, 244U,
+                       progress, false));
+    CHECK(f.service.archive_progress_ms == progress);
+    (void)pump(&f, progress, 244U);
+    /* A duplicate ACK, invalid boundary, wrong token and duplicate Resume
+     * are all traffic, but none advances the durable checkpoint. */
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 851U, extra, 8U, 244U,
+                       progress + 1U, false));
+    (void)pump(&f, progress + 1U, 244U);
+    encode_ack(extra, 1U, BC_REC_FRAME_MAX + 1U);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 852U, extra, 8U, 244U,
+                       progress + 2U, false));
+    (void)pump(&f, progress + 2U, 244U);
+    encode_ack(extra, 2U, 2U * BC_REC_FRAME_MAX);
+    CHECK(send_request(&f, BC_VOICE_TRANSFER_ACK, 853U, extra, 8U, 244U,
+                       progress + 3U, false));
+    (void)pump(&f, progress + 3U, 244U);
+    encode_resume(extra, start.id, 0U, 1U);
+    CHECK(send_request(&f, BC_VOICE_RESUME, 854U, extra, sizeof(extra), 244U,
+                       progress + BC_VOICE_ARCHIVE_STALL_MS - 1U, false));
+    (void)pump(&f, progress + BC_VOICE_ARCHIVE_STALL_MS - 1U, 244U);
+    CHECK(f.service.archive_progress_ms == progress && f.service.reader.open);
+    (void)pump(&f, progress + BC_VOICE_ARCHIVE_STALL_MS, 244U);
+    CHECK(!f.service.reader.open && !f.service.transferring);
+    fixture_destroy(&f);
+}
+
+static void test_archive_verification_stall_and_progress(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x3351U, BC_REC_APP, 0U);
+    uint8_t extra[16];
+    uint32_t progress = 100U + BC_VOICE_ARCHIVE_STALL_MS - 1U;
+    unsigned i;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 16U, 0x71U, NULL, 10U));
+    (void)pump(&f, 50U, 244U);
+    encode_resume(extra, start.id, 0U, 1U);
+    CHECK(send_request(&f, BC_VOICE_RESUME, 860U, extra, sizeof(extra), 244U, 100U, false));
+    /* An actual bounded CRC step just before the deadline renews verification
+     * independently of the total time needed to scan a long archive. */
+    (void)bc_voice_service_poll(&f.service, progress, 244U);
+    CHECK(f.service.verifying && f.service.reader.verify_offset == 1024U);
+    CHECK(f.service.archive_progress_ms == progress);
+    f.sink.fail_all = true;
+    for (i = 0U; i < BC_VOICE_CONTROL_SLOTS; ++i)
+        CHECK(send_request(&f, BC_VOICE_HELLO, 861U + i, NULL, 0U, 244U,
+                           progress + 1U, false));
+    /* The first blocked poll moves one control into tx; refill that slot so
+     * all subsequent verification steps are starved of response capacity. */
+    CHECK(!bc_voice_service_poll(&f.service, progress + 1U, 244U));
+    CHECK(send_request(&f, BC_VOICE_HELLO, 865U, NULL, 0U, 244U, progress + 1U, false));
+    encode_resume(extra, start.id, 0U, 1U);
+    CHECK(send_request(&f, BC_VOICE_RESUME, 866U, extra, sizeof(extra), 244U,
+                       progress + BC_VOICE_ARCHIVE_STALL_MS - 1U, false));
+    CHECK(!bc_voice_service_poll(&f.service, progress + BC_VOICE_ARCHIVE_STALL_MS - 1U, 244U));
+    CHECK(f.service.reader.verify_offset == 1024U && f.service.reader.open);
+    CHECK(!bc_voice_service_poll(&f.service, progress + BC_VOICE_ARCHIVE_STALL_MS, 244U));
+    CHECK(!f.service.verifying && !f.service.reader.open && !f.store.reader_active);
+    fixture_destroy(&f);
+}
+
 static void test_query_catalog_receipt_and_id_custody(void)
 {
     fixture f;
@@ -1929,6 +2287,133 @@ static void test_settings_errors_and_archive_cancellation(void)
     fixture_destroy(&f);
 }
 
+static void test_phone_outcome_lease_and_callback(void)
+{
+    fixture f;
+    bc_voice_outcome_port port;
+    bc_rec_start start = start_value(UINT64_C(0x6001), BC_REC_APP, 0U);
+    uint8_t extra[13], frame[BC_REC_FRAME_MAX];
+    const bc_voice_message *response;
+    unsigned before;
+    uint32_t token;
+    uint32_t terminal_ms = UINT32_MAX - 70U;
+
+    CHECK(fixture_setup(&f));
+
+    /* The optional callback gates both advertisement and acceptance. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 800U, NULL, 0U, 244U, 1U, false));
+    CHECK(pump(&f, 1U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 800U);
+    CHECK(response != NULL &&
+          (bc_voice_get32(response->payload + 5U) & BC_VOICE_CAP_PHONE_OUTCOME) == 0U);
+    port.ctx = &f;
+    port.set_outcome = outcome_set;
+    CHECK(bc_voice_service_set_outcome_port(&f.service, &port));
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 801U, NULL, 0U, 244U, 2U, false));
+    CHECK(pump(&f, 2U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 801U);
+    CHECK(response != NULL &&
+          (bc_voice_get32(response->payload + 5U) & BC_VOICE_CAP_PHONE_OUTCOME) != 0U);
+
+    /* READY must be accepted while the current recording is active. The
+     * terminal edge is then latched across the uint32 millisecond wrap. */
+    f.service.now_ms = UINT32_MAX - 90U;
+    CHECK(bc_recording_start(&f.recording, &start, UINT32_MAX - 90U) == BC_REC_OK);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 802U, (const uint8_t[]){1U}, 1U,
+                       244U, UINT32_MAX - 85U, false));
+    CHECK(pump(&f, UINT32_MAX - 85U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 802U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
+    CHECK(token != 0U && f.service.outcome_ready_accepted);
+    fill_pattern(frame, sizeof(frame), 0x21U);
+    f.service.now_ms = UINT32_MAX - 80U;
+    CHECK(bc_recording_frame(&f.recording, start.id, 1U, frame, sizeof(frame),
+                             UINT32_MAX - 80U) == BC_REC_OK);
+    f.service.now_ms = terminal_ms;
+    CHECK(bc_recording_stop(&f.recording, start.id, UINT32_MAX - 75U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
+    CHECK(f.service.outcome_terminal_ready &&
+          f.service.outcome_terminal_ms == terminal_ms);
+
+    encode_outcome(extra, start.id, token, BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
+    /* A full response queue rejects the side effect before invoking the
+     * callback. The client can retry the same request after draining it. */
+    f.service.control_count = BC_VOICE_CONTROL_SLOTS;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 803U, extra, sizeof(extra),
+                       244U, 20U, false));
+    CHECK(f.outcome_calls == 0U &&
+          find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 803U) == NULL);
+    f.service.control_count = 0U;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 803U, extra, sizeof(extra),
+                       244U, 20U, false));
+    CHECK(pump(&f, 20U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 803U);
+    CHECK(response != NULL && response->length == 5U &&
+          response->payload[4] == BC_REC_OK);
+    CHECK(f.outcome_calls == 1U && f.outcome_recording_id == start.id &&
+          f.outcome_value == BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
+
+    /* Same valid outcome is idempotent, while malformed, wrong-token and
+     * wrong-outcome requests never reach the callback. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 804U, extra, sizeof(extra),
+                       244U, 21U, false));
+    CHECK(pump(&f, 21U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 804U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK &&
+          f.outcome_calls == 1U);
+    extra[8] ^= 1U;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 805U, extra, sizeof(extra),
+                       244U, 22U, false));
+    CHECK(pump(&f, 22U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 805U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_WRONG_SESSION &&
+          f.outcome_calls == 1U);
+    extra[8] ^= 1U;
+    extra[12] = 0U;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 806U, extra, sizeof(extra),
+                       244U, 23U, false));
+    CHECK(pump(&f, 23U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 806U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID &&
+          f.outcome_calls == 1U);
+    extra[12] = BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED;
+
+    /* The strict ten-second boundary expires even an otherwise duplicate
+     * request. Unsigned subtraction keeps the check wrap-safe. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 807U, extra, sizeof(extra),
+                       244U, terminal_ms + BC_VOICE_PHONE_OUTCOME_WINDOW_MS,
+                       false));
+    CHECK(pump(&f, terminal_ms + BC_VOICE_PHONE_OUTCOME_WINDOW_MS, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 807U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID &&
+          f.outcome_calls == 1U);
+
+    /* A new active recording is busy and clears the prior confirmation lease;
+     * after it finishes, the old ID/token cannot be replayed. */
+    {
+        bc_rec_start next = start_value(UINT64_C(0x6002), BC_REC_APP, 0U);
+        CHECK(bc_recording_start(&f.recording, &next, 200U) == BC_REC_OK);
+        before = f.sink.message_count;
+        CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 808U, extra, sizeof(extra),
+                           244U, 201U, false));
+        CHECK(pump(&f, 201U, 244U) != 0U);
+        response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 808U);
+        CHECK(response != NULL && response->payload[4] == BC_REC_BUSY &&
+              f.outcome_calls == 1U);
+    }
+    fixture_destroy(&f);
+}
+
 static bool tuning_get(void *ctx, bc_voice_tuning *value, uint8_t *status)
 {
     fixture *f = ctx;
@@ -2029,8 +2514,15 @@ int main(void)
     test_live_prefix_delayed_ready_and_backpressure();
     test_live_prefix_overflow_cancel_timeout_and_reconnect();
     test_resume_window_retry_and_crc();
+    test_archive_fragment_burst_and_control_priority();
+    test_archive_retired_tokens_and_active_retry();
+    test_archive_delayed_ack_during_retransmit();
+    test_archive_stall_expiry_and_resume();
+    test_archive_only_real_progress_renews_stall();
+    test_archive_verification_stall_and_progress();
     test_query_catalog_receipt_and_id_custody();
     test_settings_errors_and_archive_cancellation();
+    test_phone_outcome_lease_and_callback();
     test_tuning_contract_and_busy();
     fprintf(stdout, "%u checks, %u failures\n", checks, failures);
     return failures == 0U ? 0 : 1;

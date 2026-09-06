@@ -177,13 +177,13 @@ static uint8_t next_percent(enum pmic_charge_status status, uint8_t sample)
 int main(void)
 {
     CHECK(next_percent(PMIC_CHARGED_NOT, 0U) == 0U);
-    CHECK(next_percent(PMIC_CHARGED_NOT, 100U) == 0U);
-    CHECK(next_percent(PMIC_CHARGED_NOT, 80U) == 0U);
+    CHECK(next_percent(PMIC_CHARGED_NOT, 100U) == 50U);
+    CHECK(next_percent(PMIC_CHARGED_NOT, 80U) == 80U);
 
-    /* Charging starts a new monotonic epoch and permits the real zero
-     * percentage to remain initialized. */
+    /* Charging starts a new epoch, and valid samples may recover in either
+     * direction while the real zero percentage remains initialized. */
     CHECK(next_percent(PMIC_CHARGED_ING, 20U) == 20U);
-    CHECK(next_percent(PMIC_CHARGED_ING, 0U) == 20U);
+    CHECK(next_percent(PMIC_CHARGED_ING, 0U) == 10U);
 
     /* OVER is a distinct captured PMIC state, so it starts its own epoch. */
     CHECK(next_percent(PMIC_CHARGED_OVER, 40U) == 40U);
@@ -220,11 +220,11 @@ int main(void)
     reentrant_status_delta = 1U;
     reentrant_percent_delta = 1U;
     status_trigger_on_call = mock_status_calls + 2U;
-    CHECK(next_percent(PMIC_CHARGED_NOT, 90U) == 80U);
+    CHECK(next_percent(PMIC_CHARGED_NOT, 90U) == 85U);
     CHECK(reentrant_result == BC_BATTERY_PERCENT_UNKNOWN);
     CHECK(reentrant_status_delta == 0U);
     CHECK(reentrant_percent_delta == 0U);
-    CHECK(next_percent(PMIC_CHARGED_NOT, 95U) == 80U);
+    CHECK(next_percent(PMIC_CHARGED_NOT, 95U) == 90U);
 
     CHECK(mock_status_calls == 26U);
     CHECK(mock_percent_calls == 13U);

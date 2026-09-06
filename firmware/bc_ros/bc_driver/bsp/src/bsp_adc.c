@@ -549,7 +549,11 @@ static struct BSP_ADC bsp_list[] =
 														.resistor_n = NRF_SAADC_RESISTOR_DISABLED,      
 														.gain       = NRF_SAADC_GAIN1_6,                
 														.reference  = NRF_SAADC_REFERENCE_INTERNAL,     
+#if defined(SUDO_VOICE_ONLY)
+														.acq_time   = NRF_SAADC_ACQTIME_40US,
+#else
 														.acq_time   = NRF_SAADC_ACQTIME_10US,           
+#endif
 														.mode       = NRF_SAADC_MODE_SINGLE_ENDED,      
 														.burst      = NRF_SAADC_BURST_DISABLED,         
 														.pin_n      = NRF_SAADC_INPUT_DISABLED,        

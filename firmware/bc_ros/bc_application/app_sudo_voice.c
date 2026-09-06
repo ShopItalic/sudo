@@ -37,6 +37,10 @@
 #define SETTINGS_SIZE 20U
 #define TUNING_ATTR 0xa7U
 #define TUNING_SIZE 20U
+#define PHONE_OUTCOME_PULSE_COUNT 2U
+#define PHONE_OUTCOME_PULSE_MS 80U
+#define PHONE_OUTCOME_SPACING_MS 160U
+#define PHONE_OUTCOME_DRIVER_SETTLE_MS 20U
 
 typedef struct {
     uint8_t bytes[250];
@@ -62,6 +66,12 @@ static bool touch_stop_invalid;
 static bc_rec_phase observed_phase;
 static uint64_t observed_id;
 static bool feedback_start_pending, feedback_finish_pending, feedback_finish_success;
+static bool feedback_outcome_pending;
+static uint8_t feedback_outcome_remaining;
+static uint64_t feedback_outcome_recording_id;
+static uint32_t feedback_outcome_due_ms;
+static uint32_t feedback_motor_busy_until_ms;
+static bool feedback_motor_busy;
 static uint64_t legacy_recording_id;
 static voice_command legacy_stop;
 static bool legacy_stop_pending;
@@ -227,6 +237,27 @@ static bc_rec_result capture_start(void *ctx, uint64_t id)
 static bool live(void *ctx, uint64_t id, uint32_t sequence, const uint8_t *data, uint16_t length)
 { (void)ctx; return bc_voice_service_live(&service, id, sequence, data, length); }
 
+static void feedback_outcome_clear(void)
+{
+    feedback_outcome_pending = false;
+    feedback_outcome_remaining = 0U;
+    feedback_outcome_recording_id = 0U;
+    feedback_outcome_due_ms = 0U;
+}
+
+static void set_outcome(void *ctx, uint64_t recording_id, uint8_t outcome)
+{
+    (void)ctx;
+    /* This callback is deliberately a state-only handoff. The worker emits
+     * the motor pattern from its normal loop after local stop feedback. */
+    if (!recording_id || outcome != BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED)
+        return;
+    feedback_outcome_pending = true;
+    feedback_outcome_remaining = PHONE_OUTCOME_PULSE_COUNT;
+    feedback_outcome_recording_id = recording_id;
+    feedback_outcome_due_ms = service.now_ms;
+}
+
 static void changed(void *ctx, const bc_rec_snapshot *snapshot)
 {
     (void)ctx;
@@ -241,6 +272,8 @@ static void changed(void *ctx, const bc_rec_snapshot *snapshot)
     if (snapshot->phase == BC_REC_RECORDING &&
         (observed_phase != BC_REC_RECORDING || observed_id != snapshot->start.id))
         feedback_start_pending = true;
+    if (snapshot->start.id != observed_id)
+        feedback_outcome_clear();
     if (snapshot->start.id && !working && snapshot->phase != BC_REC_DELIVERED &&
         (observed_id != snapshot->start.id || observed_phase != snapshot->phase)) {
         feedback_finish_pending = true;
@@ -300,6 +333,10 @@ static bc_rec_result save_settings(void *ctx, const bc_voice_settings *value)
     settings = *value;
     bc_ic_led_feedback_enable(settings.led_enabled);
     bc_linear_motor_feedback_enable(settings.haptic_enabled);
+    if (!settings.haptic_enabled) {
+        feedback_outcome_clear();
+        feedback_motor_busy = false;
+    }
     (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
     return BC_REC_OK;
 }
@@ -373,22 +410,63 @@ static bc_rec_result save_tuning(void *ctx, const bc_voice_tuning *value)
     return BC_REC_OK;
 }
 
-static void feedback(void)
+static bool feedback_time_reached(uint32_t now_ms, uint32_t due_ms)
 {
+    return (int32_t)(now_ms - due_ms) >= 0;
+}
+
+static void feedback(uint32_t now_ms)
+{
+    if (feedback_motor_busy && feedback_time_reached(now_ms, feedback_motor_busy_until_ms))
+        feedback_motor_busy = false;
     if (feedback_finish_pending) {
+        uint16_t duration = feedback_finish_success ? tuning.stop_active_ms : 400U;
         feedback_finish_pending = false;
         feedback_start_pending = false;
         bc_ic_led_mic_offline_recording_off();
-        if (settings.haptic_enabled)
-            (void)bc_linear_motor_pulse(tuning.haptic_strength,
-                feedback_finish_success ? tuning.stop_active_ms : 400U);
+        feedback_motor_busy = false;
+        if (settings.haptic_enabled &&
+            bc_linear_motor_pulse(tuning.haptic_strength, duration)) {
+            feedback_motor_busy_until_ms = now_ms + duration + PHONE_OUTCOME_DRIVER_SETTLE_MS;
+            feedback_motor_busy = true;
+        }
+        if (feedback_outcome_pending)
+            feedback_outcome_due_ms = feedback_motor_busy ?
+                feedback_motor_busy_until_ms : now_ms;
         app_ble_conn_time_audio_reset();
-    } else if (feedback_start_pending) {
+        return;
+    }
+    if (feedback_start_pending) {
         feedback_start_pending = false;
         if (settings.led_enabled) bc_ic_led_mic_offline_recording_on();
-        if (settings.haptic_enabled) (void)bc_linear_motor_pulse(tuning.haptic_strength, tuning.start_active_ms);
+        feedback_motor_busy = false;
+        if (settings.haptic_enabled &&
+            bc_linear_motor_pulse(tuning.haptic_strength, tuning.start_active_ms)) {
+            feedback_motor_busy_until_ms = now_ms + tuning.start_active_ms + PHONE_OUTCOME_DRIVER_SETTLE_MS;
+            feedback_motor_busy = true;
+        }
         app_ble_conn_time_audio_set();
+        return;
     }
+    if (!feedback_outcome_pending) return;
+    if (!settings.haptic_enabled || bc_recording_active(&recording)) {
+        if (!settings.haptic_enabled) feedback_outcome_clear();
+        return;
+    }
+    if (bc_recording_snapshot(&recording)->start.id != feedback_outcome_recording_id) {
+        feedback_outcome_clear();
+        return;
+    }
+    if (!feedback_time_reached(now_ms, feedback_outcome_due_ms) || feedback_motor_busy) return;
+    if (!bc_linear_motor_pulse(tuning.haptic_strength, PHONE_OUTCOME_PULSE_MS)) {
+        feedback_outcome_clear();
+        return;
+    }
+    feedback_motor_busy_until_ms = now_ms + PHONE_OUTCOME_PULSE_MS + PHONE_OUTCOME_DRIVER_SETTLE_MS;
+    feedback_motor_busy = true;
+    --feedback_outcome_remaining;
+    if (!feedback_outcome_remaining) feedback_outcome_clear();
+    else feedback_outcome_due_ms = now_ms + PHONE_OUTCOME_SPACING_MS;
 }
 
 static void legacy_record_command(const voice_command *command, uint32_t now_ms)
@@ -478,6 +556,7 @@ static void run(void *ctx)
     bc_rec_port port = {NULL, storage_open, storage_append, storage_checkpoint, storage_finish,
         capture_start, app_sudo_capture_stop, app_sudo_capture_abort, live, changed};
     bc_voice_service_port service_port = {NULL, send_packet, save_settings};
+    bc_voice_outcome_port outcome_port = {NULL, set_outcome};
     bc_voice_tuning_port tuning_port = {NULL, get_tuning, save_tuning};
     bc_voice_gesture_config gesture_config = {10000U, 0U, 750U, 300U, false};
     uint32_t last_epoch = 0;
@@ -497,6 +576,7 @@ static void run(void *ctx)
     if (!bc_recording_init(&recording, &port, &config) ||
         !bc_voice_gesture_init(&gesture, &recording, &gesture_config, new_id, NULL) ||
         !bc_voice_service_init(&service, &recording, &store, &gesture, &service_port, &settings) ||
+        !bc_voice_service_set_outcome_port(&service, &outcome_port) ||
         !bc_voice_service_set_tuning_port(&service, &tuning_port)) {
         if (powered) { bc_spi_flash_device_close(); powered = false; }
         /* Invalid static configuration must never register a gesture or
@@ -514,10 +594,12 @@ static void run(void *ctx)
         uint32_t epoch = bc_ble_session_id();
         bool connected = bc_ble_connect_status();
         unsigned i;
+        service.now_ms = now_ms;
         if (epoch != last_epoch || connected != last_connected) {
             if (powered || mounted) power_on();
             (void)bc_voice_legacy_archive_cancel(&legacy);
             bc_voice_service_link(&service, epoch, connected);
+            feedback_outcome_clear();
             legacy_reply_pending = false; legacy_stop_pending = false;
             last_epoch = epoch; last_connected = connected;
         }
@@ -556,7 +638,7 @@ static void run(void *ctx)
         (void)bc_voice_service_poll(&service, now_ms, bc_ble_payload_limit());
         if (!bc_recording_active(&recording) && !service.reader.open)
             (void)bc_voice_legacy_archive_poll(&legacy);
-        feedback();
+        feedback(now_ms);
         if (bc_recording_active(&recording) || service.reader.open ||
             bc_voice_legacy_archive_active(&legacy) || uxQueueMessagesWaiting(commands)) idle_since_ms = now_ms;
         else if (powered && (uint32_t)(now_ms - idle_since_ms) >= 500U) {

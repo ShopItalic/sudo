@@ -1,94 +1,93 @@
 # Italic Ring — firmware, downloads and hardware
 
 Firmware and hardware evidence for the **standard Bravechip 603V1.23.2 Ring**.
+Current candidate: **6.0.3.3S03**.
 
-## Current source: S02
+**[Supplier change log: what changed from factory firmware and why](docs/reference/supplier-firmware-change-log.md)**
+records additions, exclusions, refinements and verification status as work proceeds.
 
-`main` contains the full firmware and hardware evidence, including the
-`6.0.3.3S02` application controls update. **The downloadable RC1 below remains
-`6.0.3.3S01`; it does not contain these newer S02 changes.**
+## Download S03 RC1
 
-- Double-tap recording is off on fresh settings and can be enabled in the app.
-  Existing saved choices are preserved; hold-to-talk stays available.
-- Holding during a double-tap recording stops it and drains its final audio.
-  Release before a new hold can start PTT.
-- The SDK settings now mute normal application lights and haptics, including
-  manual output. Haptic strength, pulse durations and touch thresholds remain
-  configurable and persisted. Startup/bootloader output is separate.
-- The matching [app source](https://github.com/ShopItalic/app) labels the controls
-  according to the connected firmware: recording feedback on S01, broader
-  Ring feedback on S02.
+**[Release assets: v6.0.3.3S03-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)**
 
-See the [current source/build guide](docs/reference/ring-firmware-candidate.md),
-[protocol](docs/reference/ring-voice-protocol.md), and
-[physical acceptance matrix](docs/reference/ring-recording-and-ptt.md).
-S02 is source- and build-tested; physical qualification and a separate S02
-release candidate remain pending.
+Start with **`italic-ring-603v1.23.2-6.0.3.3S03-rc.1-supplier-review.zip`**.
+The bundle contains the application, debug files, checksums, build provenance,
+supplier change log and instructions. It is an **unsigned engineering prerelease**
+for supplier bench testing on a recoverable spare standard board.
+The review ZIP is **not a signed OTA update package**.
 
-## Download RC1
-
-**[Open the RC1 release and download its assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)**
-
-Start with **`italic-ring-603v1.23.2-6.0.3.3S01-rc.1-supplier-review.zip`**.
-It contains the application, debug files, checksums and instructions. This is
-an **unsigned engineering prerelease**, for supplier bench testing on a spare
-standard board. The review ZIP is **not an OTA update package**.
-
-**[Download, flash and test guide →](docs/how-to/test-release-candidate.md)**
+**[Download, flash and test guide →](docs/how-to/test-s03-release-candidate.md)**
 
 | What you need | Where to go |
 | --- | --- |
-| Download the candidate | [RC1 release assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1) |
-| Understand each file and choose SWD or OTA | [Flashing and testing guide](docs/how-to/test-release-candidate.md) |
-| Browse/build the exact candidate source | [RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1), [build instructions](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-firmware-candidate.md#build-profile-and-toolchain) |
-| Review the firmware changes | [Firmware PR #1](https://github.com/ShopItalic/sudo/pull/1) |
-| Build the matching iPhone app | [App PR #10](https://github.com/ShopItalic/app/pull/10), [client contract](https://github.com/ShopItalic/app/blob/064c265356e32ea9819a8eaa57929ebc17f66f0a/docs/reference/ring-voice-client.md) |
-| Check features and acceptance tests | [Requirements matrix](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-recording-and-ptt.md) |
-| Implement the BLE protocol | [Native wire protocol](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-voice-protocol.md) |
-| Identify components / supplier BOM | [Hardware reference](docs/reference/sudo-ring-hardware.md), [component BOM](docs/reference/sudo-ring/bom.csv), [quoted cost BOM](docs/reference/sudo-ring/quoted-bom.csv) |
-| Find the preserved factory image | [Factory extraction guide](docs/reference/ring-firmware.md) |
+| Download / identify each file / choose SWD or OTA | [S03 guide](docs/how-to/test-s03-release-candidate.md), [release assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1) |
+| Review every change from factory and its rationale | [Supplier change log](docs/reference/supplier-firmware-change-log.md) |
+| Build the firmware | [Candidate build guide](docs/reference/ring-firmware-candidate.md) |
+| Build the matching iPhone SDK/client | [App PR #12](https://github.com/ShopItalic/app/pull/12), exact SDK commit [492af2a](https://github.com/ShopItalic/app/tree/492af2ad40949de3d54419df5e2fa140c912b94f) |
+| Implement Bluetooth / settings / feedback | [Wire protocol](docs/reference/ring-voice-protocol.md) |
+| Validate behavior and remaining physical work | [S03 reliability report](docs/reference/ring-s03-reliability.md), [acceptance matrix](docs/reference/ring-recording-and-ptt.md) |
+| Identify components and supplier BOM | [Hardware reference](docs/reference/sudo-ring-hardware.md), [component BOM](docs/reference/sudo-ring/bom.csv), [quoted cost BOM](docs/reference/sudo-ring/quoted-bom.csv) |
+| Find the original factory image | [Factory extraction guide](docs/reference/ring-firmware.md) |
+| Reproduce the older S01 RC1 | [Unchanged S01 release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1), [historical guide](docs/how-to/test-release-candidate.md) |
 
-## What's in RC1?
+## Features and refinements
 
-- Hold to record, release to stop; configurable double-tap memos.
-- Complete Flash recording while connected or standalone, with checked stop,
-  recovery and explicit final-file results.
-- Resumable Bluetooth transfer, startup audio buffering, and deletion only
-  after verified durable custody.
-- Persisted touch, LED and haptic settings; checked battery and Flash I/O.
-- Matching iPhone client with native state/settings/sync and bounded PTT
-  dictation through the existing Sudo keyboard.
+- **Hold to record, release to stop.** Audio is stored on Ring whether connected
+  or standalone. Optional live preview supports same-iPhone dictation; phone
+  failure falls back to later archive sync.
+- **Double tap is off on fresh settings.** It can be enabled for hands-free
+  recording; holding stops that recording. Existing saved choices persist.
+- **Faster bounded packet scheduling.** Up to four fragments of one message per
+  worker pass, with the same wire bytes and one archive read/verification step.
+  A full FILE block at ATT payload 20 takes 8 host-harness polls instead of 29;
+  actual radio throughput remains to be measured.
+- **Reliable transfer retries.** Delayed cumulative ACKs remain valid across
+  rewind. A 30-second lack of real progress cancels abandoned archive work;
+  retired tokens cannot reopen it. Source audio and custody remain intact.
+- **Exact download proof reuse in the SDK.** A verified full download can avoid
+  a second Bluetooth read when the connection, recording and durable receipt
+  match. Partial resumes and reconnects retain full verification.
+- **Configurable lights, haptics and touch.** Persisted master settings mute
+  normal application output, including manual cues. Strength, recording pulse
+  durations and touch thresholds are configurable. Startup/bootloader output
+  has a separate boundary.
+- **Distinct phone confirmation.** Two short pulses require acknowledgment that
+  the keyboard inserted the exact dictation. The ordinary stop cue means audio
+  saved locally. Mute, a new capture or connection loss cancels pending cues.
+- **More robust battery sampling.** Exclude motor activity and its settling
+  interval, reject interrupted ADC batches, allow the filter to recover, and
+  increase the standard-board battery acquisition time. Physical calibration
+  and battery-life measurements remain outstanding.
 
-Default PTT is ten seconds, configurable; memos are unlimited by default.
-The candidate retains the existing 8 kHz mono vendor ADPCM contract.
+The onboard codec is **IMA ADPCM, 8 kHz mono**, approximately 32 kbps.
+Opus source is preserved in the supplier SDK but excluded from this target.
+Default PTT limit is ten seconds, configurable. Optional hands-free recording
+is unlimited when its configured limit is zero.
 
-**Verified:** 13,174 firmware checks, six archive-normalizer tests, 225/225 ARM
-sources compiled and linked, and [green CI on the released source](https://github.com/ShopItalic/sudo/actions/runs/33998477755).
-The matching app passes 267 selected Ring tests plus production fault harnesses.
-**Still pending:** physical audio/radio/power/keyboard qualification, supplier
-compiler/ABI review, signing and demonstrated update recovery. No Ring was
-flashed during preparation. One broader iOS simulator test needs an unavailable
-Apple model; details are in the app PR.
+Host fault tests and the GNU ARM build validate software behavior and image
+layout. The release's `provenance.json` identifies the exact source, CI run,
+matching SDK and hashes. No Ring was flashed during preparation; physical
+audio/radio/power qualification, supplier compiler/ABI review, signing and
+proven recovery are still required.
 
 ## Candidate versus factory
 
-| | RC1 candidate | Preserved factory distribution |
+| | S03 candidate | Preserved factory distribution |
 | --- | --- | --- |
-| Firmware readback | `6.0.3.3S01` | `6.0.3.3Z62` |
+| Firmware readback | `6.0.3.3S03` | `6.0.3.3Z62` |
 | Board | Standard `603V1.23.2` | Standard `603V1.23.2` |
-| Purpose | Test the new recording and reliability behavior | Original baseline and supplier recovery analysis |
-| Files | GitHub release assets | [`artifacts/ring-firmware/603v1.23.2-6.0.3.3z62`](artifacts/ring-firmware/603v1.23.2-6.0.3.3z62) |
+| Files | S03 GitHub release assets | [`artifacts/ring-firmware/603v1.23.2-6.0.3.3z62`](artifacts/ring-firmware/603v1.23.2-6.0.3.3z62) |
 | OTA status | Supplier must sign/package | Original signed package; applicability to a particular unit is unverified |
 
-Do not use `1.23.2_one_sec`, another board, or the historical Nordic/Seeed test
-prototype as a substitute. Factory files are a distribution, **not a backup of
-an individual Ring**. The repository is private; testers need GitHub access.
+Do not substitute `1.23.2_one_sec`, another board, or the historical Nordic/Seeed
+prototype. Factory files are a distribution, **not a backup of an individual
+Ring**. This repository is private; testers need GitHub access.
 
 ## Repository map
 
-The default branch contains the current S02 firmware, tests, tools and hardware
-evidence. The immutable RC1 tag preserves the exact source of the published S01
-downloads.
+The default branch contains the current S03 firmware, tests, tools and hardware
+evidence. Each release tag preserves the exact source for its own downloads. S01 RC1
+remains available unchanged for historical comparison.
 
 | Location | Contents |
 | --- | --- |
@@ -98,7 +97,7 @@ downloads.
 | [`firmware/`](firmware) | Candidate/vendor source; `bc_ros` owns application logic, `BCL603S2X` board/SDK support |
 | [`tools/firmware/`](tools/firmware) | Baseline verification, profile generator, GNU build and host test entry points |
 | [`tests/firmware/`](tests/firmware) | Production-code fault harnesses |
-| [`build/firmware/gnu/sudo_voice/`](https://github.com/ShopItalic/sudo/blob/v6.0.3.3S01-rc.1/docs/reference/ring-firmware-candidate.md) | Local generated output after building; not checked into Git |
+| [`build/firmware/gnu/sudo_voice/`](https://github.com/ShopItalic/sudo/blob/main/docs/reference/ring-firmware-candidate.md) | Local generated output after building; not checked into Git |
 
 The iOS/web/backend client lives in [ShopItalic/app](https://github.com/ShopItalic/app),
 Caption firmware in [ShopItalic/caption](https://github.com/ShopItalic/caption),

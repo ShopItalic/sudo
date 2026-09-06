@@ -25,6 +25,27 @@ void bc_linear_motor_start(enum LINEAR_MOTOR_MODE mode);
 bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms);
 /* Enable or suppress all normal Sudo haptic feedback. */
 void bc_linear_motor_feedback_enable(bool enabled);
+
+/*
+ * The battery ADC uses this bounded publication to avoid sampling while the
+ * motor supply and PWM are settling.  Begin is task-safe; the PWM callback
+ * publishes completion with the ISR-safe path.  The ADC reads this snapshot
+ * from task context and compares generation around its transaction.  The
+ * snapshot function is task-context-only because it uses the task critical
+ * section variant.
+ */
+typedef struct
+{
+  uint32_t generation;
+  uint32_t active_since_tick;
+  uint32_t last_finished_tick;
+  bool active;
+  bool has_finished;
+} bc_linear_motor_activity_t;
+
+/* Mark the complete legacy pre-LDO/settle path as motor activity. */
+void bc_linear_motor_activity_begin(void);
+void bc_linear_motor_activity_get(bc_linear_motor_activity_t *activity);
 #endif
 
 void bc_linear_motor_pwm_out(void *linear_motor_config);
