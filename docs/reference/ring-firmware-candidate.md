@@ -7,8 +7,8 @@ adapter lives in [ShopItalic/app](https://github.com/ShopItalic/app).
 
 Production source and host fault harnesses share the same recording, capture,
 gesture, storage and protocol logic. The integrated GNU target compiles and links
-all 225 sources with no undefined symbols. No candidate has been flashed,
-signed or released. Physical
+all 225 sources with no undefined symbols. RC1 is published as an unsigned engineering prerelease; S02 has not been
+packaged as a release. No candidate has been flashed or signed here. Physical
 radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
 remain unmeasured. The [requirements matrix](ring-recording-and-ptt.md) separates
 implemented behavior from device acceptance; the [protocol](ring-voice-protocol.md)
@@ -19,10 +19,28 @@ defines exact packets and error meanings.
 S02 makes double-tap recording opt-in and expands the persisted light/haptic
 switches to all normal application feedback. The app retains S01 support and
 labels its older switches as recording-only. The published RC1 tag/assets are
-unchanged; historical build measurements below describe RC1 unless explicitly
-identified as S02. New settings preserve an existing saved choice, and changes
+unchanged; historical build measurements below describe the S01 development
+work unless explicitly identified as S02. Use the RC1 release checksums for its
+exact downloadable artifacts. New settings preserve an existing saved choice, and changes
 require idle recording state. Physical feedback and gesture acceptance remain
 pending.
+
+### S02 local validation (September 6)
+
+- Full host fault suite passes, including 321 gesture checks and 416 LED checks.
+  The new memo escape preserves accepted tail audio and requires release before
+  restarting. Motor tests cover disable during an active pulse and mute/unmute
+  during peripheral setup.
+- All 7,056 preserved factory files still match the import manifest.
+- Arm GNU 15.2.rel1 compiles/links 225/225 sources with zero undefined symbols;
+  startup/vector, memory bounds and runtime lock audits pass.
+- Local application BIN: 310,220 bytes; SHA-256
+  `d2ec411792811551f0ef91664acf9a386d36ab2ab4f2690137142e3746488a29`.
+  Static RAM is 203,880 bytes; reserved C heap and main stack are 8 KiB each.
+  The two vendor wchar ABI warnings and libnosys limitations remain open for
+  supplier review. Runtime memory use still needs physical measurement.
+- Matching app: 272 selected Ring simulator tests pass; cloud test, lint,
+  typecheck and build pass. These are local tests, not device qualification.
 
 ## Preserved original
 
