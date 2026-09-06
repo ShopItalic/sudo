@@ -917,6 +917,15 @@ worker. Physical IQS behavior, microphone/BLE timing, vibration, light output,
 battery consumption, power interruption and supplier signing/recovery remain
 qualification gates in `docs/backlog.md`.
 
+### S04 documentation synchronization
+
+The root README and documentation index now distinguish S04 source review from
+published S03 RC1, remove the stale ten-second PTT default, summarize the three
+mappings and record current validation. The protocol, requirements, candidate
+build record and backlog describe S04. Versioned release guides and historical
+audit records retain their original version-specific evidence. Existing
+uncommitted branding and hardware-reference edits remain separate.
+
 ## How to append future changes
 
 Append a new monotonically named entry such as S03-007 or S04-001; do not
