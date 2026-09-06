@@ -1,45 +1,32 @@
 # Documentation
 
-This repository documents the production Italic Ring hardware and firmware,
-including the current Sudo Voice engineering candidate and the evidence needed
-for a production decision.
+Start with the **[RC1 download, flashing and test guide](how-to/test-release-candidate.md)**.
+The **[GitHub prerelease](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)**
+contains downloadable application/debug files and a supplier review bundle.
 
-## Start here
+## Candidate engineering
 
-- [Sudo Voice firmware candidate](reference/ring-firmware-candidate.md): preserved source, BLE improvements, lean target, validation boundaries, and supplier acceptance.
-- [Recording and push-to-talk requirements](reference/ring-recording-and-ptt.md): lifecycle, historical decisions, protocol expectations, and the physical acceptance matrix.
-- [Caption comparison](reference/ring-firmware-candidate.md#comparison-with-caption): reusable recording/recovery/session work and source-evidence limits.
-- [Firmware baseline](firmware.md): factory source, exact version identities, current recording owner, toolchain, host validation, and acceptance gates.
-- [Raw factory firmware extraction](reference/ring-firmware.md): recovered image files, memory map, hashes, and signature checks.
-- [Component stack and BOM](reference/sudo-ring-hardware.md): detailed electronics, mechanics, supplier costs, factory evidence, and open specifications.
-- [Component BOM](reference/sudo-ring/bom.csv), [quoted cost BOM](reference/sudo-ring/quoted-bom.csv), [workbook extracts](reference/sudo-ring/source-extracts.json), and [source manifest](reference/sudo-ring/sources.json).
-- [Open work](backlog.md): remaining supplier, app, firmware-build, and physical-device gates.
+Current `main` source is S02: double-tap opt-in, a hold-to-stop escape for
+hands-free recordings, and broader SDK lights/haptics controls. RC1 downloads
+remain the separately pinned S01 source and binaries.
 
-## Current source tranche
+- [Build, validation evidence and Caption comparison](reference/ring-firmware-candidate.md).
+- [Recording/PTT requirements and physical acceptance matrix](reference/ring-recording-and-ptt.md).
+- [BLE wire contract](reference/ring-voice-protocol.md).
+- [Source import, baseline and build workflow](firmware.md).
+- [Engineering follow-ups](backlog.md).
+- [Matching app candidate](https://github.com/ShopItalic/app/pull/10).
 
-The firmware now has one worker-owned recording lifecycle with a completed-block
-capture tail guard, a bounded durable LittleFS raw-ADPCM store, and read-only
-recovery that exposes only a checksummed committed prefix. The native ID-based
-voice protocol and [ShopItalic/app](https://github.com/ShopItalic/app) adapter
-cover recording state, live data, catalog/resume, transfer, and custody receipts.
-Touch tuning, battery error/filter handling, and haptic settings plumbing are
-also implemented and host-tested.
+The [RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1)
+preserves the matching documentation for those downloads.
 
-The factory distribution remains exactly `6.0.3.3Z62`. The separate Sudo Voice
-candidate is `6.0.3.3S01`, a ten-byte build string plus NUL in the legacy version
-field. Candidate source changes and host tests do not establish a signed image,
-a flashed device, or physical qualification. Current final build validation is
-pending the root integration rerun.
+## Hardware and original files
 
-## Repository boundaries
+- [Component stack and hardware reference](reference/sudo-ring-hardware.md).
+- [Component BOM](reference/sudo-ring/bom.csv) and [quoted cost BOM](reference/sudo-ring/quoted-bom.csv).
+- [Workbook extracts](reference/sudo-ring/source-extracts.json) and [source manifest](reference/sudo-ring/sources.json).
+- [Factory firmware extraction, memory map and signature evidence](reference/ring-firmware.md).
 
-Production Ring hardware and firmware live here. The iOS app and its BLE adapter
-remain in [ShopItalic/app](https://github.com/ShopItalic/app); Caption firmware
-remains in [ShopItalic/caption](https://github.com/ShopItalic/caption). The older
-Nordic/Seeed prototype remains in
-[`botnetai/ring-firmware`](https://github.com/botnetai/ring-firmware) and does not
-define the production board or BLE contract.
-
-The raw [factory firmware extraction](reference/ring-firmware.md) is an
-extraction of a factory distribution. It does not prove the firmware currently
-flashed to a physical ring or establish an approved release.
+RC1 is `6.0.3.3S01`; the preserved factory distribution is `6.0.3.3Z62`.
+Both target standard `603V1.23.2`. RC1 is an unsigned engineering application,
+not a signed OTA release or evidence of physical qualification.
