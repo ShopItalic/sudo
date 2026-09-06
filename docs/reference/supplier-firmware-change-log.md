@@ -786,7 +786,7 @@ part and battery-rating qualifications. No firmware or release asset changes.
 
 **Request:** remove the push-to-talk duration cap; provide exactly three
 mappable physical inputs—press-and-hold, double tap (off by default), triple
-tap—with an adjustable hold activation threshold; expose usable light/haptic
+tap—with an adjustable hold activation threshold; expose persisted light/haptic
 controls and apply the concrete cleanup findings. This is new **6.0.3.3S04 source
 work**. Published S03 RC1 assets and checksums remain unchanged. No Ring was flashed.
 
@@ -832,24 +832,25 @@ work**. Published S03 RC1 assets and checksums remain unchanged. No Ring was fla
   `IQS7211E.c` and `IQS7211E_init_1232.h`. Electrode maps and channel cycles
   remain unchanged.
 
-### S04-003 — SDK/app controls and compatibility
+### S04-003 — Firmware control API and compatibility
 
 - Exact S04 identity plus HELLO bits **9: triple tap**, **10: PTT until release**,
-  **11: input mappings** admit the new controls. INPUTS_SET/GET add acknowledged
-  mappings and threshold readback with pending/applied/error sensor status.
-  INPUT_EVENT is a separate typed SDK/app event stream.
-- S04 SETTINGS keeps its prior payload layout; memo-enabled becomes a
-  compatibility mirror of whether any input maps to memo toggle. The S04 app
-  edits mappings through INPUTS_SET and preserves this mirror in feedback saves.
-  Changes require no active capture or held contact. Failed writes do not
-  publish unconfirmed drafts as current settings.
-- The app shows all three input rows and the hold delay, preserves older
-  firmware's original controls, and exposes custom input-event subscriptions.
-  Light/haptic switches have a shared save action; strength and start/stop
-  vibration duration remain separately saved tuning. S04 inherits S03
-  PHONE_OUTCOME and S02 master feedback semantics.
-- App changes are in `ShopItalic/app`: board/protocol/connection/client/controller
-  services, Ring controls view, matching tests and client documentation.
+  **11: input mappings** identify the new firmware contract. INPUTS_SET/GET add
+  acknowledged mappings and threshold readback with pending/applied/error sensor
+  status. INPUT_EVENT is a separate typed event stream for host integrations.
+- SETTINGS keeps its prior payload layout; memo-enabled becomes a compatibility
+  mirror of whether any input maps to memo toggle. Hosts must edit mappings
+  through INPUTS_SET and preserve this mirror in feedback saves. Changes require
+  no active capture or held contact. Failed writes do not publish unconfirmed
+  drafts as current settings.
+- Firmware provides persisted light/haptic enable switches through SETTINGS and
+  strength/start/stop duration through TUNING. S04 inherits S03 PHONE_OUTCOME and
+  S02 master feedback semantics. No unsupported light brightness/color control
+  or physical motor calibration is implied.
+- Scope is **firmware only**, per the user's final clarification. Experimental
+  app edits were stopped and parked locally, with the app checkout restored and
+  no app commit, PR or publication. Matching app UI/SDK adoption is outside this
+  firmware change; the protocol document specifies the integration contract.
 
 ### S04-004 — Remove proven dead state and duplicate recording paths
 
@@ -900,7 +901,12 @@ work**. Published S03 RC1 assets and checksums remain unchanged. No Ring was fla
 - Evidence is retained locally under `.local/s04-validation/` (host log,
   final gesture log, GNU report/summary/artifacts and baseline log). The binary
   is an unsigned local application image; published release assets are unchanged.
-- Matching app checks are recorded when its final simulator validation completes.
+- Remote source commit `36a645e63aec511e95ddec65515c35aaad761ace` passed both
+  [push CI](https://github.com/ShopItalic/sudo/actions/runs/34047940409) and
+  [PR CI](https://github.com/ShopItalic/sudo/actions/runs/34047970004), including
+  the complete **16,902-check** host run and GNU target build. Source review is
+  [firmware PR #3](https://github.com/ShopItalic/sudo/pull/3).
+- App compilation/testing is not part of firmware validation or acceptance.
 
 Tests cover held
 PTT beyond the former limits, all three mappings, disabled inputs, sensor

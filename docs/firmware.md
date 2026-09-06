@@ -1,7 +1,7 @@
 # Production firmware baseline
 
 Current source is **6.0.3.3S04**, with PTT until release, three mappable inputs,
-configurable hold activation, app light/haptic controls and conservative cleanup. The published S03 RC1
+configurable hold activation, persisted light/haptic controls and conservative cleanup. The published S03 RC1
 remains the prior unsigned engineering release. See the [S04 change ledger](reference/supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026).
 
 The source task inspected `Firmware/1.23.2_6033固件SDK.zip` in the Sudo Google

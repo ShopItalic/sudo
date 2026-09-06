@@ -13,9 +13,9 @@ double tap → disabled, and triple tap → memo toggle. Hold activation delay i
 500–10,000 ms; it delays activation rather than capping capture duration.
 
 INPUTS_SET/GET configure hold delay and all three mappings. Actions are disabled
-0, PTT 1 (hold only), memo toggle 2 and SDK/app event 3. The app requires exact
-S04 identity and HELLO bits 9, 10 and 11. Older versions keep their original
-controls. S04 SETTINGS memo-enabled is a compatibility mirror of whether any
+0, PTT 1 (hold only), memo toggle 2 and SDK/app event 3. Host integrations must
+require exact S04 identity and HELLO bits 9, 10 and 11, while preserving older
+firmware behavior. S04 app adoption is outside this firmware-only change. S04 SETTINGS memo-enabled is a compatibility mirror of whether any
 mapping uses memo toggle; changing that field through SETTINGS_SET is rejected.
 Feedback saves preserve it. TUNING controls thresholds and haptic parameters.
 
@@ -59,7 +59,8 @@ recording**. Explicit app Start/Stop and hold/release still work when it is off.
 ## S03 phone confirmation
 
 HELLO capability bit 8 advertises PHONE_OUTCOME when its feedback port is
-installed. The app requires an exact S03 or S04 board/version and this capability.
+installed. Hosts must require an exact supported board/version and this capability;
+the existing S03 client does not imply S04 client support.
 PHONE_OUTCOME returns the ordinary five-byte response. It confirms neither
 archive custody nor permission to delete. Only the current complete saved
 recording and its READY-accepted live token in the same connection qualify,

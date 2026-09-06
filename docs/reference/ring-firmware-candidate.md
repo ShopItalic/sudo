@@ -2,8 +2,8 @@
 
 The **6.0.3.3S04** unpublished source candidate implements local-first recording,
 hold/release push-to-talk, three mappable physical inputs, checked storage and
-resumable BLE for the production **603V1.23.2** Ring. The corresponding app
-adapter lives in [ShopItalic/app](https://github.com/ShopItalic/app).
+resumable BLE for the production **603V1.23.2** Ring. App adapters live separately in [ShopItalic/app](https://github.com/ShopItalic/app);
+S04 client adoption is outside this firmware-only change.
 
 Production source and host fault harnesses share the same recording, capture,
 gesture, storage and protocol logic. The integrated GNU target compiles and links
@@ -215,8 +215,8 @@ physical inputs: hold, double tap (off by default) and triple tap. The hold
 activation delay accepts 500–10,000 ms and is written/read back on the sensor.
 Mappings support recording actions and typed SDK/app events. Feedback controls
 are independent, with confirmed light/haptic switches and bounded vibration
-tuning. HELLO bits 9, 10 and 11 admit the S04 controls; older versions retain
-accurate labels and behavior.
+tuning. HELLO bits 9, 10 and 11 identify the S04 firmware controls. Host clients
+must negotiate this contract and preserve older firmware behavior.
 
 The source also removes dead live-message state and unused health/file stubs.
 Nine inherited task-start checks now compare against FreeRTOS success and enter

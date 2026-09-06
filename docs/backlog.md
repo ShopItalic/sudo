@@ -100,8 +100,8 @@ product decisions:
 - Validate SDK/app events under disconnect/backpressure, sequence gaps,
   press/release/cancel and absent app execution. They are live input events,
   not an offline action queue or an exactly-once remote execution guarantee.
-- Validate the app's light/haptic switches and haptic strength/start/stop timing
-  on hardware, including settings readback, mute during feedback and reboot.
+- Validate firmware light/haptic switches and strength/start/stop timing on
+  hardware through SETTINGS/TUNING, including readback, mute and reboot.
 - Confirm required-task allocation faults reach the Nordic fatal-error/recovery
   path on target. Host injection covers the LED worker; all nine corrected
   task sites require the same success result and fatal error handling.

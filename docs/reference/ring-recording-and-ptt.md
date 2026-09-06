@@ -5,7 +5,8 @@ artifact version is **6.0.3.3Z62**; the engineering candidate identifies itself
 as **6.0.3.3S04** (unpublished source candidate). The published S03 RC1 remains unchanged. It does not select `1.23.2_one_sec`.
 
 The candidate now implements a firmware-owned recording lifecycle, complete
-local capture while connected, three mappable physical inputs (hold, double tap and triple tap). The matching client is in `ShopItalic/app`. These are source changes
+local capture while connected, three mappable physical inputs (hold, double tap and triple tap). Client adapters belong in `ShopItalic/app`; S04 client adoption is outside this
+firmware-only change. These are source changes
 with host fault tests and target build checks, not changes to the user's ring.
 Physical acceptance remains pending. See the [candidate](ring-firmware-candidate.md)
 for current build evidence and the [wire contract](ring-voice-protocol.md) for
@@ -112,7 +113,7 @@ checkpoint/resume handles the next permitted connection or execution opportunity
 The three physical inputs are press-and-hold, double tap and triple tap. Each
 can be disabled, toggle a memo, or emit an SDK/app event. Hold can additionally
 start PTT until release. Fresh defaults are hold after **1 second → PTT**,
-**double tap → disabled**, **triple tap → memo toggle**. The app can choose
+**double tap → disabled**, **triple tap → memo toggle**. The firmware accepts
 **0.5, 1, 2, 3, 5 or 10 seconds**, or another supported millisecond value.
 The sensor uses hold register 0x4F in milliseconds; changes apply only in a valid
 no-contact window and are read back before reporting applied.
@@ -124,16 +125,15 @@ time cap; storage exhaustion, power loss and capture/touch faults still end
 capture. Memo/app recording retains its independent optional limit.
 
 HELLO bits 9, 10 and 11 advertise triple tap, PTT until release and input
-mappings. The S04 app requires exact identity plus these bits. Older firmware
-keeps its original controls. SDK/app actions emit connection-scoped live events;
+mappings. A host integrating S04 must require exact identity plus these bits
+and preserve older firmware behavior. SDK/app actions emit connection-scoped live events;
 unsent events expire and never replay after reconnect. Hold activation is
 followed by release/cancellation, while a tap produces one activation.
 
 Since S02, light/haptic switches cover normal application output after settings
 load; S01 RC1 covers recording feedback only. Settings changes require an idle
-Ring. The app groups recording, lights and haptics above their common save action;
-haptic strength and start/stop duration controls have their own confirmed tuning
-save. Tuning defaults are touch set/clear **54/52**, strength **100%**, start
+Ring. SETTINGS persists the enable switches; TUNING separately persists
+haptic strength and start/stop duration with readback. Tuning defaults are touch set/clear **54/52**, strength **100%**, start
 **120 ms** and stop **280 ms**.
 
 Supported touch set is **32–80**; clear is **30 through set−2**. These are sensor
