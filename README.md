@@ -30,6 +30,32 @@ The review ZIP is **not a signed OTA update package**.
 | Find the original factory image | [Factory extraction guide](docs/reference/ring-firmware.md) |
 | Reproduce the older S01 RC1 | [Unchanged S01 release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1), [historical guide](docs/how-to/test-release-candidate.md) |
 
+## Components
+
+The documented component stack for standard **603V1.23.2** is below. The
+processor and power/clock functions inside the SiP are included components,
+not additional standalone parts.
+
+| Component | Manufacturer / part | Role and specification |
+| --- | --- | --- |
+| Flexible PCBA | Bravechip `BCL603MHV1.23.2` (`BCL603M3` module family) | Four-layer flexible board, 52 × 6.5 mm. |
+| Processor/radio SiP | Bravechip `BCL603S2P` | Contains the Nordic MCU/radio and integrated power, clock and support components. |
+| MCU and Bluetooth radio | Nordic `nRF52840`, inside the SiP | 64 MHz Cortex-M4F, 256 KB RAM and 1 MB internal flash. |
+| Microphone | ST `MP23DB01HP` | Digital PDM MEMS microphone; exact fitted ordering suffix requires confirmation. |
+| Touch controller | Azoteq `IQS7211E` | Capacitive touch/proximity input over I²C. |
+| Motion sensor | ST LSM6DSO family; supplier lists `LSM6DSOW` | Six-axis accelerometer and gyroscope; exact ordering suffix requires confirmation. |
+| Recording storage | GigaDevice `GD25WQ128HQIGR` | 128 Mbit SPI NOR, equivalent to **16 MiB** raw storage. |
+| Haptic motor | Supplier lists `LBM0518A4107F`; CAD baseline `0518` | PWM-driven actuator; fitted equivalence and electrical ratings remain to be confirmed. |
+| Curved battery | Grepow `GRE170722_10` / `GRE170724` / `GRE170726` | CAD-selected cells for sizes **10 / 11 / 12**, respectively; one cell per ring. Exact capacity and charge ratings remain open. |
+| Power management and clock | SiP-integrated PMIC/LDO/clock; firmware selects `YHM2712` | Exact PMIC ordering code and SiP/board allocation require supplier confirmation. |
+| Indicators | LEDs and optical parts; exact parts unspecified | Recording/status feedback; fitted LED count and ordering codes remain open. |
+| Antenna, protection and support parts | Exact parts unspecified | RF matching, motor drive, protection and board passives require the released electrical BOM. |
+
+This summarizes supplier documents, firmware selections and CAD; it is not a
+physical teardown or a complete purchasing BOM. See the [hardware reference](docs/reference/sudo-ring-hardware.md#electronic-bom)
+and [component BOM](docs/reference/sudo-ring/bom.csv) for evidence, mechanical
+and charging-case parts, and unresolved specifications.
+
 ## Features and refinements
 
 - **Hold to record, release to stop.** Audio is stored on Ring whether connected

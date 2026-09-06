@@ -742,6 +742,15 @@ tests passed as recorded above; separate remote
 ended cancelled and is not a passing validation result. No physical Ring was
 flashed. Later decision notes in this log do not alter the tagged RC or its ZIP.
 
+## README component overview — September 7, 2026
+
+Added a component table to the repository README covering the ring PCBA, SiP,
+MCU/radio, microphone, touch controller, IMU, recording flash, haptic motor,
+size-specific battery choices, power/clock functions and unspecified support
+parts. The table follows the existing hardware reference and BOM, distinguishes
+SiP-internal functions from separate components, and retains unresolved fitted
+part and battery-rating qualifications. No firmware or release asset changes.
+
 ## How to append future changes
 
 Append a new monotonically named entry such as S03-007 or S04-001; do not
