@@ -325,7 +325,7 @@ static bc_voice_gesture_config gesture_config(void)
     config.ptt_limit_ms = 0U;
     config.memo_limit_ms = 0U;
     config.touch_timeout_ms = 200U;
-    config.double_tap_debounce_ms = 200U;
+    config.tap_debounce_ms = 200U;
     config.memo_enabled = true;
     return config;
 }
@@ -348,7 +348,7 @@ static bool init_pair(bc_recording *recording, bc_voice_gesture *gesture,
 }
 
 static bc_touch_report_t touch_report(bool valid, bool contact, bool hold,
-                                      bool double_tap)
+                                      bool triple_tap)
 {
     bc_touch_report_t report;
 
@@ -356,7 +356,7 @@ static bc_touch_report_t touch_report(bool valid, bool contact, bool hold,
     report.valid = valid;
     report.contact = contact;
     report.hold = hold;
-    report.double_tap = double_tap;
+    report.triple_tap = triple_tap;
     return report;
 }
 
@@ -495,7 +495,7 @@ static void test_hold_release_and_local_storage(void)
     CHECK(memcmp(standalone_storage, connected_storage, standalone_bytes) == 0);
 }
 
-static void test_duration_auto_stop_requires_release(void)
+static void test_ptt_until_release(void)
 {
     gesture_fixture fixture;
     bc_recording recording;
@@ -503,61 +503,54 @@ static void test_duration_auto_stop_requires_release(void)
     bc_voice_gesture_config config = gesture_config();
     bc_touch_report_t hold = touch_report(true, true, true, false);
     bc_touch_report_t release = touch_report(true, false, false, false);
-    const bc_rec_snapshot *snapshot;
-    uint64_t first_id;
+    bc_touch_report_t double_tap = touch_report(true, false, false, false);
+    uint32_t at;
+    uint64_t id;
 
-    config.ptt_limit_ms = 50U;
     fixture_reset(&fixture);
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
+    double_tap.double_tap = true;
+    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 1U) == BC_REC_OK);
+    CHECK(fixture.capture_start_calls == 0U);
     CHECK(bc_voice_gesture_report(&gesture, &hold, 100U) == BC_REC_OK);
-    first_id = bc_recording_snapshot(&recording)->start.id;
-    CHECK(first_id != 0U);
-    bc_recording_tick(&recording, 149U);
-    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
-    bc_recording_tick(&recording, 150U);
-    snapshot = bc_recording_snapshot(&recording);
-    CHECK(snapshot->phase == BC_REC_STOPPING);
+    id = bc_recording_snapshot(&recording)->start.id;
+    /* Keep healthy sensor reports flowing beyond all former PTT choices. */
+    for (at = 200U; at <= 120000U; at += 100U) {
+        CHECK(bc_voice_gesture_report(&gesture, &hold, at) == BC_REC_OK);
+        bc_recording_tick(&recording, at);
+        CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
+    }
+    CHECK(fixture.capture_stop_calls == 0U);
+    CHECK(fixture.new_id_calls == 1U);
+    CHECK(bc_recording_snapshot(&recording)->start.duration_limit_ms == 0U);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 120100U) == BC_REC_OK);
     CHECK(fixture.capture_stop_calls == 1U);
-
-    /* A still-held sensor report cannot restart a timed-out PTT. */
-    CHECK(bc_voice_gesture_report(&gesture, &hold, 151U) == BC_REC_OK);
-    CHECK(fixture.new_id_calls == 1U);
-    CHECK(fixture.open_calls == 1U);
-    CHECK(bc_recording_drained(&recording, first_id) == BC_REC_EMPTY_AUDIO);
-    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_EMPTY);
-    CHECK(bc_voice_gesture_report(&gesture, &hold, 160U) == BC_REC_OK);
-    CHECK(fixture.new_id_calls == 1U);
-    CHECK(fixture.open_calls == 1U);
-
-    /* Only a release clears the one-attempt gate. */
-    CHECK(bc_voice_gesture_report(&gesture, &release, 170U) == BC_REC_OK);
-    CHECK(bc_voice_gesture_report(&gesture, &hold, 180U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&recording, id) == BC_REC_EMPTY_AUDIO);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 120200U) == BC_REC_OK);
     CHECK(fixture.new_id_calls == 2U);
-    CHECK(fixture.open_calls == 2U);
-    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
     finish_recording(&recording, bc_recording_snapshot(&recording)->start.id,
-                     190U);
+                     120300U);
 }
 
-static void test_double_tap_memo_and_independent_limits(void)
+static void test_triple_tap_memo_and_independent_limits(void)
 {
     gesture_fixture fixture;
     bc_recording recording;
     bc_voice_gesture gesture;
     bc_voice_gesture_config config = gesture_config();
-    bc_touch_report_t double_tap = touch_report(true, false, false, true);
+    bc_touch_report_t triple_tap = touch_report(true, false, false, true);
     bc_touch_report_t hold = touch_report(true, true, true, false);
     bc_touch_report_t release = touch_report(true, false, false, false);
     const bc_rec_snapshot *snapshot;
     uint64_t memo_id;
 
-    config.ptt_limit_ms = 111U;
+    config.ptt_limit_ms = 0U;
     config.memo_limit_ms = 222U;
-    config.double_tap_debounce_ms = 300U;
+    config.tap_debounce_ms = 300U;
     fixture_reset(&fixture);
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
 
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 100U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 100U) == BC_REC_OK);
     snapshot = bc_recording_snapshot(&recording);
     memo_id = snapshot->start.id;
     CHECK(snapshot->phase == BC_REC_RECORDING);
@@ -566,13 +559,13 @@ static void test_double_tap_memo_and_independent_limits(void)
     CHECK(fixture.new_id_calls == 1U);
     CHECK(fixture.open_calls == 1U);
 
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 200U) ==
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 200U) ==
           BC_REC_DUPLICATE);
     CHECK(fixture.new_id_calls == 1U);
     CHECK(fixture.capture_stop_calls == 0U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
 
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 401U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 401U) == BC_REC_OK);
     CHECK(fixture.capture_stop_calls == 1U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
     CHECK(bc_recording_drained(&recording, memo_id) == BC_REC_EMPTY_AUDIO);
@@ -589,8 +582,8 @@ static void test_double_tap_memo_and_independent_limits(void)
     fixture_reset(&fixture);
     config.memo_enabled = false;
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 600U) ==
-          BC_REC_UNSUPPORTED);
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 600U) ==
+          BC_REC_OK);
     CHECK(fixture.new_id_calls == 0U);
     CHECK(fixture.open_calls == 0U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_IDLE);
@@ -641,14 +634,14 @@ static void test_invalid_combinations_have_no_effect(void)
     bc_recording recording;
     bc_voice_gesture gesture;
     bc_voice_gesture_config config = gesture_config();
-    bc_touch_report_t hold_double = touch_report(true, true, true, true);
+    bc_touch_report_t hold_triple = touch_report(true, true, true, true);
     bc_touch_report_t hold_without_contact = touch_report(true, false, true,
                                                            false);
     const bc_rec_snapshot *snapshot;
 
     fixture_reset(&fixture);
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
-    CHECK(bc_voice_gesture_report(&gesture, &hold_double, 10U) ==
+    CHECK(bc_voice_gesture_report(&gesture, &hold_triple, 10U) ==
           BC_REC_INVALID);
     CHECK(bc_voice_gesture_report(&gesture, &hold_without_contact, 11U) ==
           BC_REC_INVALID);
@@ -669,14 +662,14 @@ static void test_hold_stops_memo_without_restarting(void)
     bc_recording recording;
     bc_voice_gesture gesture;
     bc_voice_gesture_config config = gesture_config();
-    bc_touch_report_t double_tap = touch_report(true, false, false, true);
+    bc_touch_report_t triple_tap = touch_report(true, false, false, true);
     bc_touch_report_t hold = touch_report(true, true, true, false);
     bc_touch_report_t release = touch_report(true, false, false, false);
     uint64_t id;
 
     fixture_reset(&fixture);
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 10U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 10U) == BC_REC_OK);
     id = bc_recording_snapshot(&recording)->start.id;
     CHECK(bc_recording_snapshot(&recording)->start.trigger == BC_REC_MEMO);
     CHECK(bc_recording_frame(&recording, id, 1U, audio, sizeof(audio), 20U) == BC_REC_OK);
@@ -796,14 +789,14 @@ static void test_invalid_touch_does_not_cancel_memo(void)
     bc_recording recording;
     bc_voice_gesture gesture;
     bc_voice_gesture_config config = gesture_config();
-    bc_touch_report_t double_tap = touch_report(true, false, false, true);
+    bc_touch_report_t triple_tap = touch_report(true, false, false, true);
     bc_touch_report_t invalid = touch_report(false, false, false, false);
     const bc_rec_snapshot *snapshot;
     uint64_t memo_id;
 
     fixture_reset(&fixture);
     CHECK(init_pair(&recording, &gesture, &fixture, &config));
-    CHECK(bc_voice_gesture_report(&gesture, &double_tap, 10U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &triple_tap, 10U) == BC_REC_OK);
     memo_id = bc_recording_snapshot(&recording)->start.id;
     invalid.error_flags = BC_TOUCH_REPORT_INFO_ATI_ERROR;
     CHECK(bc_voice_gesture_report(&gesture, &invalid, 20U) ==
@@ -990,9 +983,9 @@ static void test_configuration_validation_and_busy(void)
     invalid.touch_timeout_ms = 751U;
     CHECK(bc_voice_gesture_configure(&gesture, &invalid) == BC_REC_INVALID);
     invalid = config;
-    invalid.double_tap_debounce_ms = 99U;
+    invalid.tap_debounce_ms = 99U;
     CHECK(bc_voice_gesture_configure(&gesture, &invalid) == BC_REC_INVALID);
-    invalid.double_tap_debounce_ms = 501U;
+    invalid.tap_debounce_ms = 501U;
     CHECK(bc_voice_gesture_configure(&gesture, &invalid) == BC_REC_INVALID);
     CHECK(bc_voice_gesture_configure(&gesture, NULL) == BC_REC_INVALID);
     CHECK(bc_voice_gesture_init(NULL, &recording, &config, fixture_new_id,
@@ -1009,13 +1002,13 @@ static void test_configuration_validation_and_busy(void)
                                 &fixture) == false);
 
     invalid = config;
-    invalid.ptt_limit_ms = (uint32_t)BC_REC_MAX_INTERVAL;
+    invalid.ptt_limit_ms = 0U;
     invalid.memo_limit_ms = (uint32_t)BC_REC_MAX_INTERVAL;
     invalid.touch_timeout_ms = 100U;
-    invalid.double_tap_debounce_ms = 100U;
+    invalid.tap_debounce_ms = 100U;
     CHECK(bc_voice_gesture_configure(&gesture, &invalid) == BC_REC_OK);
     invalid.touch_timeout_ms = 750U;
-    invalid.double_tap_debounce_ms = 500U;
+    invalid.tap_debounce_ms = 500U;
     CHECK(bc_voice_gesture_configure(&gesture, &invalid) == BC_REC_OK);
 
     fixture_reset(&fixture);
@@ -1035,11 +1028,94 @@ static void test_configuration_validation_and_busy(void)
     bc_voice_gesture_tick(NULL, 120U);
 }
 
+typedef struct { unsigned count; uint8_t input[8], phase[8]; } input_log;
+static bool capture_input(void *ctx, uint8_t input, uint8_t phase)
+{
+    input_log *log = ctx;
+    if (log->count >= 8U) return false;
+    log->input[log->count] = input; log->phase[log->count++] = phase;
+    return true;
+}
+static void test_three_input_mappings(void)
+{
+    gesture_fixture fixture;
+    bc_recording recording;
+    bc_voice_gesture gesture;
+    bc_voice_gesture_config config = gesture_config();
+    bc_voice_inputs inputs = {5000U, BC_VOICE_INPUT_APP, BC_VOICE_INPUT_MEMO, BC_VOICE_INPUT_DISABLED};
+    bc_touch_report_t hold = touch_report(true, true, true, false);
+    bc_touch_report_t release = touch_report(true, false, false, false);
+    bc_touch_report_t tap = release;
+    bc_touch_report_t invalid = {0};
+    input_log log = {0};
+    uint64_t id;
+    fixture_reset(&fixture);
+    config.memo_limit_ms = 0U;
+    CHECK(init_pair(&recording, &gesture, &fixture, &config));
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_OK);
+    bc_voice_gesture_set_event_handler(&gesture, capture_input, &log);
+    tap.double_tap = true;
+    CHECK(bc_voice_gesture_report(&gesture, &tap, 10U) == BC_REC_OK);
+    id = bc_recording_snapshot(&recording)->start.id;
+    CHECK(bc_recording_snapshot(&recording)->start.trigger == BC_REC_MEMO);
+    tap.double_tap = false; tap.triple_tap = true;
+    CHECK(bc_voice_gesture_report(&gesture, &tap, 20U) == BC_REC_OK);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
+    tap.double_tap = true; tap.triple_tap = false;
+    CHECK(bc_voice_gesture_report(&gesture, &tap, 400U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&recording, id) == BC_REC_EMPTY_AUDIO);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 500U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 510U) == BC_REC_OK);
+    CHECK(log.count == 1U && log.input[0] == BC_VOICE_INPUT_HOLD && log.phase[0] == BC_VOICE_INPUT_ACTIVATED);
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_BUSY);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 520U) == BC_REC_OK);
+    CHECK(log.count == 2U && log.phase[1] == BC_VOICE_INPUT_RELEASED);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 600U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &invalid, 610U) == BC_REC_TOUCH_ERROR);
+    CHECK(log.count == 4U && log.phase[3] == BC_VOICE_INPUT_CANCELLED);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 620U) == BC_REC_OK);
+    CHECK(log.count == 4U);
+    inputs.hold_action = BC_VOICE_INPUT_DISABLED;
+    inputs.double_action = BC_VOICE_INPUT_DISABLED;
+    inputs.triple_action = BC_VOICE_INPUT_APP;
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_OK);
+    tap.double_tap = false; tap.triple_tap = true;
+    CHECK(bc_voice_gesture_report(&gesture, &tap, 700U) == BC_REC_OK);
+    CHECK(log.count == 5U && log.input[4] == BC_VOICE_INPUT_TRIPLE);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 710U) == BC_REC_OK);
+    CHECK(log.count == 5U && fixture.capture_start_calls == 1U);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 720U) == BC_REC_OK);
+    /* A separately queued tap must not forget an active SDK hold. */
+    inputs.hold_action = BC_VOICE_INPUT_APP;
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_OK);
+    log.count = 0U;
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 730U) == BC_REC_OK);
+    tap.contact = true;
+    CHECK(bc_voice_gesture_report(&gesture, &tap, 920U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 930U) == BC_REC_OK);
+    CHECK(log.count == 3U && log.phase[2] == BC_VOICE_INPUT_RELEASED);
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 940U) == BC_REC_OK);
+    bc_voice_gesture_tick(&gesture, 1140U);
+    CHECK(log.count == 5U && log.phase[4] == BC_VOICE_INPUT_CANCELLED);
+    CHECK(bc_voice_gesture_report(&gesture, &release, 1150U) == BC_REC_OK);
+    inputs.double_action = BC_VOICE_INPUT_PTT;
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_INVALID);
+    inputs.double_action = BC_VOICE_INPUT_DISABLED; inputs.hold_ms = 499U;
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_INVALID);
+    inputs.hold_ms = 10001U;
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_INVALID);
+    inputs.hold_ms = 1000U;
+    hold.hold = false;
+    CHECK(bc_voice_gesture_report(&gesture, &hold, 1820U) == BC_REC_OK);
+    CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_BUSY);
+}
+
 int main(void)
 {
     test_hold_release_and_local_storage();
-    test_duration_auto_stop_requires_release();
-    test_double_tap_memo_and_independent_limits();
+    test_ptt_until_release();
+    test_three_input_mappings();
+    test_triple_tap_memo_and_independent_limits();
     test_stale_release_does_not_stop_foreign_sessions();
     test_invalid_combinations_have_no_effect();
     test_hold_stops_memo_without_restarting();

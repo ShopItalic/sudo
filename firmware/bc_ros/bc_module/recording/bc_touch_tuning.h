@@ -3,13 +3,14 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "bc_voice_inputs.h"
 
-/* The SUDO IQS7211E profile uses the hold and double-tap gesture bits.  This
+/* The SUDO IQS7211E profile uses only hold, double-tap and triple-tap gesture bits.  This
  * value is also the fallback used if a configuration request arrives before
  * the device adapter has performed its one-time initialization. */
 #ifndef BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK
 #if defined(SUDO_VOICE_ONLY)
-#define BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK 0x000AU
+#define BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK 0x0008U
 #else
 #define BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK 0x0F0FU
 #endif
@@ -24,7 +25,9 @@
 
 #define BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG 0x38U
 #define BC_TOUCH_TUNING_GESTURE_ENABLE_REG 0x4BU
+#define BC_TOUCH_TUNING_HOLD_TIME_REG 0x4FU
 #define BC_TOUCH_TUNING_GESTURE_DOUBLE 0x0002U
+#define BC_TOUCH_TUNING_GESTURE_TRIPLE 0x0004U
 #define BC_TOUCH_TUNING_GESTURE_HOLD 0x0008U
 
 typedef enum {
@@ -36,7 +39,8 @@ typedef enum {
 typedef struct {
     uint8_t touch_set;
     uint8_t touch_clear;
-    bool memo_enabled;
+    bool memo_enabled; /* Compatibility mirror of the triple-tap enable bit. */
+    uint16_t gesture_mask, hold_ms;
     bc_touch_tuning_status status;
     uint32_t generation;
 } bc_touch_tuning_snapshot;
@@ -56,6 +60,9 @@ void bc_touch_tuning_init(uint16_t initial_gesture_mask);
 /* Posts a desired configuration without doing I2C. */
 bool bc_touch_tuning_request(uint8_t touch_set, uint8_t touch_clear,
                              bool memo_enabled);
+
+bool bc_touch_tuning_request_inputs(uint8_t touch_set, uint8_t touch_clear,
+                                    const bc_voice_inputs *inputs);
 
 /* Copies the desired configuration and current state under a FreeRTOS
  * critical section. */

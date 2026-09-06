@@ -1,3 +1,6 @@
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
 #include "app_hardware_check.h"
 
 
@@ -327,13 +330,16 @@ void app_hardware_check_task_create(void)
                                      (void*          )&app_rtc_thread[i].thread_parameters,				
                                      (UBaseType_t    )app_rtc_thread[i].thread_priority,	
                                      (TaskHandle_t*  )&app_rtc_thread[i].thread_handler); 
-		if(x_return != NULL)
+		if(x_return == bc_pdPASS)
 		{
 			BC_LOG_INFO("create %s succeed \r\n",app_rtc_thread[i].thread_name);
 		}
 		else
 		{
 			BC_LOG_ERROR("create  %s fail",app_rtc_thread[i].thread_name);
+#if defined(SUDO_VOICE_ONLY)
+            APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+#endif
 		}	
 	}
 //	fml_temper_adc_hardware_error_register_callback(app_hardware_check_model);

@@ -4,6 +4,17 @@ The source tranche is implemented and host-tested. The remaining work is
 external qualification, supplier/build review, compatibility migration, and
 product decisions:
 
+- **Qualify corrected task-start failures.** S04 fixes the nine inherited
+  `xTaskCreate` checks and adds required-task fatal error handling. LED worker
+  allocation-failure injection passes on the host; qualify reset/recovery on
+  target before closing the [S03 audit finding](reference/ring-s03-final-audit.html).
+- **Measured simplification and long-lived storage.** S04 removes proven dead
+  live state, unused stubs and duplicate recording dispatch paths from the
+  [final S03 audit](reference/ring-s03-final-audit.html). Wider command removal
+  needs a supported-command inventory. Preserve old-file reads and custody;
+  measure catalog/start latency and space with many recordings and `.done`
+  receipts. No lifetime-capacity result is claimed.
+
 - **Physical qualification and measurements.** On a spare, identified
   production ring, read back the board and firmware identity; measure PDM/audio
   framing, PTT release and stop timing, connected and standalone capture, BLE
@@ -76,3 +87,26 @@ product decisions:
 - Resolve the cancelled [matching SDK main CI run](https://github.com/ShopItalic/app/actions/runs/34023194481)
   in the app/runner workflow before claiming remote iOS validation; local Ring
   test success does not replace that result.
+
+## S04 qualification
+
+- Measure continuous hold/release recording beyond 10 seconds, one minute and
+  multiple minutes on a spare standard Ring. Validate touch-loss shutdown,
+  full storage, release during Flash backpressure and completed audio tails.
+- Qualify hold, double tap and triple tap on the fitted IQS7211E: initial safe
+  mask 0x08, verified fresh mappings mask 0x0C, optional double tap bit 0x02,
+  no single/palm/swipe or duplicate legacy actions, 0.5–10-second hold thresholds,
+  all action mappings and persisted choices after upgrade/reboot.
+- Validate SDK/app events under disconnect/backpressure, sequence gaps,
+  press/release/cancel and absent app execution. They are live input events,
+  not an offline action queue or an exactly-once remote execution guarantee.
+- Validate the app's light/haptic switches and haptic strength/start/stop timing
+  on hardware, including settings readback, mute during feedback and reboot.
+- Confirm required-task allocation faults reach the Nordic fatal-error/recovery
+  path on target. Host injection covers the LED worker; all nine corrected
+  task sites require the same success result and fatal error handling.
+- Keep the published S03 RC unchanged. S04 needs supplier compiler/signing and
+  physical audio/BLE/power qualification before a release or device flash.
+- Wider supplier command-surface reduction still requires a supported-command
+  inventory. Keep identity, pairing, time, battery, motion, update compatibility
+  and old-recording retrieval intact; do not remove callers without evidence.

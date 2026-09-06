@@ -92,7 +92,6 @@ static bool live_prefix_push_front(bc_voice_service *s, uint32_t sequence,
 static void live_transport_clear(bc_voice_service *s)
 {
     live_prefix_clear(s);
-    s->live_pending = false;
     s->live_count = 0U;
     s->live_ack = 0U;
     if (s->tx_active && s->tx.kind == BC_VOICE_LIVE) {
@@ -172,6 +171,59 @@ static void settings_reply(bc_voice_service *s, const bc_voice_message *request,
     (void)queue(s, &response);
 }
 
+static void inputs_reply(bc_voice_service *s, const bc_voice_message *request,
+                          bc_rec_result result)
+{
+    bc_voice_message response;
+    bc_voice_inputs inputs = {0};
+    uint8_t status = 0U;
+    if (!s->inputs_port.get || !s->inputs_port.get(s->inputs_port.ctx, &inputs, &status))
+        result = BC_REC_UNSUPPORTED;
+    reply_init(&response, request, result);
+    bc_voice_put16(response.payload + 5U, inputs.hold_ms);
+    response.payload[7] = inputs.hold_action;
+    response.payload[8] = inputs.double_action;
+    response.payload[9] = inputs.triple_action;
+    response.payload[10] = status;
+    response.length = 11U;
+    (void)queue(s, &response);
+}
+
+bool bc_voice_service_set_inputs_port(bc_voice_service *s, const bc_voice_inputs_port *port)
+{
+    if (!s || !port || !port->get || !port->set) return false;
+    s->inputs_port = *port;
+    return true;
+}
+
+bool bc_voice_service_input(bc_voice_service *s, uint8_t input, uint8_t phase)
+{
+    bc_voice_input_event *event;
+    uint8_t binding;
+    if (!s || !s->connected || input < BC_VOICE_INPUT_HOLD || input > BC_VOICE_INPUT_TRIPLE ||
+        phase < BC_VOICE_INPUT_ACTIVATED || phase > BC_VOICE_INPUT_CANCELLED ||
+        (input != BC_VOICE_INPUT_HOLD && phase != BC_VOICE_INPUT_ACTIVATED) ||
+        s->input_sequence == UINT32_MAX) return false;
+    binding = input == BC_VOICE_INPUT_HOLD ? s->gesture->inputs.hold_action :
+        (input == BC_VOICE_INPUT_DOUBLE ? s->gesture->inputs.double_action : s->gesture->inputs.triple_action);
+    if (binding != BC_VOICE_INPUT_APP) return false;
+    if (input == BC_VOICE_INPUT_HOLD && phase != BC_VOICE_INPUT_ACTIVATED &&
+        !s->input_hold_accepted) return false;
+    if (s->input_count == BC_VOICE_INPUT_EVENT_SLOTS) {
+        if (phase == BC_VOICE_INPUT_ACTIVATED) return false;
+        /* Never retain queued tap activations at the expense of ending a hold. */
+        s->input_read = 0U; s->input_count = 0U;
+    }
+    event = &s->input_events[(s->input_read + s->input_count) % BC_VOICE_INPUT_EVENT_SLOTS];
+    event->sequence = ++s->input_sequence;
+    event->at_ms = s->now_ms;
+    event->input = input; event->phase = phase;
+    ++s->input_count;
+    if (input == BC_VOICE_INPUT_HOLD)
+        s->input_hold_accepted = phase == BC_VOICE_INPUT_ACTIVATED;
+    return true;
+}
+
 bool bc_voice_tuning_valid(const bc_voice_tuning *t)
 {
     return t && t->touch_set >= 32U && t->touch_set <= 80U &&
@@ -247,7 +299,7 @@ bool bc_voice_service_init(bc_voice_service *s, bc_recording *recording,
 {
     if (!s || !bc_recording_snapshot(recording) || !store || !gesture ||
         !port || !port->send || !port->settings || !settings ||
-        settings->ptt_limit_ms > BC_REC_MAX_INTERVAL ||
+        settings->ptt_limit_ms != 0U ||
         settings->memo_limit_ms > BC_REC_MAX_INTERVAL) return false;
     memset(s, 0, sizeof(*s));
     s->recording = recording; s->store = store; s->gesture = gesture;
@@ -280,7 +332,7 @@ void bc_voice_service_link(bc_voice_service *s, uint32_t epoch, bool connected)
         /* Any physical link/epoch change can lose a locally accepted prefix,
          * including a terminal file whose prior wire window was drained. */
         prefix_at_risk = snapshot->accepted_frames != 0U ||
-                         s->live_prefix_count != 0U || s->live_pending ||
+                         s->live_prefix_count != 0U ||
                          s->live_count != 0U ||
                          (s->tx_active && s->tx.kind == BC_VOICE_LIVE);
         if (prefix_at_risk)
@@ -290,6 +342,8 @@ void bc_voice_service_link(bc_voice_service *s, uint32_t epoch, bool connected)
     (void)bc_voice_service_cancel_archive(s);
     s->epoch = epoch; s->connected = connected; s->ready = false;
     outcome_clear(s);
+    s->input_read = 0U; s->input_count = 0U; s->input_sequence = 0U;
+    s->input_hold_accepted = false;
     s->control_read = 0; s->control_count = 0; s->tx_active = false;
     live_transport_clear(s);
     s->stop_pending = false; s->stop_ready = false;
@@ -408,6 +462,8 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         bc_voice_put32(response.payload + 5, BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT |
             BC_VOICE_CAP_MEMO | BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME |
             BC_VOICE_CAP_CUSTODY | BC_VOICE_CAP_SETTINGS |
+            BC_VOICE_CAP_TRIPLE_TAP | BC_VOICE_CAP_PTT_UNTIL_RELEASE |
+            (s->inputs_port.get && s->inputs_port.set ? BC_VOICE_CAP_INPUT_MAPPINGS : 0U) |
             (s->tuning_port.get && s->tuning_port.set ? BC_VOICE_CAP_TUNING : 0U) |
             (s->outcome_port.set_outcome ? BC_VOICE_CAP_PHONE_OUTCOME : 0U));
         bc_voice_put16(response.payload + 9, 8000);
@@ -422,6 +478,7 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         if (m->length != 17) break;
         start.id = bc_voice_get64(p + 4); start.trigger = (bc_rec_trigger)p[12];
         start.duration_limit_ms = bc_voice_get32(p + 13);
+        if (start.trigger == BC_REC_PTT && start.duration_limit_ms != 0U) break;
         result = bc_recording_start(s->recording, &start, s->now_ms);
         snapshot_reply(s, m, result, bc_recording_snapshot(s->recording), s->live_token);
         return;
@@ -502,7 +559,7 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
             }
             if (s->token_counter < UINT32_MAX - 1U) s->live_token = ++s->token_counter;
             else s->live_token = 0;
-            s->live_count = 0U; s->live_ack = 0U; s->live_pending = false;
+            s->live_count = 0U; s->live_ack = 0U;
             s->live_progress_ms = s->now_ms;
             s->state_pending = true; s->state_urgent = true;
         }
@@ -601,9 +658,10 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         settings.memo_limit_ms = bc_voice_get32(p + 8);
         settings.memo_enabled = p[12] != 0; settings.led_enabled = p[13] != 0;
         settings.haptic_enabled = p[14] != 0;
-        if (settings.ptt_limit_ms > BC_REC_MAX_INTERVAL || settings.memo_limit_ms > BC_REC_MAX_INTERVAL)
+        if ((s->inputs_port.get && settings.memo_enabled != s->settings.memo_enabled) ||
+            settings.ptt_limit_ms != 0U || settings.memo_limit_ms > BC_REC_MAX_INTERVAL)
             break;
-        if (bc_recording_active(s->recording) || s->gesture->hold_attempted) {
+        if (bc_recording_active(s->recording) || s->gesture->hold_attempted || s->gesture->contact_active) {
             settings_reply(s, m, BC_REC_BUSY); return;
         }
         result = s->port.settings(s->port.ctx, &settings);
@@ -615,6 +673,26 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
             if (result == BC_REC_OK) s->settings = settings;
         }
         settings_reply(s, m, result); return;
+    }
+    case BC_VOICE_INPUTS_GET:
+        if (m->length != 4U) break;
+        inputs_reply(s, m, BC_REC_OK); return;
+    case BC_VOICE_INPUTS_SET: {
+        bc_voice_inputs inputs;
+        if (m->length != 9U) break;
+        if (!s->inputs_port.get || !s->inputs_port.set) { result = BC_REC_UNSUPPORTED; break; }
+        inputs.hold_ms = (uint16_t)p[4] | ((uint16_t)p[5] << 8);
+        inputs.hold_action = p[6]; inputs.double_action = p[7]; inputs.triple_action = p[8];
+        if (!bc_voice_inputs_valid(&inputs)) break;
+        if (bc_recording_active(s->recording) || s->gesture->hold_attempted || s->gesture->contact_active) {
+            inputs_reply(s, m, BC_REC_BUSY); return;
+        }
+        result = s->inputs_port.set(s->inputs_port.ctx, &inputs);
+        if (result == BC_REC_OK) {
+            result = bc_voice_gesture_set_inputs(s->gesture, &inputs);
+            if (result == BC_REC_OK) s->settings.memo_enabled = bc_voice_inputs_memo(&inputs);
+        }
+        inputs_reply(s, m, result); return;
     }
     case BC_VOICE_TUNING_GET:
         if (m->length != 4U) break;
@@ -630,7 +708,7 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         tuning.start_active_ms = (uint16_t)p[7] | ((uint16_t)p[8] << 8);
         tuning.stop_active_ms = (uint16_t)p[9] | ((uint16_t)p[10] << 8);
         if (!bc_voice_tuning_valid(&tuning)) break;
-        if (bc_recording_active(s->recording) || s->gesture->hold_attempted) {
+        if (bc_recording_active(s->recording) || s->gesture->hold_attempted || s->gesture->contact_active) {
             tuning_reply(s, m, BC_REC_BUSY); return;
         }
         result = s->tuning_port.set(s->tuning_port.ctx, &tuning);
@@ -800,6 +878,13 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
          * linked to the physical BLE connection and continues into Flash. */
         bc_recording_link(s->recording, s->connected);
     }
+    while (s->input_count &&
+        (uint32_t)(now_ms - s->input_events[s->input_read].at_ms) >= BC_VOICE_INPUT_EVENT_TTL_MS) {
+        s->input_read = (uint8_t)((s->input_read + 1U) % BC_VOICE_INPUT_EVENT_SLOTS);
+        --s->input_count;
+    }
+    if (s->tx_active && s->tx.kind == BC_VOICE_INPUT_EVENT &&
+        (uint32_t)(now_ms - s->input_tx_ms) >= BC_VOICE_INPUT_EVENT_TTL_MS) s->tx_active = false;
     if (!s->connected) return false;
     if (s->stop_pending && (s->stop_ready || !bc_recording_active(s->recording)) &&
         s->control_count < BC_VOICE_CONTROL_SLOTS) {
@@ -817,12 +902,22 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
             s->control_read = (uint8_t)((s->control_read + 1) % BC_VOICE_CONTROL_SLOTS);
             --s->control_count;
         } else if (s->state_pending && (s->state_urgent ||
-                       (s->live_prefix_count == 0U && !s->live_pending &&
+                       (s->live_prefix_count == 0U &&
                         (uint32_t)(now_ms - s->state_sent_ms) >= 500U))) {
             s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_STATE;
             s->tx.direction = BC_VOICE_EVENT;
             encode_snapshot(&s->tx, &s->latest, s->live_token);
             s->state_pending = false; s->state_urgent = false; s->state_sent_ms = now_ms;
+        } else if (s->input_count) {
+            bc_voice_input_event *event = &s->input_events[s->input_read];
+            s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_INPUT_EVENT;
+            s->tx.direction = BC_VOICE_EVENT; s->tx.length = 8U;
+            bc_voice_put32(s->tx.payload, event->sequence);
+            s->tx.payload[4] = event->input; s->tx.payload[5] = event->phase;
+            s->tx.payload[6] = BC_VOICE_INPUT_APP; s->tx.payload[7] = 0U;
+            s->input_tx_ms = event->at_ms;
+            s->input_read = (uint8_t)((s->input_read + 1U) % BC_VOICE_INPUT_EVENT_SLOTS);
+            --s->input_count;
         } else if (s->ready && !s->live_disabled && s->live_count < 4U &&
                    s->live_prefix_count != 0U) {
             bc_voice_live_frame *frame = &s->live_prefix[s->live_prefix_read];

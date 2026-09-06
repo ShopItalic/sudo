@@ -129,10 +129,9 @@
 /* Change the Gesture Settings */
 /* Memory Map Position 0x4B - 0x55 */
 #if defined(SUDO_VOICE_ONLY)
-/* SUDO exposes hold and double tap to its voice worker.  Other IQS gesture
- * bits remain disabled at the sensor so the worker receives no stale legacy
- * gesture callbacks. */
-#define GESTURE_ENABLE_0                         0x0A
+/* Start with hold only. The worker applies persisted hold/double/triple
+ * mappings after initialization; all other gesture bits stay disabled. */
+#define GESTURE_ENABLE_0                         0x08
 #define GESTURE_ENABLE_1                         0x00
 #else
 #define GESTURE_ENABLE_0                         0x0F
@@ -144,8 +143,13 @@
 #define TAP_WAIT_TIME_1                          0x01
 #define TAP_DISTANCE_0                           0x50
 #define TAP_DISTANCE_1                           0x00
+#if defined(SUDO_VOICE_ONLY)
+#define HOLD_TIME_0                              0xE8
+#define HOLD_TIME_1                              0x03
+#else
 #define HOLD_TIME_0                              0xF4
 #define HOLD_TIME_1                              0x01
+#endif
 #define SWIPE_TIME_0                             0xC0
 #define SWIPE_TIME_1                             0x03
 #define SWIPE_X_DISTANCE_0                       0x80

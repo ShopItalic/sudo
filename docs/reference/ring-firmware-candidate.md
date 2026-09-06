@@ -1,20 +1,25 @@
 # Sudo Voice firmware candidate
 
-The **6.0.3.3S02** engineering candidate implements local-first recording,
-hold/release push-to-talk, configurable double-tap memos, checked storage and
+The **6.0.3.3S04** unpublished source candidate implements local-first recording,
+hold/release push-to-talk, three mappable physical inputs, checked storage and
 resumable BLE for the production **603V1.23.2** Ring. The corresponding app
 adapter lives in [ShopItalic/app](https://github.com/ShopItalic/app).
 
 Production source and host fault harnesses share the same recording, capture,
 gesture, storage and protocol logic. The integrated GNU target compiles and links
-all 225 sources with no undefined symbols. RC1 is published as an unsigned engineering prerelease; S02 has not been
-packaged as a release. No candidate has been flashed or signed here. Physical
+all 225 sources with no undefined symbols. S03 RC1 is published as an unsigned
+engineering prerelease; the older S01 RC1 remains unchanged. S02 was an
+intermediate source version. No candidate has been flashed or signed here. Physical
 radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
 remain unmeasured. The [requirements matrix](ring-recording-and-ptt.md) separates
 implemented behavior from device acceptance; the [protocol](ring-voice-protocol.md)
 defines exact packets and error meanings.
 
-## Post-RC1 controls follow-up
+Published S03 evidence and features are recorded in the [S03 reliability report](ring-s03-reliability.md)
+and [final audit](ring-s03-final-audit.html). The S01/S02 measurements below are
+historical and are not the S03 release checksums.
+
+## Post-S01-RC1 controls follow-up
 
 S02 makes double-tap recording opt-in and expands the persisted light/haptic
 switches to all normal application feedback. The app retains S01 support and
@@ -69,7 +74,7 @@ physical ring's installed firmware, settings, bonds, calibration, or recordings.
 | --- | --- |
 | Recording ownership | One firmware worker owns the microphone lifecycle, mounted LittleFS instance, recording identity and final state. Connected and standalone recordings use the same storage path; reconnect does not stop capture. |
 | Hold/release | IQS reports include validated contact/release. A separate capture guard enforces release/stale-touch/limit handling independently of a busy storage worker. Stop received during Start is retained. |
-| Memo mode | Double tap is off by default and can be enabled in the app to toggle a recording without holding. PTT defaults to ten seconds; memo/app recording defaults to unlimited. Limits, memo enable, LED and haptic enable persist. |
+| Inputs and memo | Hold, double tap and triple tap are individually mappable. Defaults: one-second hold → PTT, double tap off, triple tap → memo toggle. PTT runs until release; memo/app recording defaults to unlimited. Older choices migrate; inputs and feedback persist separately. |
 | Capture tail | Eight bounded PDM buffers feed the encoder with recording IDs and sequence checks. Stop halts production and drains accepted complete blocks before finalizing. Overflow, missing sequence and stop timeout produce explicit partial/error outcomes. |
 | Storage | Checked opens, appends, checkpoints, close and metadata readback. No implicit format on mount failure, no unsynced reclamation, no invented accepted-byte count. Full storage rejects recording while retaining prior files. |
 | Restart recovery | LittleFS atomic attributes record identity, verified prefix, CRC, completion and receipt state. Fresh mount validates recoverable data; a reboot never restarts the microphone. Cold-cut tests cover recording, receipt and deletion. |
@@ -77,7 +82,7 @@ physical ring's installed firmware, settings, bonds, calibration, or recordings.
 | Live preview | Phone Ready lease and bounded live ACK window are independent from Flash recording. Stalled/missing live data affects preview diagnostics, not the only audio copy. |
 | File custody | Resume binds the exact recording identity, size, CRC, token and aligned offset. A persisted exact receipt and separately acknowledged deletion replace delete-on-send. |
 | Feedback | Recording owns green LED output. Finite bounded motor pulses replace unbounded legacy loops. Start, stop, error and optional enable/settings are consistent across trigger sources. |
-| Touch tuning | Persisted desired thresholds and hold/double-tap mask apply only in a valid no-contact sensor communication window. I2C write/readback yields explicit pending/applied/error status. |
+| Touch tuning | Persisted desired thresholds and hold/double/triple-tap mask apply only in a valid no-contact sensor communication window. I2C write/readback yields explicit pending/applied/error status. |
 | Power failures | SFUD/LittleFS errors propagate. ADC failures report UNKNOWN; filtering uses actual initialized values and charging-phase-aware single-flight measurement. Hardware voltage table/cutoff policy is retained. |
 
 Important defaults: checkpoint **1,000 ms or 4,096 raw bytes**, stop-drain timeout
@@ -195,7 +200,32 @@ Static section fit alone cannot establish FreeRTOS heap high-water marks,
 worst-case stack or physical timing. No warning is silently equated with a
 successful hardware qualification.
 
-## Current S03 work
+## Current S04 controls and cleanup
+
+The September 7 local GNU build passed 225/225 sources, no undefined symbols,
+startup/vector and runtime-lock checks. BIN is 312,436 bytes (SHA-256
+`27b6f33f33fd8cf1bbd831508f779997aafe0b96164bc4f4e61f57a32cc5dbe5`);
+static RAM is 203,800 bytes plus separate 8 KiB heap and 8 KiB MSP reservations.
+Current host suites cover 16,902 C checks plus six archive-normalizer tests.
+One supplier wchar ABI warning and eight newlib stub warnings remain; static
+fit is not measured free heap or hardware qualification.
+
+S04 removes the artificial PTT duration cap and adds three independently mapped
+physical inputs: hold, double tap (off by default) and triple tap. The hold
+activation delay accepts 500–10,000 ms and is written/read back on the sensor.
+Mappings support recording actions and typed SDK/app events. Feedback controls
+are independent, with confirmed light/haptic switches and bounded vibration
+tuning. HELLO bits 9, 10 and 11 admit the S04 controls; older versions retain
+accurate labels and behavior.
+
+The source also removes dead live-message state and unused health/file stubs.
+Nine inherited task-start checks now compare against FreeRTOS success and enter
+the Nordic fatal-error path if a required Sudo worker cannot be allocated.
+See the [change ledger](supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026)
+for changed files, validation and qualification gaps. The S03 release and its
+checksums below remain historical evidence; S04 has not been flashed or published.
+
+## Published S03 work
 
 See the [supplier change log](supplier-firmware-change-log.md) for the ongoing
 factory-to-candidate rationale and the [S03 reliability report](ring-s03-reliability.md)
@@ -318,7 +348,7 @@ stops visibly and preserves pending recordings.
    partition/Flash identity, fitted touch/motor/power parts and recovery access.
 3. Run the [physical matrix](ring-recording-and-ptt.md#physical-acceptance-matrix),
    recording image/app hashes, audio, timings, radio parameters, memory and
-   current draw. Connected double tap must create and download a complete file.
+   current draw. Connected triple tap must create and download a complete file.
 4. Verify BCL callbacks, real ADPCM rate/framing, background/resume, custody,
    gestures/settings, battery/charge/thermal behavior, pairing and DFU.
 5. Supplier assigns the release counter, signs the package, and demonstrates
@@ -337,3 +367,7 @@ This does not interrupt an app-owned recording. It provides another gesture
 when a double tap is missed, but still needs a functioning touch sensor.
 Supplier testing must reproduce the reported stuck double-tap behavior on
 physical hardware; passing host tests does not establish its original cause.
+
+In S04, this escape applies only when hold is mapped to PTT and the active
+recording is a memo. Mapping hold to another action does not add an implicit
+stop action. Any input mapped to memo toggle can stop that memo.

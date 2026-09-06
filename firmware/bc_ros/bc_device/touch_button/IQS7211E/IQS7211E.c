@@ -1085,7 +1085,12 @@ void Process_IQS7211E_Events(void)
 								if(System_Data_buffer[8]&0x01)
 								{
 								    log_info("\n Single Tap");	
-									if(single_tap_callback != NULL)
+									
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && single_tap_callback != NULL)
+#else
+                  if(single_tap_callback != NULL)
+#endif
 									{
 										single_tap_callback();
 									}
@@ -1109,7 +1114,11 @@ void Process_IQS7211E_Events(void)
 								if(System_Data_buffer[8]&0x04)
 								{
 								    log_info("\n Triple Tap");	
+#if defined(SUDO_VOICE_ONLY)
+                                      if(!report_consumer && triple_tap_callback != NULL)
+#else
                                       if(triple_tap_callback != NULL)
+#endif
                                       {
                                         triple_tap_callback();
                                       }
@@ -1161,7 +1170,12 @@ void Process_IQS7211E_Events(void)
 								if(System_Data_buffer[9]&0x01)
 								{
 								    log_info("\n Swipe X+");
-                   if(swipe_left_callback != NULL)
+                   
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && swipe_left_callback != NULL)
+#else
+                  if(swipe_left_callback != NULL)
+#endif
 									 {
 										 swipe_left_callback();
 									 }										 
@@ -1171,7 +1185,12 @@ void Process_IQS7211E_Events(void)
 								if(System_Data_buffer[9]&0x02)
 								{
 								    log_info("\n Swipe X-");	
-									if(swipe_right_callback != NULL)
+									
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && swipe_right_callback != NULL)
+#else
+                  if(swipe_right_callback != NULL)
+#endif
 									{
 										swipe_right_callback();
 									}
@@ -1185,7 +1204,12 @@ void Process_IQS7211E_Events(void)
 //									{
 //										gesture_event_flick_negative_callback();
 //									}
+                  
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && swipe_down_callback != NULL)
+#else
                   if(swipe_down_callback != NULL)
+#endif
 									{
 										swipe_down_callback();
 									}
@@ -1199,7 +1223,12 @@ void Process_IQS7211E_Events(void)
 //									{
 //										gesture_event_flick_positive_callback();
 //									}
+                  
+#if defined(SUDO_VOICE_ONLY)
+                  if(!report_consumer && swipe_up_callback != NULL)
+#else
                   if(swipe_up_callback != NULL)
+#endif
 									{
 										swipe_up_callback();
 									}

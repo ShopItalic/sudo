@@ -1,3 +1,6 @@
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
 #include "app_rtc_handler.h"
 
 
@@ -131,13 +134,16 @@ void app_rtc_handler_init(void)
                                      (void*          )&app_rtc_thread[i].thread_parameters,				
                                      (UBaseType_t    )app_rtc_thread[i].thread_priority,	
                                      (TaskHandle_t*  )&app_rtc_thread[i].thread_handler); 
-		if(x_return != NULL)
+		if(x_return == bc_pdPASS)
 		{
 			BC_LOG_INFO("create %s succeed \r\n",app_rtc_thread[i].thread_name);
 		}
 		else
 		{
 			BC_LOG_ERROR("create  %s fail",app_rtc_thread[i].thread_name);
+#if defined(SUDO_VOICE_ONLY)
+            APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+#endif
 		}	
 	}
 	bc_reset_rtc_open(app_reset_rtc_time_isr_callback);

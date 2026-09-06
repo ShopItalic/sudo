@@ -37,6 +37,8 @@
 #define SETTINGS_SIZE 20U
 #define TUNING_ATTR 0xa7U
 #define TUNING_SIZE 20U
+#define INPUTS_ATTR 0xa8U
+#define INPUTS_SIZE 16U
 #define PHONE_OUTCOME_PULSE_COUNT 2U
 #define PHONE_OUTCOME_PULSE_MS 80U
 #define PHONE_OUTCOME_SPACING_MS 160U
@@ -47,7 +49,12 @@ typedef struct {
     uint16_t length;
     uint32_t epoch;
 } voice_command;
-typedef struct { bc_touch_report_t report; TickType_t tick; } voice_touch;
+typedef struct {
+    bc_touch_report_t report;
+    TickType_t tick;
+    uint32_t touch_generation;
+    bool touch_applied;
+} voice_touch;
 
 static TaskHandle_t worker;
 static QueueHandle_t commands, touches;
@@ -79,9 +86,11 @@ static uint8_t legacy_reply[8];
 static uint16_t legacy_reply_length;
 static uint32_t legacy_reply_epoch;
 static bool legacy_reply_pending;
-/* Double tap is opt-in; hold/release remains available on a fresh Ring.
- * Persisted choices still take precedence when SETTINGS is loaded. */
-static bc_voice_settings settings = {10000U, 0U, false, true, true};
+/* Inputs and feedback are independent persisted settings. */
+static bc_voice_settings settings = {0U, 0U, false, true, true};
+static bool have_legacy_settings;
+static bc_voice_inputs inputs = {BC_VOICE_INPUT_HOLD_DEFAULT_MS, BC_VOICE_INPUT_PTT,
+    BC_VOICE_INPUT_DISABLED, BC_VOICE_INPUT_MEMO};
 static bc_voice_tuning tuning = {54U, 52U, 100U, 120U, 280U};
 
 /* Convert elapsed RTOS ticks instead of truncating portTICK_PERIOD_MS (which
@@ -287,9 +296,13 @@ static void changed(void *ctx, const bc_rec_snapshot *snapshot)
 static void touch_report(const bc_touch_report_t *report)
 {
     voice_touch event;
+    bc_touch_tuning_snapshot touch;
     uint64_t id;
     if (!report || !touches || !worker) return;
     event.report = *report; event.tick = xTaskGetTickCount();
+    event.touch_applied = bc_touch_tuning_snapshot_get(&touch) &&
+        touch.status == BC_TOUCH_TUNING_APPLIED;
+    event.touch_generation = event.touch_applied ? touch.generation : 0U;
     taskENTER_CRITICAL();
     id = published_ptt;
     if (id && (!report->valid || !report->contact)) {
@@ -337,22 +350,96 @@ static bc_rec_result save_settings(void *ctx, const bc_voice_settings *value)
         feedback_outcome_clear();
         feedback_motor_busy = false;
     }
-    (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
     return BC_REC_OK;
 }
 
 static void load_settings(void)
 {
     uint8_t bytes[SETTINGS_SIZE];
+    const bc_voice_settings defaults = {0U, 0U, false, true, true};
+    settings = defaults;
+    have_legacy_settings = false;
     if (!mount_store()) return;
     if (lfs_getattr(&filesystem, "/", SETTINGS_ATTR, bytes, sizeof(bytes)) != sizeof(bytes) ||
         memcmp(bytes, "SVS1", 4) != 0 || bytes[4] > 7U || bytes[5] || bytes[6] || bytes[7] ||
         bc_voice_get32(bytes + 16) != bc_voice_crc32(bytes, 16) ||
         bc_voice_get32(bytes + 8) > BC_REC_MAX_INTERVAL ||
         bc_voice_get32(bytes + 12) > BC_REC_MAX_INTERVAL) return;
-    settings.ptt_limit_ms = bc_voice_get32(bytes + 8); settings.memo_limit_ms = bc_voice_get32(bytes + 12);
+    have_legacy_settings = true;
+    /* Migrate saved S01-S03 limits without changing feedback preferences. */
+    settings.ptt_limit_ms = 0U; settings.memo_limit_ms = bc_voice_get32(bytes + 12);
     settings.memo_enabled = (bytes[4] & 1U) != 0; settings.led_enabled = (bytes[4] & 2U) != 0;
     settings.haptic_enabled = (bytes[4] & 4U) != 0;
+}
+
+static void inputs_encode(uint8_t bytes[INPUTS_SIZE], const bc_voice_inputs *value)
+{
+    memset(bytes, 0, INPUTS_SIZE); memcpy(bytes, "SVI1", 4U);
+    bc_voice_put16(bytes + 4U, value->hold_ms);
+    bytes[6] = value->hold_action; bytes[7] = value->double_action; bytes[8] = value->triple_action;
+    bc_voice_put32(bytes + 12U, bc_voice_crc32(bytes, 12U));
+}
+
+static void load_inputs(void)
+{
+    uint8_t bytes[INPUTS_SIZE];
+    bc_voice_inputs value = {BC_VOICE_INPUT_HOLD_DEFAULT_MS, BC_VOICE_INPUT_PTT,
+        BC_VOICE_INPUT_DISABLED, BC_VOICE_INPUT_MEMO};
+    if (have_legacy_settings && !settings.memo_enabled) value.triple_action = BC_VOICE_INPUT_DISABLED;
+    inputs = value;
+    if (mount_store() &&
+        lfs_getattr(&filesystem, "/", INPUTS_ATTR, bytes, sizeof(bytes)) == sizeof(bytes) &&
+        memcmp(bytes, "SVI1", 4U) == 0 && !bytes[9] && !bytes[10] && !bytes[11] &&
+        bc_voice_get32(bytes + 12U) == bc_voice_crc32(bytes, 12U)) {
+        value.hold_ms = (uint16_t)bytes[4] | ((uint16_t)bytes[5] << 8);
+        value.hold_action = bytes[6]; value.double_action = bytes[7]; value.triple_action = bytes[8];
+        if (bc_voice_inputs_valid(&value)) inputs = value;
+    }
+    settings.memo_enabled = bc_voice_inputs_memo(&inputs);
+}
+
+static uint8_t touch_status(void)
+{
+    bc_touch_tuning_snapshot touch;
+    if (!bc_touch_tuning_snapshot_get(&touch)) return BC_TOUCH_TUNING_PENDING;
+    return touch.touch_set == tuning.touch_set && touch.touch_clear == tuning.touch_clear &&
+        touch.gesture_mask == bc_voice_inputs_mask(&inputs) && touch.hold_ms == inputs.hold_ms ?
+        (uint8_t)touch.status : BC_TOUCH_TUNING_PENDING;
+}
+
+static bool get_inputs(void *ctx, bc_voice_inputs *value, uint8_t *status)
+{
+    (void)ctx;
+    if (!value || !status) return false;
+    *value = inputs; *status = touch_status();
+    return true;
+}
+
+static bc_rec_result save_inputs(void *ctx, const bc_voice_inputs *value)
+{
+    uint8_t bytes[INPUTS_SIZE], check[INPUTS_SIZE];
+    int error;
+    (void)ctx;
+    if (!bc_voice_inputs_valid(value)) return BC_REC_INVALID;
+    if (!mount_store()) return BC_REC_OPEN_ERROR;
+    inputs_encode(bytes, value);
+    if (lfs_getattr(&filesystem, "/", INPUTS_ATTR, check, sizeof(check)) != sizeof(check) ||
+        memcmp(bytes, check, sizeof(bytes)) != 0) {
+        error = lfs_setattr(&filesystem, "/", INPUTS_ATTR, bytes, sizeof(bytes));
+        if (error != 0) return error == LFS_ERR_NOSPC ? BC_REC_NO_SPACE : BC_REC_SYNC_ERROR;
+        if (lfs_getattr(&filesystem, "/", INPUTS_ATTR, check, sizeof(check)) != sizeof(check) ||
+            memcmp(bytes, check, sizeof(bytes)) != 0) return BC_REC_SYNC_ERROR;
+    }
+    inputs = *value;
+    settings.memo_enabled = bc_voice_inputs_memo(&inputs);
+    (void)bc_touch_tuning_request_inputs(tuning.touch_set, tuning.touch_clear, &inputs);
+    return BC_REC_OK;
+}
+
+static bool input_event(void *ctx, uint8_t input, uint8_t phase)
+{
+    (void)ctx;
+    return bc_voice_service_input(&service, input, phase);
 }
 
 static void tuning_encode(uint8_t bytes[TUNING_SIZE], const bc_voice_tuning *value)
@@ -381,12 +468,9 @@ static void load_tuning(void)
 
 static bool get_tuning(void *ctx, bc_voice_tuning *value, uint8_t *status)
 {
-    bc_touch_tuning_snapshot touch;
     (void)ctx;
-    if (!value || !status || !bc_touch_tuning_snapshot_get(&touch)) return false;
-    *value = tuning;
-    *status = touch.touch_set == tuning.touch_set && touch.touch_clear == tuning.touch_clear &&
-        touch.memo_enabled == settings.memo_enabled ? (uint8_t)touch.status : BC_TOUCH_TUNING_PENDING;
+    if (!value || !status) return false;
+    *value = tuning; *status = touch_status();
     return true;
 }
 
@@ -406,7 +490,7 @@ static bc_rec_result save_tuning(void *ctx, const bc_voice_tuning *value)
             memcmp(bytes, check, sizeof(bytes)) != 0) return BC_REC_SYNC_ERROR;
     }
     tuning = *value;
-    (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
+    (void)bc_touch_tuning_request_inputs(tuning.touch_set, tuning.touch_clear, &inputs);
     return BC_REC_OK;
 }
 
@@ -501,7 +585,7 @@ static void legacy_record_command(const voice_command *command, uint32_t now_ms)
         }
         reply_legacy(command, result == BC_REC_OK);
     } else if (snapshot->start.id) {
-        /* A legacy app Stop may stop a double-tap memo as before. Only v1
+        /* A legacy app Stop may stop a triple-tap memo as before. Only v1
          * supports session-tagged Stop and replay across restarts. */
         result = bc_recording_stop(&recording, snapshot->start.id, now_ms);
         if (bc_recording_active(&recording)) { legacy_stop = *command; legacy_stop_pending = true; }
@@ -558,17 +642,19 @@ static void run(void *ctx)
     bc_voice_service_port service_port = {NULL, send_packet, save_settings};
     bc_voice_outcome_port outcome_port = {NULL, set_outcome};
     bc_voice_tuning_port tuning_port = {NULL, get_tuning, save_tuning};
-    bc_voice_gesture_config gesture_config = {10000U, 0U, 750U, 300U, false};
+    bc_voice_inputs_port inputs_port = {NULL, get_inputs, save_inputs};
+    bc_voice_gesture_config gesture_config = {0U, 0U, 750U, 300U, false};
     uint32_t last_epoch = 0;
     bool last_connected = false;
     (void)ctx;
     load_settings();
+    load_inputs();
     /* Apply persisted application-wide feedback policy before accepting
      * gestures/commands. Bootloader and pre-load boot output are separate. */
     bc_ic_led_feedback_enable(settings.led_enabled);
     bc_linear_motor_feedback_enable(settings.haptic_enabled);
     load_tuning();
-    (void)bc_touch_tuning_request(tuning.touch_set, tuning.touch_clear, settings.memo_enabled);
+    (void)bc_touch_tuning_request_inputs(tuning.touch_set, tuning.touch_clear, &inputs);
     gesture_config.ptt_limit_ms = settings.ptt_limit_ms;
     gesture_config.memo_limit_ms = settings.memo_limit_ms;
     gesture_config.memo_enabled = settings.memo_enabled;
@@ -577,13 +663,16 @@ static void run(void *ctx)
         !bc_voice_gesture_init(&gesture, &recording, &gesture_config, new_id, NULL) ||
         !bc_voice_service_init(&service, &recording, &store, &gesture, &service_port, &settings) ||
         !bc_voice_service_set_outcome_port(&service, &outcome_port) ||
-        !bc_voice_service_set_tuning_port(&service, &tuning_port)) {
+        !bc_voice_service_set_tuning_port(&service, &tuning_port) ||
+        !bc_voice_service_set_inputs_port(&service, &inputs_port) ||
+        bc_voice_gesture_set_inputs(&gesture, &inputs) != BC_REC_OK) {
         if (powered) { bc_spi_flash_device_close(); powered = false; }
         /* Invalid static configuration must never register a gesture or
          * acknowledge a recording. The remaining system can still recover
          * the device through its existing pairing and DFU services. */
         for (;;) { bc_dog_feed(); (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(100U)); }
     }
+    bc_voice_gesture_set_event_handler(&gesture, input_event, NULL);
     legacy_ready = bc_voice_legacy_archive_init(&legacy, &filesystem, &store, send_packet, NULL);
     bc_touch_button_touch_report_register_callback(touch_report);
     initialized = true;
@@ -605,11 +694,22 @@ static void run(void *ctx)
         }
         if (touch_overflow) {
             touch_overflow = false;
-            if (bc_recording_active(&recording) && recording.snapshot.start.trigger == BC_REC_PTT)
-                (void)bc_recording_fault(&recording, recording.snapshot.start.id, BC_REC_TOUCH_ERROR, now_ms);
+            bc_touch_report_t invalid = {0};
+            (void)bc_voice_gesture_report(&gesture, &invalid, now_ms);
         }
         for (i = 0; i < TOUCH_DEPTH && xQueueReceive(touches, &touch, 0) == pdTRUE; ++i) {
             uint32_t age_ms = (uint32_t)((uint64_t)(TickType_t)(xTaskGetTickCount() - touch.tick) * 1000U / configTICK_RATE_HZ);
+            bc_touch_tuning_snapshot current_touch;
+            if (!touch.touch_applied || !bc_touch_tuning_snapshot_get(&current_touch) ||
+                current_touch.status != BC_TOUCH_TUNING_APPLIED ||
+                current_touch.generation != touch.touch_generation) {
+                /* A queued gesture from an old or unverified configuration
+                 * cannot be reinterpreted under a newer mapping. Releases and
+                 * sensor faults still reach the recording owner. */
+                touch.report.hold = false;
+                touch.report.double_tap = false;
+                touch.report.triple_tap = false;
+            }
             (void)bc_voice_gesture_report(&gesture, &touch.report, now_ms - age_ms);
         }
         bc_voice_gesture_tick(&gesture, now_ms);
@@ -703,17 +803,10 @@ void app_pdm_touch_start(void) { (void)enqueue_record(true); }
 void app_pdm_touch_stop(void) { (void)enqueue_record(false); }
 void app_pdm_ble_stop(void) { }
 void app_pdm_audio_discooenct_stop(void) { }
-void app_pdm_mode_change_to_online(void) { }
 bool app_pdm_switch_online_to_offline(void) { return working; }
 
 /* Health writers are not selected in Sudo Voice. All file commands are
  * intercepted before the supplier dispatcher; no second lfs_t is mounted. */
-void app_ppg_file_init(void) { }
-bool app_ppg_file_open(enum ppg_file_type type) { (void)type; return false; }
-bool app_ppg_file_close(void) { return false; }
-bool lk_app_ppg_file_open(enum ppg_file_type type) { (void)type; return false; }
-bool lk_app_ppg_file_close(void) { return false; }
-void app_ppg_file_write(uint8_t *data, uint32_t length) { (void)data; (void)length; }
 bool app_ppg_file_delete(char *path) { (void)path; return false; }
 uint8_t app_ppg_file_status_get(void) { return working ? 2U : 0U; }
 static bool enqueue_file(struct app_cmd_package *pack)
@@ -727,8 +820,3 @@ bool app_file_active_upload(struct app_cmd_package *pack) { return enqueue_file(
 bool app_ppg_file_one_click_upload(struct app_cmd_package *pack) { (void)pack; return false; }
 void app_ppg_file_upload_cancel(void)
 { uint8_t p[4] = {0, 0, CMD_GET_HISTORY, 2}; (void)app_sudo_voice_command(p, sizeof(p), bc_ble_session_id()); }
-void app_ppg_list_capture_audio_up_check(void) { }
-void app_ppg_file_slice_storage_timer_stop(void) { }
-void app_ppg_file_slice_storage_timer_start(uint32_t time) { (void)time; }
-void app_ppg_file_timeout_timer_stop(void) { }
-void app_ppg_file_timeout_timer_start(uint32_t time) { (void)time; }

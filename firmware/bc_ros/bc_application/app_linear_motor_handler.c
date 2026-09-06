@@ -1,3 +1,6 @@
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
 #include "app_linear_motor_handler.h"
 
 #include "bc_logger.h"
@@ -237,13 +240,16 @@ void app_linear_motor_time_create(void)
                                      (void*          )&thread_struct[i].thread_parameters,				
                                      (UBaseType_t    )thread_struct[i].thread_priority,	
                                      (TaskHandle_t*  )&thread_struct[i].thread_handler); 
-		if(x_return != NULL)
+		if(x_return == bc_pdPASS)
 		{
 			BC_LOG_INFO("create %s succeed \r\n",thread_struct[i].thread_name);
 		}
 		else
 		{
 			BC_LOG_ERROR("create  %s fail",thread_struct[i].thread_name);
+#if defined(SUDO_VOICE_ONLY)
+            APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+#endif
 		}	
 	}
 	bc_linear_motor_pwm_idie_register_callback(app_linear_motor_idie_callback);

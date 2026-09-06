@@ -27,6 +27,19 @@ typedef struct {
 
 typedef struct {
     void *ctx;
+    bool (*get)(void *, bc_voice_inputs *, uint8_t *touch_status);
+    bc_rec_result (*set)(void *, const bc_voice_inputs *);
+} bc_voice_inputs_port;
+
+typedef struct {
+    uint32_t sequence, at_ms;
+    uint8_t input, phase;
+} bc_voice_input_event;
+#define BC_VOICE_INPUT_EVENT_SLOTS 4U
+#define BC_VOICE_INPUT_EVENT_TTL_MS 1000U
+
+typedef struct {
+    void *ctx;
     bool (*send)(void *ctx, const uint8_t *data, uint16_t length, uint32_t epoch);
     /* Commit settings atomically before reporting success. */
     bc_rec_result (*settings)(void *ctx, const bc_voice_settings *settings);
@@ -53,6 +66,11 @@ typedef struct {
     bc_voice_service_port port;
     bc_voice_outcome_port outcome_port;
     bc_voice_tuning_port tuning_port;
+    bc_voice_inputs_port inputs_port;
+    bc_voice_input_event input_events[BC_VOICE_INPUT_EVENT_SLOTS];
+    uint8_t input_read, input_count;
+    uint32_t input_sequence, input_tx_ms;
+    bool input_hold_accepted;
     bc_voice_settings settings;
     bc_voice_receiver receiver;
     bc_voice_message controls[BC_VOICE_CONTROL_SLOTS];
@@ -60,8 +78,6 @@ typedef struct {
     bc_voice_message tx;
     uint16_t tx_offset, next_message;
     bool tx_active;
-    bc_voice_message live;
-    bool live_pending;
     bc_rec_snapshot latest;
     bool state_pending, state_urgent;
     uint32_t state_sent_ms;
@@ -110,6 +126,9 @@ bool bc_voice_service_init(bc_voice_service *service, bc_recording *recording,
                             const bc_voice_service_port *port,
                             const bc_voice_settings *settings);
 bool bc_voice_tuning_valid(const bc_voice_tuning *tuning);
+bool bc_voice_service_set_inputs_port(bc_voice_service *service,
+                                       const bc_voice_inputs_port *port);
+bool bc_voice_service_input(bc_voice_service *service, uint8_t input, uint8_t phase);
 bool bc_voice_service_set_tuning_port(bc_voice_service *service,
                                       const bc_voice_tuning_port *port);
 bool bc_voice_service_set_outcome_port(bc_voice_service *service,

@@ -41,6 +41,7 @@ void test_touch_tuning_exit(void)
 typedef struct {
     uint8_t touch_thresholds[2];
     uint8_t gesture_mask[2];
+    uint8_t hold_time[2];
     uint8_t operation_reg[16];
     uint8_t operation_kind[16];
     uint8_t operation_count;
@@ -62,6 +63,7 @@ typedef struct {
     uint8_t status[BC_TOUCH_REPORT_STATUS_LENGTH];
     uint8_t touch_thresholds[2];
     uint8_t gesture_mask[2];
+    uint8_t hold_time[2];
     uint8_t write_reg[128];
     uint8_t write_length[128];
     uint8_t write_data[128][22];
@@ -100,6 +102,8 @@ bool touch_i2c_write(uint8_t reg, uint8_t *data, uint8_t length)
 
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG && length == 2U) {
         memcpy(iqs_bus.touch_thresholds, data, 2U);
+    } else if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG && length == 2U) {
+        memcpy(iqs_bus.hold_time, data, 2U);
     } else if (reg == 0x36U && length >= 6U) {
         iqs_bus.touch_thresholds[0] = data[4];
         iqs_bus.touch_thresholds[1] = data[5];
@@ -120,6 +124,10 @@ bool touch_i2c_read(uint8_t reg, uint8_t *data, uint8_t length)
     }
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG && length == 2U) {
         memcpy(data, iqs_bus.touch_thresholds, 2U);
+        return true;
+    }
+    if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG && length == 2U) {
+        memcpy(data, iqs_bus.hold_time, 2U);
         return true;
     }
     if (reg == BC_TOUCH_TUNING_GESTURE_ENABLE_REG && length == 2U) {
@@ -179,6 +187,8 @@ static bool fixture_write(void *ctx, uint8_t reg, uint8_t *data,
 
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG)
         memcpy(fixture->touch_thresholds, data, 2U);
+    else if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG)
+        memcpy(fixture->hold_time, data, 2U);
     else if (reg == BC_TOUCH_TUNING_GESTURE_ENABLE_REG)
         memcpy(fixture->gesture_mask, data, 2U);
     else
@@ -212,6 +222,8 @@ static bool fixture_read(void *ctx, uint8_t reg, uint8_t *data,
 
     if (reg == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG)
         memcpy(data, fixture->touch_thresholds, 2U);
+    else if (reg == BC_TOUCH_TUNING_HOLD_TIME_REG)
+        memcpy(data, fixture->hold_time, 2U);
     else if (reg == BC_TOUCH_TUNING_GESTURE_ENABLE_REG)
         memcpy(data, fixture->gesture_mask, 2U);
     else
@@ -241,16 +253,16 @@ static void test_defaults_and_profile_mask(void)
 {
     bc_touch_tuning_snapshot current;
 
-    CHECK(GESTURE_ENABLE_0 == 0x0AU);
+    CHECK(GESTURE_ENABLE_0 == 0x08U);
     CHECK(GESTURE_ENABLE_1 == 0x00U);
-    CHECK(BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK == 0x000AU);
+    CHECK(BC_TOUCH_TUNING_DEFAULT_GESTURE_MASK == 0x0008U);
 
     bc_touch_tuning_init((uint16_t)GESTURE_ENABLE_0 |
                          ((uint16_t)GESTURE_ENABLE_1 << 8));
     current = snapshot();
     CHECK(current.touch_set == 54U);
     CHECK(current.touch_clear == 52U);
-    CHECK(current.memo_enabled);
+    CHECK(!current.memo_enabled);
     CHECK(current.status == BC_TOUCH_TUNING_APPLIED);
     CHECK(current.generation != 0U);
 }
@@ -294,18 +306,20 @@ static void test_release_only_apply_and_mask(void)
                               &fixture);
     CHECK(fixture.operation_count == 0U);
     apply_safe(&fixture);
-    CHECK(fixture.operation_count == 4U);
+    CHECK(fixture.operation_count == 6U);
     CHECK(fixture.operation_reg[0] == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG);
     CHECK(fixture.operation_kind[0] == 1U);
     CHECK(fixture.operation_reg[1] == BC_TOUCH_TUNING_TOUCH_THRESHOLD_REG);
     CHECK(fixture.operation_kind[1] == 2U);
-    CHECK(fixture.operation_reg[2] == BC_TOUCH_TUNING_GESTURE_ENABLE_REG);
+    CHECK(fixture.operation_reg[2] == BC_TOUCH_TUNING_HOLD_TIME_REG);
     CHECK(fixture.operation_kind[2] == 1U);
-    CHECK(fixture.operation_reg[3] == BC_TOUCH_TUNING_GESTURE_ENABLE_REG);
+    CHECK(fixture.operation_reg[3] == BC_TOUCH_TUNING_HOLD_TIME_REG);
+    CHECK(fixture.operation_reg[4] == BC_TOUCH_TUNING_GESTURE_ENABLE_REG);
+    CHECK(fixture.operation_reg[5] == BC_TOUCH_TUNING_GESTURE_ENABLE_REG);
     CHECK(fixture.operation_kind[3] == 2U);
     CHECK(fixture.touch_thresholds[0] == 60U);
     CHECK(fixture.touch_thresholds[1] == 57U);
-    CHECK(fixture.gesture_mask[0] == 0x0AU);
+    CHECK(fixture.gesture_mask[0] == 0x0CU);
     CHECK(fixture.gesture_mask[1] == 0x00U);
     current = snapshot();
     CHECK(current.status == BC_TOUCH_TUNING_APPLIED);
@@ -502,7 +516,7 @@ static void test_iqs_event_window_integration(void)
     CHECK(iqs_bus.opened == false);
     CHECK(iqs_bus.touch_thresholds[0] == TRACKPAD_TOUCH_SET_THRESHOLD);
     CHECK(iqs_bus.touch_thresholds[1] == TRACKPAD_TOUCH_CLEAR_THRESHOLD);
-    CHECK(iqs_bus.gesture_mask[0] == 0x0AU);
+    CHECK(iqs_bus.gesture_mask[0] == 0x08U);
     CHECK(iqs_bus.gesture_mask[1] == 0x00U);
 
     CHECK(bc_touch_tuning_request(75U, 72U, false));
@@ -541,9 +555,59 @@ static void test_iqs_event_window_integration(void)
     CHECK(iqs_dynamic_write_count() == dynamic_before + 2U);
     CHECK(iqs_bus.touch_thresholds[0] == 76U);
     CHECK(iqs_bus.touch_thresholds[1] == 73U);
-    CHECK(iqs_bus.gesture_mask[0] == 0x0AU);
+    CHECK(iqs_bus.gesture_mask[0] == 0x0CU);
     CHECK(iqs_bus.gesture_mask[1] == 0x00U);
     CHECK(iqs_bus.opened == false);
+}
+
+static unsigned legacy_triple_calls, voice_triple_reports;
+static void legacy_triple(void) { ++legacy_triple_calls; }
+static void voice_report(const bc_touch_report_t *report)
+{
+    if (report->valid && report->triple_tap) ++voice_triple_reports;
+}
+static void test_triple_has_one_consumer(void)
+{
+    CHECK(triple_tap_register_callback(legacy_triple));
+    CHECK(bc_touch_report_register_callback(voice_report));
+    CHECK(single_tap_register_callback(legacy_triple));
+    CHECK(swipe_left_register_callback(legacy_triple));
+    iqs_set_coordinates(0xFFFFU, 0xFFFFU);
+    iqs_bus.status[0] = BC_TOUCH_REPORT_GESTURE_TRIPLE_TAP;
+    iqs_bus.status[2] = 0U;
+    Process_IQS7211E_Events();
+    CHECK(voice_triple_reports == 1U);
+    CHECK(legacy_triple_calls == 0U);
+    iqs_bus.status[0] = BC_TOUCH_REPORT_GESTURE_SINGLE_TAP;
+    iqs_bus.status[1] = 1U;
+    Process_IQS7211E_Events();
+    CHECK(legacy_triple_calls == 0U && voice_triple_reports == 1U);
+    iqs_bus.status[1] = 0U;
+    CHECK(bc_touch_report_register_callback(NULL));
+    /* Supplier callback registration cannot unregister with NULL. */
+    iqs_bus.status[0] = 0U;
+}
+
+static void test_mapped_mask_and_hold_threshold(void)
+{
+    tuning_fixture fixture;
+    bc_voice_inputs inputs = {5000U, BC_VOICE_INPUT_PTT, BC_VOICE_INPUT_APP, BC_VOICE_INPUT_MEMO};
+    fixture_reset(&fixture);
+    CHECK(bc_touch_tuning_request_inputs(54U, 52U, &inputs));
+    bc_touch_tuning_on_sample(true, true, false, fixture_write, fixture_read, &fixture);
+    CHECK(fixture.operation_count == 0U);
+    apply_safe(&fixture);
+    CHECK(snapshot().status == BC_TOUCH_TUNING_APPLIED);
+    CHECK(snapshot().hold_ms == 5000U && snapshot().gesture_mask == 0x0EU);
+    CHECK(fixture.hold_time[0] == 0x88U && fixture.hold_time[1] == 0x13U);
+    CHECK(fixture.gesture_mask[0] == 0x0EU && fixture.gesture_mask[1] == 0U);
+    inputs.hold_ms = 2000U;
+    CHECK(bc_touch_tuning_request_inputs(54U, 52U, &inputs));
+    fixture_reset(&fixture); fixture.mismatch_reg = BC_TOUCH_TUNING_HOLD_TIME_REG;
+    apply_safe(&fixture);
+    CHECK(snapshot().status == BC_TOUCH_TUNING_IO_ERROR);
+    inputs.double_action = BC_VOICE_INPUT_PTT;
+    CHECK(!bc_touch_tuning_request_inputs(54U, 52U, &inputs));
 }
 
 int main(void)
@@ -555,6 +619,8 @@ int main(void)
     test_reset_and_newer_request_during_io();
     test_invalid_and_null_samples();
     test_iqs_event_window_integration();
+    test_triple_has_one_consumer();
+    test_mapped_mask_and_hold_threshold();
 
     CHECK(test_touch_tuning_critical_depth == 0U);
     CHECK(test_touch_tuning_critical_enters ==

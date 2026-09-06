@@ -1712,6 +1712,7 @@ static uint8_t app_cmd_get_vbat(struct app_cmd_package * cmd_package)
  * Author            : 邱成凯
  * Modified Date:    : 2023年12月28日
  *******************************************************************************/	
+#if !defined(SUDO_VOICE_ONLY)
 static uint8_t app_cmd_get_hrstory(struct app_cmd_package * cmd_package)
 {
 	
@@ -1858,6 +1859,7 @@ static uint8_t app_cmd_get_hrstory(struct app_cmd_package * cmd_package)
 	
 	return 0;
 }
+#endif
 /*******************************************************************************
  * Function Name     : app_cmd_set_sys
  * Description       : 系统设置相关指令
@@ -2680,6 +2682,7 @@ static uint8_t app_cmd_port_mode(struct app_cmd_package * cmd_package)
  * Author            : 邱成凯
  * Modified Date:    : 2023年12月28日
  *******************************************************************************/	
+#if !defined(SUDO_VOICE_ONLY)
 static uint8_t app_cmd_pdm(struct app_cmd_package * cmd_package)
 {
 	switch(cmd_package->subcmd)
@@ -2917,6 +2920,7 @@ static uint8_t app_cmd_pdm(struct app_cmd_package * cmd_package)
 	
 	return 0;
 }
+#endif
 
 #if defined(HANDWARE_1_23_2)
 /*******************************************************************************
@@ -3238,8 +3242,10 @@ static uint8_t app_cmd_ipc_event(struct app_cmd_package * cmd_package)
   {
     case 0x00:
     {
+#if !defined(SUDO_VOICE_ONLY)
       bc_delay_ms(3000);
       app_ppg_list_capture_audio_up_check();
+#endif
       break;
     }
     case 0x01:
@@ -3358,11 +3364,13 @@ void app_cmd_package_parse(uint8_t *cmd_pack,uint16_t pack_length)
 			app_cmd_get_step_count(cmd_package);
 			break;
 		}
+#if !defined(SUDO_VOICE_ONLY)
 		case CMD_GET_HISTORY:
 		{
 			app_cmd_get_hrstory(cmd_package);
 			break;
 		}
+#endif
 		case CMD_SYS_SET:
 		{
 			app_cmd_set_sys(cmd_package);
@@ -3420,11 +3428,13 @@ void app_cmd_package_parse(uint8_t *cmd_pack,uint16_t pack_length)
 			app_cmd_config_touch(cmd_package);
 			break;
 		}
+#if !defined(SUDO_VOICE_ONLY)
 		case CMD_PDM:
 		{
 			app_cmd_pdm(cmd_package);
 			break;
 		}
+#endif
 #if defined(HANDWARE_1_23_2)
 		case CMD_LED_MOTOR_MODE_SET:
 		{

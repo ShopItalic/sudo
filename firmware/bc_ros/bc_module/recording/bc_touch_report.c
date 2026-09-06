@@ -18,6 +18,7 @@ bool bc_touch_report_decode(const uint8_t *status,
     report->contact = false;
     report->hold = false;
     report->double_tap = false;
+    report->triple_tap = false;
     report->error_flags = 0;
     report->reset_flags = 0;
 
@@ -41,6 +42,7 @@ bool bc_touch_report_decode(const uint8_t *status,
     report->hold = ((status[0] & BC_TOUCH_REPORT_GESTURE_HOLD) != 0U) &&
                    report->contact;
     report->double_tap = (status[0] & BC_TOUCH_REPORT_GESTURE_DOUBLE_TAP) != 0U;
+    report->triple_tap = (status[0] & BC_TOUCH_REPORT_GESTURE_TRIPLE_TAP) != 0U;
     return true;
 }
 
