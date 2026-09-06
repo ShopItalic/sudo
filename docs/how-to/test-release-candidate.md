@@ -1,10 +1,10 @@
 # RC1 — download, flash and test
 
-This guide describes the immutable **S01 RC1 downloads**. Current `main` source
-is **S02** and includes later gesture and feedback changes; build it using the
-[current candidate guide](../reference/ring-firmware-candidate.md). A separately
-packaged S02 RC and physical qualification remain pending.
-
+This guide describes the immutable **S01 RC1 downloads**. Current source and
+its separate candidate are **S03**, including later gesture, transfer, battery
+and feedback changes. Use the [S03 guide](test-s03-release-candidate.md) for
+current downloads and the [supplier change log](../reference/supplier-firmware-change-log.md)
+for differences from factory firmware. Physical qualification remains pending.
 
 **Release:** [v6.0.3.3S01-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)
 

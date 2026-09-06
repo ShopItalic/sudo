@@ -34,6 +34,7 @@
 #define MAX_MESSAGES 512U
 #define MAX_PACKETS 4096U
 #define MAX_QUEUE_LENGTH 16U
+#define MOTOR_PULSE_HISTORY 64U
 
 typedef struct {
     uint8_t bytes[FLASH_SIZE];
@@ -113,6 +114,8 @@ typedef struct {
     unsigned motor_pulse_calls;
     uint8_t last_motor_strength;
     uint16_t last_motor_duration;
+    uint32_t motor_pulse_ticks[MOTOR_PULSE_HISTORY];
+    uint16_t motor_pulse_durations[MOTOR_PULSE_HISTORY];
     uint8_t last_led_rgb[3];
     unsigned led_set_calls;
     unsigned led_stop_calls;
@@ -155,6 +158,23 @@ typedef struct worker_fixture {
     uint64_t failed_id;
     uint64_t reopen_id;
     uint64_t reopen_retry_id;
+    uint64_t third_id;
+    uint32_t outcome_token;
+    unsigned outcome_before_pulses;
+    unsigned outcome_first_pulse;
+    unsigned outcome_second_pulse;
+    unsigned outcome_pulses_before_mute;
+    uint32_t stop_feedback_tick;
+    unsigned clock_wrap_steps;
+    bool clock_wrap_ready;
+    unsigned flash_close_before_second;
+    bool inject_hold_on_file;
+    unsigned hold_injected_loop;
+    unsigned file_packets;
+    unsigned file_packets_at_hold;
+    unsigned archive_start_calls;
+    unsigned archive_close_calls;
+    TickType_t archive_started_tick;
     unsigned haptic_before_error;
     unsigned haptic_after_save;
     unsigned active_control_motor_before;
@@ -637,6 +657,19 @@ bool bc_queue_ble_send(const struct bc_ble_data_package *packet,
         active_fixture->sink.packet_count >= MAX_PACKETS)
         return false;
     sink_packet(active_fixture, packet, session);
+    if (packet->data_length >= BC_VOICE_HEADER &&
+        packet->data[2] == BC_VOICE_COMMAND && packet->data[3] == BC_VOICE_FILE) {
+        ++active_fixture->file_packets;
+        if (active_fixture->inject_hold_on_file) {
+            bc_touch_report_t report;
+            memset(&report, 0, sizeof(report));
+            report.valid = true; report.contact = true; report.hold = true;
+            active_fixture->inject_hold_on_file = false;
+            active_fixture->hold_injected_loop = active_fixture->loop_count;
+            active_fixture->file_packets_at_hold = active_fixture->file_packets;
+            active_fixture->hardware.touch_callback(&report);
+        }
+    }
     return true;
 }
 
@@ -670,11 +703,17 @@ void bc_linear_motor_feedback_enable(bool enabled)
 
 bool bc_linear_motor_pulse(uint8_t strength_percent, uint16_t active_ms)
 {
+    unsigned index;
     if (active_fixture == NULL)
         return false;
+    index = active_fixture->hardware.motor_pulse_calls;
     ++active_fixture->hardware.motor_pulse_calls;
     active_fixture->hardware.last_motor_strength = strength_percent;
     active_fixture->hardware.last_motor_duration = active_ms;
+    if (index < MOTOR_PULSE_HISTORY) {
+        active_fixture->hardware.motor_pulse_ticks[index] = test_ticks;
+        active_fixture->hardware.motor_pulse_durations[index] = active_ms;
+    }
     return strength_percent >= 1U && strength_percent <= 100U &&
            active_ms >= 20U && active_ms <= 400U;
 }
@@ -964,6 +1003,30 @@ static unsigned count_response(const worker_fixture *fixture, uint8_t kind,
     return count;
 }
 
+static bool motor_pulse_index(const worker_fixture *fixture, unsigned first,
+                              uint16_t duration, unsigned occurrence,
+                              unsigned *index)
+{
+    unsigned i;
+    unsigned seen = 0U;
+    unsigned limit;
+
+    if (fixture == NULL || index == NULL || first >= MOTOR_PULSE_HISTORY)
+        return false;
+    limit = fixture->hardware.motor_pulse_calls < MOTOR_PULSE_HISTORY ?
+        fixture->hardware.motor_pulse_calls : MOTOR_PULSE_HISTORY;
+    for (i = first; i < limit; ++i) {
+        if (fixture->hardware.motor_pulse_durations[i] != duration)
+            continue;
+        if (seen == occurrence) {
+            *index = i;
+            return true;
+        }
+        ++seen;
+    }
+    return false;
+}
+
 static const sent_packet *find_legacy_reply(const worker_fixture *fixture,
                                             const uint8_t *prefix,
                                             uint16_t length)
@@ -1029,6 +1092,14 @@ static void encode_start(uint8_t extra[13], uint64_t id,
 static void encode_id(uint8_t extra[8], uint64_t id)
 {
     bc_voice_put64(extra, id);
+}
+
+static void encode_outcome(uint8_t extra[13], uint64_t id, uint32_t token,
+                           uint8_t outcome)
+{
+    bc_voice_put64(extra, id);
+    bc_voice_put32(extra + 8U, token);
+    extra[12] = outcome;
 }
 
 static void encode_settings(uint8_t extra[11], uint32_t ptt_ms,
@@ -1361,14 +1432,40 @@ static void worker_script(worker_fixture *fixture)
 
     switch (fixture->script_stage) {
     case 0:
+        if (fixture->loop_count == 1U) {
+            /* Advance the worker's real millisecond clock through its
+             * uint32 wrap before exercising feedback deadlines. Each step
+             * preserves a large uint32 tick delta while the worker remains
+             * idle, so this stays a bounded host test. */
+            fixture->clock_wrap_steps = 0U;
+            fixture->script_stage = 62U;
+            break;
+        }
         /* Fresh devices ignore accidental double taps. Validate this through
          * the actual worker before proving hold/release still works offline. */
-        if (fixture->loop_count == 1U && fixture->hardware.touch_callback != NULL) {
+        if (fixture->clock_wrap_ready &&
+            fixture->hardware.touch_callback != NULL) {
+            fixture->clock_wrap_ready = false;
             CHECK(worker_tuning_snapshot_matches(54U, 52U, false,
                                                  BC_TOUCH_TUNING_PENDING));
             CHECK(fixture->hardware.lights_enabled && fixture->hardware.haptics_enabled);
             CHECK(inject_touch(fixture, true, false, false, true));
             fixture->script_stage = 52U;
+        }
+        break;
+    case 62:
+        if (fixture->clock_wrap_steps < 1024U) {
+            /* ulTaskNotifyTake has already added its five-tick wait before
+             * invoking this hook; compensate so the next clock sample sees
+             * a UINT32_MAX-tick elapsed interval. */
+            test_ticks += UINT32_MAX - pdMS_TO_TICKS(5U);
+            ++fixture->clock_wrap_steps;
+        } else {
+            /* Fine-tune the final sample so the first recording cue starts
+             * just before the public millisecond clock wraps. */
+            test_ticks += 999U;
+            fixture->clock_wrap_ready = true;
+            fixture->script_stage = 0U;
         }
         break;
     case 52:
@@ -1402,6 +1499,10 @@ static void worker_script(worker_fixture *fixture)
             CHECK(fixture->hardware.led_on_calls != 0U);
             CHECK(fixture->hardware.led_off_calls != 0U);
             CHECK(fixture->hardware.motor_pulse_calls >= 2U);
+            CHECK(fixture->hardware.motor_pulse_durations[0] == 120U);
+            CHECK(fixture->hardware.motor_pulse_durations[1] == 280U);
+            CHECK(fixture->hardware.motor_pulse_ticks[0] >
+                  fixture->hardware.motor_pulse_ticks[1]);
             CHECK(fixture->hardware.last_motor_strength == 100U);
             CHECK(fixture->hardware.last_motor_duration == 280U);
             /* These vendor reconnect helpers are intentionally inert for a
@@ -1425,6 +1526,8 @@ static void worker_script(worker_fixture *fixture)
             uint8_t enabled = 1U;
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->length == 20U);
+            CHECK((bc_voice_get32(response->payload + 5U) &
+                   BC_VOICE_CAP_PHONE_OUTCOME) != 0U);
             CHECK(enqueue_native(BC_VOICE_READY, 101U, &enabled, 1U,
                                  fixture->epoch));
             fixture->script_stage = 4U;
@@ -1519,6 +1622,8 @@ static void worker_script(worker_fixture *fixture)
                 break;
             CHECK(ready->payload[4] == BC_REC_OK);
             CHECK(ready->length == 17U);
+            fixture->outcome_token = bc_voice_get32(ready->payload + 5U);
+            CHECK(fixture->outcome_token != 0U);
             CHECK(response->payload[4] == BC_REC_INVALID);
             CHECK(fixture->capture.start_calls == 2U);
             encode_id(extra, fixture->app_id);
@@ -1588,6 +1693,12 @@ static void worker_script(worker_fixture *fixture)
             CHECK(bc_voice_get32(response->payload + 29U) == frames);
             CHECK(fixture->capture.start_calls == 2U);
             fixture->haptic_after_save = fixture->hardware.motor_pulse_calls;
+            fixture->outcome_before_pulses = fixture->hardware.motor_pulse_calls;
+            CHECK(fixture->outcome_before_pulses != 0U);
+            CHECK(fixture->hardware.motor_pulse_durations[
+                      fixture->outcome_before_pulses - 1U] == 280U);
+            fixture->stop_feedback_tick = fixture->hardware.motor_pulse_ticks[
+                fixture->outcome_before_pulses - 1U];
             encode_id(extra, fixture->app_id);
             CHECK(enqueue_native(BC_VOICE_QUERY, 106U, extra, 8U,
                                  fixture->epoch));
@@ -1602,10 +1713,53 @@ static void worker_script(worker_fixture *fixture)
             CHECK(bc_voice_get32(response->payload + 37U) ==
                   6U * BC_REC_FRAME_MAX);
             CHECK(find_response(fixture, BC_VOICE_STOP, 105U) != NULL);
+            /* The phone outcome is accepted only after this exact saved
+             * recording has completed. Its response is ordinary five-byte
+             * control traffic; feedback is queued for the owner loop. */
+            encode_outcome(extra, fixture->app_id, fixture->outcome_token,
+                           BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
+            CHECK(enqueue_native(BC_VOICE_PHONE_OUTCOME, 140U, extra, 13U,
+                                 fixture->epoch));
+            fixture->script_stage = 53U;
+        }
+        break;
+    case 53:
+        response = find_response(fixture, BC_VOICE_PHONE_OUTCOME, 140U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(response->length == 5U);
+            fixture->outcome_first_pulse = 0U;
+            fixture->outcome_second_pulse = 0U;
+            fixture->script_stage = 54U;
+        }
+        break;
+    case 54:
+        if (motor_pulse_index(fixture, fixture->outcome_before_pulses, 80U,
+                              0U, &fixture->outcome_first_pulse)) {
+            unsigned first = fixture->outcome_first_pulse;
+            CHECK(fixture->hardware.motor_pulse_durations[first] == 80U);
+            CHECK((uint32_t)(fixture->hardware.motor_pulse_ticks[first] -
+                             fixture->stop_feedback_tick) >=
+                  pdMS_TO_TICKS(300U));
+            fixture->script_stage = 55U;
+        }
+        break;
+    case 55:
+        if (motor_pulse_index(fixture, fixture->outcome_first_pulse + 1U, 80U,
+                              0U, &fixture->outcome_second_pulse)) {
+            unsigned first = fixture->outcome_first_pulse;
+            unsigned second = fixture->outcome_second_pulse;
+            CHECK(fixture->hardware.motor_pulse_durations[second] == 80U);
+            CHECK((uint32_t)(fixture->hardware.motor_pulse_ticks[second] -
+                             fixture->hardware.motor_pulse_ticks[first]) >=
+                  pdMS_TO_TICKS(160U));
             /* Exact custody is committed before the owner snapshot changes. */
+            response = find_response(fixture, BC_VOICE_QUERY, 106U);
+            CHECK(response != NULL);
             encode_id(extra, fixture->app_id);
             bc_voice_put32(extra + 8U, 6U * BC_REC_FRAME_MAX);
-            bc_voice_put32(extra + 12U, bc_voice_get32(response->payload + 45U));
+            bc_voice_put32(extra + 12U, response == NULL ? 0U :
+                           bc_voice_get32(response->payload + 45U));
             extra[16] = 0U;
             CHECK(enqueue_native(BC_VOICE_RECEIPT, 107U, extra, 17U,
                                  fixture->epoch));
@@ -1630,7 +1784,8 @@ static void worker_script(worker_fixture *fixture)
             CHECK(response->payload[14] == BC_REC_DELIVERED);
             CHECK((response->payload[16] & 4U) != 0U);
             /* A receipt is metadata custody, not a second completion edge. */
-            CHECK(fixture->hardware.motor_pulse_calls == fixture->haptic_after_save);
+            CHECK(fixture->hardware.motor_pulse_calls ==
+                  fixture->haptic_after_save + 2U);
             encode_id(extra, fixture->app_id);
             bc_voice_put32(extra + 8U, 0U);
             bc_voice_put32(extra + 12U, 1U);
@@ -1655,6 +1810,7 @@ static void worker_script(worker_fixture *fixture)
              * new recording must cancel that archive before opening itself. */
             fixture->capture.frames_to_emit = 1U;
             fixture->second_id = UINT64_C(0x8877665544332211);
+            fixture->flash_close_before_second = fixture->hardware.close_calls;
             encode_start(extra, fixture->second_id, BC_REC_APP, 0U);
             CHECK(enqueue_native(BC_VOICE_START, 110U, extra, 13U,
                                  fixture->epoch));
@@ -1664,7 +1820,22 @@ static void worker_script(worker_fixture *fixture)
     case 13:
         if (fixture->capture.start_calls == 3U) {
             CHECK(app_pdm_work_status());
-            CHECK(fixture->hardware.close_calls == 0U);
+            CHECK(fixture->hardware.close_calls ==
+                  fixture->flash_close_before_second);
+            {
+                uint8_t enabled = 1U;
+                CHECK(enqueue_native(BC_VOICE_READY, 141U, &enabled, 1U,
+                                     fixture->epoch));
+            }
+            fixture->script_stage = 56U;
+        }
+        break;
+    case 56:
+        response = find_response(fixture, BC_VOICE_READY, 141U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            fixture->outcome_token = bc_voice_get32(response->payload + 5U);
+            CHECK(fixture->outcome_token != 0U);
             encode_id(extra, fixture->second_id);
             CHECK(enqueue_native(BC_VOICE_STOP, 111U, extra, 8U,
                                  fixture->epoch));
@@ -1676,16 +1847,83 @@ static void worker_script(worker_fixture *fixture)
         if (response != NULL && !app_pdm_work_status()) {
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->payload[14] == BC_REC_SAVED);
+            fixture->outcome_before_pulses = fixture->hardware.motor_pulse_calls;
+            encode_outcome(extra, fixture->second_id, fixture->outcome_token,
+                           BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
+            CHECK(enqueue_native(BC_VOICE_PHONE_OUTCOME, 142U, extra, 13U,
+                                 fixture->epoch));
+            fixture->script_stage = 57U;
+        }
+        break;
+    case 57:
+        response = find_response(fixture, BC_VOICE_PHONE_OUTCOME, 142U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            fixture->outcome_pulses_before_mute =
+                fixture->hardware.motor_pulse_calls;
+            /* Muting immediately after the callback must cancel any queued
+             * confirmation pulse, including its second pulse. */
+            encode_settings(extra, 10000U, 0U, false, true, false);
+            CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 143U, extra, 11U,
+                                 fixture->epoch));
+            fixture->script_stage = 58U;
+        }
+        break;
+    case 58:
+        response = find_response(fixture, BC_VOICE_SETTINGS_SET, 143U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(!fixture->hardware.haptics_enabled);
+            CHECK(fixture->hardware.motor_pulse_calls ==
+                  fixture->outcome_pulses_before_mute);
+            fixture->third_id = UINT64_C(0x9988776655443322);
+            fixture->capture.frames_to_emit = 1U;
+            encode_start(extra, fixture->third_id, BC_REC_APP, 0U);
+            CHECK(enqueue_native(BC_VOICE_START, 144U, extra, 13U,
+                                 fixture->epoch));
+            fixture->script_stage = 59U;
+        }
+        break;
+    case 59:
+        if (fixture->capture.start_calls == 4U) {
+            CHECK(app_pdm_work_status());
+            CHECK(fixture->hardware.motor_pulse_calls ==
+                  fixture->outcome_pulses_before_mute);
+            encode_id(extra, fixture->third_id);
+            CHECK(enqueue_native(BC_VOICE_STOP, 145U, extra, 8U,
+                                 fixture->epoch));
+            fixture->script_stage = 60U;
+        }
+        break;
+    case 60:
+        response = find_response(fixture, BC_VOICE_STOP, 145U);
+        if (response != NULL && !app_pdm_work_status()) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(response->payload[14] == BC_REC_SAVED);
+            CHECK(fixture->hardware.motor_pulse_calls ==
+                  fixture->outcome_pulses_before_mute);
+            /* Restore the master before the remaining regression script. */
+            encode_settings(extra, 10000U, 0U, false, true, true);
+            CHECK(enqueue_native(BC_VOICE_SETTINGS_SET, 146U, extra, 11U,
+                                 fixture->epoch));
+            fixture->script_stage = 61U;
+        }
+        break;
+    case 61:
+        response = find_response(fixture, BC_VOICE_SETTINGS_SET, 146U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(fixture->hardware.haptics_enabled);
             /* Commands from the previous BLE epoch are discarded by the
              * worker and cannot start a new local owner. */
             fixture->epoch = 3U;
-            encode_start(extra, UINT64_C(0x9988776655443322), BC_REC_APP, 0U);
+            encode_start(extra, UINT64_C(0x7766554433221100), BC_REC_APP, 0U);
             CHECK(enqueue_native(BC_VOICE_START, 112U, extra, 13U, 2U));
             fixture->script_stage = 15U;
         }
         break;
     case 15:
-        if (fixture->loop_count > 0U && fixture->capture.start_calls == 3U) {
+        if (fixture->loop_count > 0U && fixture->capture.start_calls == 4U) {
             CHECK(!app_pdm_work_status());
             fixture->capture.frames_to_emit = 1U;
             {
@@ -1699,7 +1937,7 @@ static void worker_script(worker_fixture *fixture)
         }
         break;
     case 16:
-        if (fixture->capture.start_calls == 4U) {
+        if (fixture->capture.start_calls == 5U) {
             CHECK(app_pdm_work_status());
             CHECK(fixture->capture.id != fixture->second_id);
             {
@@ -1713,7 +1951,7 @@ static void worker_script(worker_fixture *fixture)
         }
         break;
     case 17:
-        if (fixture->capture.stop_calls == 4U && !app_pdm_work_status()) {
+        if (fixture->capture.stop_calls == 5U && !app_pdm_work_status()) {
             uint8_t start_reply[] = {0U, 0U, CMD_PDM, 5U, 1U};
             uint8_t stop_reply[] = {0U, 0U, CMD_PDM, 5U, 1U};
             CHECK(find_legacy_reply(fixture, start_reply, sizeof(start_reply)) != NULL);
@@ -1725,20 +1963,20 @@ static void worker_script(worker_fixture *fixture)
         }
         break;
     case 18:
-        if (fixture->loop_count != 0U && fixture->capture.start_calls == 4U) {
+        if (fixture->loop_count != 0U && fixture->capture.start_calls == 5U) {
             CHECK(inject_touch(fixture, true, true, true, false));
             fixture->script_stage = 19U;
         }
         break;
     case 19:
-        if (fixture->capture.start_calls == 5U) {
+        if (fixture->capture.start_calls == 6U) {
             for (i = 0U; i < 13U; ++i)
                 CHECK(inject_touch(fixture, true, true, false, false));
             fixture->script_stage = 20U;
         }
         break;
     case 20:
-        if (!app_pdm_work_status() && fixture->capture.stop_calls == 5U) {
+        if (!app_pdm_work_status() && fixture->capture.stop_calls == 6U) {
             CHECK(fixture->capture.abort_calls == 0U);
             CHECK(fixture->hardware.open);
             CHECK(inject_touch(fixture, true, false, false, false));
@@ -1805,7 +2043,7 @@ static void worker_script(worker_fixture *fixture)
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_CAPTURE_ERROR);
             CHECK(!app_pdm_work_status());
-            CHECK(fixture->capture.start_calls == 6U);
+            CHECK(fixture->capture.start_calls == 7U);
             CHECK(fixture->hardware.motor_pulse_calls > fixture->haptic_before_error);
             CHECK(fixture->hardware.last_motor_strength == 100U);
             CHECK(fixture->hardware.last_motor_duration == 400U);
@@ -1820,7 +2058,7 @@ static void worker_script(worker_fixture *fixture)
         response = find_response(fixture, BC_VOICE_START, 117U);
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_CAPTURE_ERROR);
-            CHECK(fixture->capture.start_calls == 6U);
+            CHECK(fixture->capture.start_calls == 7U);
             fixture->ram.fail_prog_call = fixture->ram.prog_calls + 1U;
             id = UINT64_C(0xbbccddeeff001122);
             encode_start(extra, id, BC_REC_APP, 0U);
@@ -1833,7 +2071,7 @@ static void worker_script(worker_fixture *fixture)
         response = find_response(fixture, BC_VOICE_START, 118U);
         if (response != NULL) {
             CHECK(response->payload[4] != BC_REC_OK);
-            CHECK(fixture->capture.start_calls == 6U);
+            CHECK(fixture->capture.start_calls == 7U);
             fixture->ram.fail_prog_call = 0U;
             fixture->capture.frames_to_emit = 1U;
             fixture->capture.stop_result = BC_REC_CAPTURE_ERROR;
@@ -1846,7 +2084,7 @@ static void worker_script(worker_fixture *fixture)
         }
         break;
     case 28:
-        if (fixture->capture.start_calls == 7U) {
+        if (fixture->capture.start_calls == 8U) {
             encode_id(extra, fixture->failed_id);
             CHECK(enqueue_native(BC_VOICE_STOP, 120U, extra, 8U,
                                  fixture->epoch));
@@ -1854,7 +2092,7 @@ static void worker_script(worker_fixture *fixture)
         }
         break;
     case 29:
-        if (fixture->capture.stop_calls == 6U && app_pdm_work_status()) {
+        if (fixture->capture.stop_calls == 7U && app_pdm_work_status()) {
             CHECK(fixture->capture.running);
             id = UINT64_C(0xddeeff0011223344);
             encode_start(extra, id, BC_REC_APP, 0U);
@@ -1867,7 +2105,7 @@ static void worker_script(worker_fixture *fixture)
         response = find_response(fixture, BC_VOICE_START, 121U);
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_BUSY);
-            CHECK(fixture->capture.start_calls == 7U);
+            CHECK(fixture->capture.start_calls == 8U);
             CHECK(find_response(fixture, BC_VOICE_STOP, 120U) == NULL);
             fixture->capture.abort_quiescent = true;
             test_ticks += 1024U;
@@ -2101,6 +2339,119 @@ static void worker_script(worker_fixture *fixture)
     }
 }
 
+/* Run after the recovery/settings regression using its real retained files.
+ * No service internals are exposed: wire responses, physical Flash lease and
+ * capture calls prove that expiry and burst scheduling compose in the worker. */
+static void archive_worker_script(worker_fixture *fixture)
+{
+    uint8_t extra[16];
+    const bc_voice_message *response;
+    switch (fixture->script_stage) {
+    case 63:
+        if (fixture->loop_count == 1U) {
+            clear_sink(fixture);
+            fixture->att_limit = 20U;
+            fixture->archive_start_calls = fixture->capture.start_calls;
+            fixture->archive_close_calls = fixture->hardware.close_calls;
+            encode_id(extra, fixture->app_id);
+            bc_voice_put32(extra + 8U, 0U);
+            bc_voice_put32(extra + 12U, 1U);
+            CHECK(enqueue_native(BC_VOICE_RESUME, 200U, extra, 16U, fixture->epoch));
+            fixture->script_stage = 64U;
+        }
+        break;
+    case 64:
+        response = find_response(fixture, BC_VOICE_RESUME, 200U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(fixture->hardware.open);
+            fixture->archive_started_tick = test_ticks;
+            fixture->script_stage = 65U;
+        }
+        break;
+    case 65:
+        if (count_kind(fixture, BC_VOICE_FILE) == 6U) {
+            CHECK(fixture->hardware.open);
+            CHECK(fixture->hardware.close_calls == fixture->archive_close_calls);
+            /* Leave the full window unacknowledged, then run normal worker
+             * steps across the deadline and the subsequent idle interval. */
+            test_ticks += pdMS_TO_TICKS(29000U);
+            fixture->script_stage = 66U;
+        }
+        break;
+    case 66:
+        if (!fixture->hardware.open) {
+            TickType_t elapsed = test_ticks - fixture->archive_started_tick;
+            CHECK(elapsed >= pdMS_TO_TICKS(30000U));
+            CHECK(elapsed <= pdMS_TO_TICKS(30700U));
+            CHECK(fixture->hardware.close_calls == fixture->archive_close_calls + 1U);
+            CHECK(fixture->capture.start_calls == fixture->archive_start_calls);
+            CHECK(!app_pdm_work_status());
+            clear_sink(fixture);
+            encode_id(extra, fixture->app_id);
+            bc_voice_put32(extra + 8U, 0U);
+            bc_voice_put32(extra + 12U, 1U);
+            CHECK(enqueue_native(BC_VOICE_RESUME, 201U, extra, 16U, fixture->epoch));
+            fixture->script_stage = 67U;
+        }
+        break;
+    case 67:
+        response = find_response(fixture, BC_VOICE_RESUME, 201U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_CANCELLED);
+            CHECK(count_kind(fixture, BC_VOICE_FILE) == 0U);
+            encode_id(extra, fixture->app_id);
+            bc_voice_put32(extra + 8U, 0U);
+            bc_voice_put32(extra + 12U, 2U);
+            CHECK(enqueue_native(BC_VOICE_RESUME, 202U, extra, 16U, fixture->epoch));
+            fixture->inject_hold_on_file = true;
+            fixture->capture.frames_to_emit = 1U;
+            fixture->capture.start_result = BC_REC_OK;
+            fixture->capture.stop_result = BC_REC_OK;
+            fixture->script_stage = 68U;
+        }
+        break;
+    case 68:
+        if (fixture->hold_injected_loop != 0U && fixture->capture.running) {
+            CHECK(!fixture->inject_hold_on_file);
+            CHECK(fixture->capture.start_calls == fixture->archive_start_calls + 1U);
+            CHECK(fixture->loop_count <= fixture->hold_injected_loop + 2U);
+            CHECK(fixture->file_packets - fixture->file_packets_at_hold < BC_VOICE_TX_BURST);
+            CHECK(fixture->hardware.open);
+            CHECK(app_pdm_work_status());
+            /* Release is processed ahead of the next partial STATE burst. */
+            CHECK(inject_touch(fixture, true, false, false, false));
+            fixture->hold_injected_loop = fixture->loop_count;
+            fixture->script_stage = 69U;
+        }
+        break;
+    case 69:
+        if (!fixture->capture.running && !app_pdm_work_status()) {
+            CHECK(fixture->loop_count <= fixture->hold_injected_loop + 2U);
+            CHECK(fixture->capture.sequence == 1U);
+            encode_id(extra, fixture->app_id);
+            CHECK(enqueue_native(BC_VOICE_QUERY, 203U, extra, 8U, fixture->epoch));
+            fixture->script_stage = 70U;
+        }
+        break;
+    case 70:
+        response = find_response(fixture, BC_VOICE_QUERY, 203U);
+        if (response != NULL) {
+            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(response->payload[14] == BC_REC_DELIVERED);
+            CHECK(bc_voice_get32(response->payload + 37U) == 6U * BC_REC_FRAME_MAX);
+            CHECK(bc_voice_get32(response->payload + 45U) == crc32_frames(6U));
+            CHECK(fixture->sink.invalid_packets == 0U);
+            fixture->script_stage = 71U;
+            stop_worker(fixture);
+        }
+        break;
+    default:
+        stop_worker(fixture);
+        break;
+    }
+}
+
 static void test_worker_end_to_end(void)
 {
     worker_fixture fixture;
@@ -2109,9 +2460,10 @@ static void test_worker_end_to_end(void)
     CHECK(!fixture.connected);
     CHECK(fixture.hardware.callback_register_calls == 0U);
     fixture.yield_hook = worker_script;
-    run_worker(&fixture, 600U);
+    run_worker(&fixture, 2000U);
     CHECK(fixture.script_stage == 42U);
-    CHECK(fixture.loop_count < 600U);
+    CHECK(fixture.loop_count < 2000U);
+    CHECK(fixture.clock_wrap_steps == 1024U);
     CHECK(test_critical_depth == 0U);
     CHECK(fixture.sink.invalid_packets == 0U);
 
@@ -2122,6 +2474,12 @@ static void test_worker_end_to_end(void)
     run_worker(&fixture, 500U);
     CHECK(fixture.script_stage == 51U);
     CHECK(fixture.loop_count < 500U);
+    CHECK(test_critical_depth == 0U);
+    fixture.script_stage = 63U;
+    fixture.yield_hook = archive_worker_script;
+    run_worker(&fixture, 600U);
+    CHECK(fixture.script_stage == 71U);
+    CHECK(fixture.loop_count < 600U);
     CHECK(test_critical_depth == 0U);
     fixture_destroy(&fixture);
 }

@@ -27,7 +27,7 @@ product decisions:
 - **App capability/version coordination.** Validate the native protocol and
   capability/version gating with [ShopItalic/app](https://github.com/ShopItalic/app).
   Keep the factory `6.0.3.3Z62` identity distinct from the engineering
-  candidates `6.0.3.3S01` (RC1) and `6.0.3.3S02` (current source) and do not let the app workaround imply
+  candidates `6.0.3.3S01` (RC1) and `6.0.3.3S02` and `6.0.3.3S03` (current source) and do not let the app workaround imply
   a release.
 - **Product decisions and historical requirements.** Keep the root/main
   requirements aligned on a configurable default 10-second PTT limit and an
@@ -54,5 +54,13 @@ product decisions:
 - Verify the app shows recording-only scope on S01 and application scope on S02.
 - Confirm the startup settings-load boundary and measure actual motor/LED off
   timing; bootloader feedback remains independent.
-- Publish a separately identified S02 release candidate after review; do not
-  replace the tested S01 RC1 tag or assets.
+- S03 RC1 carries the S02 controls forward in a separate candidate. Preserve
+  the historical S01 RC1 tag and assets.
+
+## S03 measurement gates
+
+- Execute the [S03 qualification plan](reference/ring-s03-reliability.md#qualification-still-required): actual transfer byte/time measurements, motor quiet-period and battery curve calibration, keyboard confirmation under app/connection loss, and physical pulse distinction.
+- Measure delayed ACK/retry behavior, the 30-second stall deadline, later Flash
+  shutdown and touch/STOP latency under packet backpressure at ATT 20 and 244.
+- Test proof reuse on hardware, including catalog refresh, reconnect, partial resume, full phone storage and a retained receipt retry; do not equate the removed duplicate read with a measured throughput figure.
+- Confirm S03 supplier build/signing/recovery before consumer OTA distribution. Preserve the separate S01 RC1 tag and files.

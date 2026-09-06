@@ -23,6 +23,7 @@ static unsigned saadc_init_calls;
 static unsigned channel_init_calls;
 static unsigned channel_uninit_calls;
 static unsigned saadc_uninit_calls;
+static int mock_acq_time;
 static int mock_init_result;
 static int mock_channel_init_result;
 static int mock_sample_result;
@@ -64,6 +65,7 @@ ret_code_t nrf_drv_saadc_channel_init(uint8_t channel,
     CHECK(channel == 0U);
     CHECK(config != NULL);
     ++channel_init_calls;
+    mock_acq_time = config->acq_time;
     return mock_channel_init_result;
 }
 
@@ -99,6 +101,7 @@ static void reset_mocks(void)
     channel_init_calls = 0U;
     channel_uninit_calls = 0U;
     saadc_uninit_calls = 0U;
+    mock_acq_time = -1;
     mock_init_result = RESULT_OK;
     mock_channel_init_result = RESULT_OK;
     mock_sample_result = RESULT_OK;
@@ -118,6 +121,7 @@ int main(void)
     CHECK(registered_device->dops->open(registered_device) == RESULT_OK);
     CHECK(saadc_init_calls == 1U);
     CHECK(channel_init_calls == 1U);
+    CHECK(mock_acq_time == NRF_SAADC_ACQTIME_40US);
 
     mock_sample_result = 17;
     CHECK(registered_device->dops->read(registered_device, 0, &output, 1) ==

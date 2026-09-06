@@ -1,23 +1,27 @@
 # Documentation
 
-Start with the **[RC1 download, flashing and test guide](how-to/test-release-candidate.md)**.
-The **[GitHub prerelease](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1)**
+Start with the **[S03 RC1 download, flashing and test guide](how-to/test-s03-release-candidate.md)**.
+The **[GitHub prerelease](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)**
 contains downloadable application/debug files and a supplier review bundle.
 
 ## Candidate engineering
 
-Current `main` source is S02: double-tap opt-in, a hold-to-stop escape for
-hands-free recordings, and broader SDK lights/haptics controls. RC1 downloads
-remain the separately pinned S01 source and binaries.
+- [Supplier change log: factory baseline to current source](reference/supplier-firmware-change-log.md).
 
+Current source is S03: bounded faster fragment scheduling, delayed-ACK recovery,
+archive stall expiry, motor-aware battery sampling, verified-download reuse
+in the matching app, and a separate keyboard-insertion acknowledgment cue.
+It retains S02 double-tap opt-in, hold-to-stop and SDK lights/haptics controls. S03 RC1 and historical S01 RC1 have separate pinned source and binaries.
+
+- [S03 changes and qualification plan](reference/ring-s03-reliability.md).
 - [Build, validation evidence and Caption comparison](reference/ring-firmware-candidate.md).
 - [Recording/PTT requirements and physical acceptance matrix](reference/ring-recording-and-ptt.md).
 - [BLE wire contract](reference/ring-voice-protocol.md).
 - [Source import, baseline and build workflow](firmware.md).
 - [Engineering follow-ups](backlog.md).
-- [Matching app candidate](https://github.com/ShopItalic/app/pull/10).
+- [Matching app candidate](https://github.com/ShopItalic/app/pull/12).
 
-The [RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1)
+The [historical S01 RC1 source tag](https://github.com/ShopItalic/sudo/tree/v6.0.3.3S01-rc.1)
 preserves the matching documentation for those downloads.
 
 ## Hardware and original files
@@ -27,6 +31,7 @@ preserves the matching documentation for those downloads.
 - [Workbook extracts](reference/sudo-ring/source-extracts.json) and [source manifest](reference/sudo-ring/sources.json).
 - [Factory firmware extraction, memory map and signature evidence](reference/ring-firmware.md).
 
-RC1 is `6.0.3.3S01`; the preserved factory distribution is `6.0.3.3Z62`.
-Both target standard `603V1.23.2`. RC1 is an unsigned engineering application,
+S03 RC1 is `6.0.3.3S03`; historical S01 RC1 is `6.0.3.3S01`; the factory
+distribution is `6.0.3.3Z62`. All target standard `603V1.23.2`. Sudo candidates
+are unsigned engineering applications,
 not a signed OTA release or evidence of physical qualification.

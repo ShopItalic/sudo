@@ -71,17 +71,21 @@ static void test_invalid_samples_do_not_poison_history(void)
     CHECK(filter.count == 2U);
 }
 
-static void test_monotonic_epochs_and_window(void)
+static void test_recovery_epochs_and_window(void)
 {
     bc_battery_filter filter;
     uint8_t sample;
 
     bc_battery_filter_init(&filter);
-    CHECK(bc_battery_filter_update(&filter, 20U, false) == 20U);
-    CHECK(bc_battery_filter_update(&filter, 100U, false) == 20U);
+    CHECK(bc_battery_filter_update(&filter, 80U, false) == 80U);
+    CHECK(bc_battery_filter_update(&filter, 0U, false) == 40U);
+    CHECK(bc_battery_filter_update(&filter, 100U, false) == 80U);
+    CHECK(bc_battery_filter_update(&filter, 100U, false) == 90U);
+    CHECK(bc_battery_filter_update(&filter, 100U, false) == 93U);
     CHECK(bc_battery_filter_update(&filter, 0U, true) == 0U);
     CHECK(bc_battery_filter_update(&filter, 100U, true) == 50U);
-    CHECK(bc_battery_filter_update(&filter, 0U, true) == 50U);
+    CHECK(bc_battery_filter_update(&filter, 0U, true) == 0U);
+    CHECK(bc_battery_filter_update(&filter, 100U, true) == 50U);
     CHECK(bc_battery_filter_update(&filter, 10U, false) == 10U);
 
     bc_battery_filter_init(&filter);
@@ -109,7 +113,7 @@ int main(void)
     test_zero_is_initialized();
     test_averages_and_single_extrema();
     test_invalid_samples_do_not_poison_history();
-    test_monotonic_epochs_and_window();
+    test_recovery_epochs_and_window();
     test_null_filter();
 
     if (failures != 0U)

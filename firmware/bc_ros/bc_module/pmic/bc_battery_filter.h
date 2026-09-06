@@ -27,9 +27,9 @@ void bc_battery_filter_reset(bc_battery_filter *filter, bool charging);
 /*
  * Add one sample and return the filtered result.  Invalid samples (>100)
  * return BC_BATTERY_PERCENT_UNKNOWN and leave valid history unchanged.  A
- * transition between charging and discharging starts a fresh epoch.  Once an
- * epoch has an output, discharging output cannot rise and charging output
- * cannot fall.
+ * transition between charging and discharging starts a fresh epoch.  Valid
+ * samples remain in the trimmed window, allowing a recovered estimate to
+ * rise or fall without smoothing invalid data into a result.
  */
 uint8_t bc_battery_filter_update(bc_battery_filter *filter, uint8_t sample,
                                  bool charging);

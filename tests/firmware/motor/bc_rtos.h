@@ -38,6 +38,19 @@ typedef struct
 #define APP_LINEAR_MOTOR_STACK_SIZE 128
 #define APP_LINEAR_MOTOR_PRIO 8
 #define bc_pdPASS 1
+#ifndef configTICK_RATE_HZ
+#define configTICK_RATE_HZ 1000U
+#endif
+
+extern uint32_t test_ticks;
+extern unsigned test_critical_depth;
+#define bc_rtos_task_get_tick_count() test_ticks
+#define xTaskGetTickCountFromISR() test_ticks
+#define bc_rtos_taskENTER_CRITICAL() (++test_critical_depth)
+#define bc_rtos_taskEXIT_CRITICAL() (--test_critical_depth)
+#define taskENTER_CRITICAL_FROM_ISR() ((UBaseType_t)(++test_critical_depth))
+#define taskEXIT_CRITICAL_FROM_ISR(saved) \
+    ((void)(saved), (void)(--test_critical_depth))
 #define bc_rtos_thread_resume(handle) ((void)(handle))
 #define bc_rtos_thread_suspend(handle) ((void)(handle))
 #define bc_rtos_timer_start(handle, wait) ((void)(handle), (void)(wait), 1)

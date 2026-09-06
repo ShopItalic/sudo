@@ -313,6 +313,8 @@ uint8_t app_vibrate_start(vibrate_mode_t mode, uint8_t count)
 #if defined(SUDO_VOICE_ONLY)
     /* Invalidate and close any prior PWM before taking the new power lease. */
     bc_linear_motor_stop();
+    /* Publish the legacy pre-LDO and settle interval to the battery ADC. */
+    bc_linear_motor_activity_begin();
 #endif
 
     /* 开启马达电源（与bc_linear_motor_start流程一致） */

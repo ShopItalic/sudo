@@ -32,6 +32,13 @@ typedef struct {
     bc_rec_result (*settings)(void *ctx, const bc_voice_settings *settings);
 } bc_voice_service_port;
 
+typedef struct {
+    void *ctx;
+    /* Queue application feedback only. This callback runs on the voice
+     * worker and must not perform hardware I/O or reenter the service. */
+    void (*set_outcome)(void *ctx, uint64_t recording_id, uint8_t outcome);
+} bc_voice_outcome_port;
+
 #define BC_VOICE_LIVE_PREFIX_SLOTS 32U
 
 typedef struct {
@@ -44,6 +51,7 @@ typedef struct {
     bc_rec_store *store;
     bc_voice_gesture *gesture;
     bc_voice_service_port port;
+    bc_voice_outcome_port outcome_port;
     bc_voice_tuning_port tuning_port;
     bc_voice_settings settings;
     bc_voice_receiver receiver;
@@ -81,8 +89,20 @@ typedef struct {
     uint32_t transfer_token, transfer_offset, transfer_next, transfer_ack;
     uint32_t transfer_ends[BC_VOICE_TRANSFER_WINDOW];
     uint8_t transfer_count;
+    /* Retry scheduling is separate from actual verification/durable ACK
+     * progress; retransmits and duplicate requests cannot renew the lease. */
     uint32_t transfer_progress_ms;
+    uint32_t archive_progress_ms;
     bool verifying, transferring;
+    /* Keyboard insertion confirmation is a one-link, one-record lease. */
+    uint64_t outcome_recording_id;
+    uint64_t outcome_ready_recording_id;
+    uint32_t outcome_live_token;
+    uint32_t outcome_epoch;
+    uint32_t outcome_terminal_ms;
+    bool outcome_ready_accepted;
+    bool outcome_terminal_ready;
+    bool outcome_reported;
 } bc_voice_service;
 
 bool bc_voice_service_init(bc_voice_service *service, bc_recording *recording,
@@ -92,12 +112,15 @@ bool bc_voice_service_init(bc_voice_service *service, bc_recording *recording,
 bool bc_voice_tuning_valid(const bc_voice_tuning *tuning);
 bool bc_voice_service_set_tuning_port(bc_voice_service *service,
                                       const bc_voice_tuning_port *port);
+bool bc_voice_service_set_outcome_port(bc_voice_service *service,
+                                       const bc_voice_outcome_port *port);
 /* Worker context only. Connection changes revoke live readiness and discard
  * transport state, never the local recording. */
 void bc_voice_service_link(bc_voice_service *service, uint32_t epoch, bool connected);
 void bc_voice_service_receive(bc_voice_service *service, uint32_t epoch,
                                const uint8_t *packet, uint16_t length, uint32_t now_ms);
-/* At most one bounded archive verification/read and one fragment enqueue. */
+/* At most one bounded archive verification/read and four fragment enqueues
+ * from one message; stop immediately on backpressure or message completion. */
 bool bc_voice_service_poll(bc_voice_service *service, uint32_t now_ms, uint16_t att_limit);
 /* Recording-port callbacks: no I/O, reentry, or waits. */
 void bc_voice_service_changed(bc_voice_service *service, const bc_rec_snapshot *snapshot);
