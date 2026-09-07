@@ -81,26 +81,41 @@ factory images are preserved under `artifacts/ring-firmware`; keep new local
 build output and device-specific provisioning material out of Git. Do not
 replace the supplier pin map or adapt the older Nordic prototype by assumption.
 
-## Current validation boundary
+## Current S04 validation boundary
+
+Current S04 software evidence is centralized in the [candidate's current S04
+evidence table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls).
+It is pinned to the verified `b75da242f6df0c133b4c8705af33b8a075a8a829`
+baseline, checked on the MBA before the pending result-mapping follow-up.
+The follow-up test count and combined-head build/CI values remain pending
+supervisor integration. `sh tools/firmware/test.sh` remains the host validation
+entry point. Host assertions, archive normalization, BLE routing harnesses and
+the GNU link do not establish physical Ring behavior.
+
+The published S04 RC1 assets remain unchanged at tag `v6.0.3.3S04-rc.1`,
+pointing to source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`; release-era
+provenance stays attached to that immutable bundle. Vendor Arm Compiler 5.06
+update 7 (build 960) reproduction, physical stack/heap high-water
+measurements, signing/package and recovery review remain pending. No physical
+Ring has been dumped or flashed here; hardware acceptance is not established.
+
+### Historical S03 validation boundary
 
 The recording, capture, protocol, touch-tuning, battery, and LittleFS fault tests
 have recorded sanitizer-backed host runs, including RAM-NOR erase/program
-semantics and bounded power-cut cases. `sh tools/firmware/test.sh` remains the
-host validation entry point. The S03 validation passed 14,330 C checks across
-24 suites and six archive-normalizer tests; baseline verification matched all 7,056 original
-files. See the [S03 reliability report](reference/ring-s03-reliability.md)
+semantics and bounded power-cut cases. The S03 validation passed 14,330 C checks
+across 24 suites and six archive-normalizer tests; baseline verification matched
+all 7,056 original files. See the [S03 reliability report](reference/ring-s03-reliability.md)
 for the S03 validation and [final audit](reference/ring-s03-final-audit.html)
 for the feature inventory and remaining gates.
 
-The integrated Arm GNU 15.2.rel1 target compiles and links all 225 sources with
+The integrated Arm GNU 15.2.rel1 target compiled and linked all 225 sources with
 zero undefined symbols and passing startup/vector checks. The local S03 load
-image is 311,452 bytes; static RAM is 203,968 bytes plus separate 8 KiB C-heap
+image was 311,452 bytes; static RAM was 203,968 bytes plus separate 8 KiB C-heap
 and 8 KiB main-stack reservations. The released Linux image has its own hashes
-and sizes in the [release guide](how-to/test-s03-release-candidate.md).
-Vendor Arm Compiler 5.06 update 7 (build 960) reproduction, physical stack/heap
-high-water measurements, signing/package and recovery review remain pending.
-S03 RC1 is published as an unsigned engineering prerelease. No physical Ring
-has been dumped or flashed here; hardware acceptance is not established.
+and sizes in the [release guide](how-to/test-s03-release-candidate.md). These
+figures are historical S03 evidence, not current S04 measurements.
+S03 RC1 is published as an unsigned engineering prerelease.
 
 ## Remaining build and hardware gates
 

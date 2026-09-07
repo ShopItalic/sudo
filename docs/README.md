@@ -13,8 +13,14 @@ PTT until release, three independently mapped inputs, adjustable hold activation
 persisted light/haptic controls and conservative cleanup. Fresh defaults are
 one-second hold to PTT, double tap off and triple tap to memo toggle.
 
-S04 passes 16,902 C checks, six archive-normalizer tests and the 225-source GNU
-ARM build, including GitHub CI. It remains an unsigned engineering prerelease, without physical qualification. S04 client integration is outside this firmware-only change.
+Current software evidence is pinned in the [candidate's current S04 evidence
+table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls),
+which records the verified `b75da242f6df0c133b4c8705af33b8a075a8a829` baseline
+before the pending result-mapping follow-up. Those measurements are not the
+eventual combined-head results. The published S04 RC1 assets remain unchanged
+at tag `v6.0.3.3S04-rc.1` pointing to `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
+It remains an unsigned engineering prerelease, without physical qualification.
+S04 client integration is outside this firmware-only change.
 Published S03 RC1 and historical S01 RC1 retain their pinned source and binaries.
 
 - [S03 changes and qualification plan](reference/ring-s03-reliability.md).
