@@ -21,6 +21,7 @@
 #include "lfs_port.h"
 #include "nrf_soc.h"
 #include "nrf_error.h"
+#include "app_error.h"
 #include "queue.h"
 #include "user_rtos_config.h"
 
@@ -773,12 +774,14 @@ void app_pdm_thread_create(void)
         if (commands) vQueueDelete(commands);
         if (touches) vQueueDelete(touches);
         commands = NULL; touches = NULL;
+        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
         return;
     }
     if (xTaskCreate(run, "sudo-voice", 2048U, NULL, APP_TASK_MIC_IRQ_PRIO, &worker) != pdPASS) {
         worker = NULL;
         vQueueDelete(commands); vQueueDelete(touches);
         commands = NULL; touches = NULL;
+        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
     }
 }
 

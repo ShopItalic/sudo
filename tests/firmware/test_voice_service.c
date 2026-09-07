@@ -2601,8 +2601,49 @@ static void test_input_settings_and_live_events(void)
     fixture_destroy(&f);
 }
 
+static void test_timeout_unlocks_all_configuration_commands(void)
+{
+    fixture f;
+    inputs_fixture inputs = {{1000U, BC_VOICE_INPUT_PTT, 0U, BC_VOICE_INPUT_MEMO}, BC_REC_OK, 0U};
+    bc_voice_inputs_port ip = {&inputs, test_inputs_get, test_inputs_set};
+    bc_voice_tuning_port tp = {&f, tuning_get, tuning_set};
+    bc_touch_report_t hold = {.valid = true, .contact = true, .hold = true};
+    const uint8_t kinds[] = {BC_VOICE_SETTINGS_SET, BC_VOICE_INPUTS_SET, BC_VOICE_TUNING_SET};
+    uint8_t settings[11] = {0,0,0,0,0,0,0,0,1,1,1};
+    uint8_t mapping[5] = {0xe8,3,BC_VOICE_INPUT_PTT,0,BC_VOICE_INPUT_MEMO};
+    uint8_t tuning[7] = {54,52,100,120,0,24,1};
+    const uint8_t *payloads[] = {settings, mapping, tuning};
+    const unsigned sizes[] = {11,5,7};
+    unsigned phase, k;
+    uint64_t id;
+    CHECK(fixture_setup(&f));
+    CHECK(bc_voice_service_set_inputs_port(&f.service, &ip));
+    f.tuning = (bc_voice_tuning){54,52,100,120,280};
+    CHECK(bc_voice_service_set_tuning_port(&f.service, &tp));
+    CHECK(bc_voice_gesture_report(&f.gesture, &hold, 10U) == BC_REC_OK);
+    id = f.recording.snapshot.start.id;
+    for (phase = 0; phase < 3; ++phase) {
+        if (phase == 1) bc_voice_gesture_tick(&f.gesture, 260U);
+        if (phase == 2) CHECK(bc_recording_drained(&f.recording, id) == BC_REC_TOUCH_ERROR);
+        for (k = 0; k < 3; ++k) {
+            unsigned before = f.sink.message_count;
+            unsigned request = 900U + phase * 3U + k;
+            const bc_voice_message *response;
+            CHECK(send_request(&f, kinds[k], request, payloads[k], sizes[k], 244U, 270U + phase, false));
+            (void)pump(&f, 270U + phase, 244U);
+            response = find_response(&f, before, kinds[k], request);
+            CHECK(response && response->payload[4] == (phase == 2 ? BC_REC_OK : BC_REC_BUSY));
+        }
+    }
+    CHECK(f.settings_count == 1U && inputs.writes == 1U && f.tuning_writes == 1U);
+    CHECK(bc_voice_gesture_report(&f.gesture, &hold, 280U) == BC_REC_OK);
+    CHECK(f.capture_start_count == 1U); /* No phantom restart after remapping. */
+    fixture_destroy(&f);
+}
+
 int main(void)
 {
+    test_timeout_unlocks_all_configuration_commands();
     test_handshake_queue_and_wire_rejection();
     test_start_stop_idempotency_and_recovery();
     test_pending_stop_snapshot_and_queue_reservation();

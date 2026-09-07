@@ -783,6 +783,41 @@ static void test_invalid_sensor_and_lease_timeout_are_partial(void)
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
 }
 
+static void test_fault_unlocks_config_without_rearming_hold(void)
+{
+    unsigned fault;
+    for (fault = 0; fault < 2; ++fault) {
+        gesture_fixture fixture;
+        bc_recording recording;
+        bc_voice_gesture gesture;
+        bc_voice_gesture_config config = gesture_config();
+        bc_touch_report_t hold = touch_report(true, true, true, false);
+        bc_touch_report_t release = touch_report(true, false, false, false);
+        bc_touch_report_t invalid = {0};
+        bc_voice_inputs inputs;
+        uint64_t id;
+        uint32_t now = 10U + config.touch_timeout_ms;
+        fixture_reset(&fixture);
+        CHECK(init_pair(&recording, &gesture, &fixture, &config));
+        CHECK(bc_voice_gesture_report(&gesture, &hold, 10U) == BC_REC_OK);
+        id = bc_recording_snapshot(&recording)->start.id;
+        if (fault) CHECK(bc_voice_gesture_report(&gesture, &invalid, 20U) == BC_REC_TOUCH_ERROR);
+        else bc_voice_gesture_tick(&gesture, now);
+        CHECK(bc_voice_gesture_configure(&gesture, &config) == BC_REC_BUSY);
+        CHECK(bc_recording_drained(&recording, id) == BC_REC_TOUCH_ERROR);
+        CHECK(!gesture.contact_active && !gesture.hold_attempted);
+        CHECK(bc_voice_gesture_configure(&gesture, &config) == BC_REC_OK);
+        inputs = gesture.inputs;
+        CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_OK);
+        CHECK(bc_voice_gesture_report(&gesture, &hold, now + 1U) == BC_REC_OK);
+        CHECK(fixture.new_id_calls == 1U);
+        CHECK(bc_voice_gesture_set_inputs(&gesture, &inputs) == BC_REC_OK);
+        CHECK(bc_voice_gesture_report(&gesture, &release, now + 2U) == BC_REC_OK);
+        CHECK(bc_voice_gesture_report(&gesture, &hold, now + 3U) == BC_REC_OK);
+        CHECK(fixture.new_id_calls == 2U);
+    }
+}
+
 static void test_invalid_touch_does_not_cancel_memo(void)
 {
     gesture_fixture fixture;
@@ -1121,6 +1156,7 @@ int main(void)
     test_hold_stops_memo_without_restarting();
     test_hold_busy_with_foreign_owner();
     test_invalid_sensor_and_lease_timeout_are_partial();
+    test_fault_unlocks_config_without_rearming_hold();
     test_invalid_touch_does_not_cancel_memo();
     test_failed_hold_attempts_wait_for_release();
     test_configuration_validation_and_busy();

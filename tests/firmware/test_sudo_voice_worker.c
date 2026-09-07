@@ -204,6 +204,16 @@ static ram_nor *worker_ram;
 static lfs_t *worker_lfs;
 static unsigned checks;
 static unsigned failures;
+static unsigned queue_create_calls, queue_delete_calls, fail_queue_call;
+static unsigned fatal_calls;
+static bool fail_task;
+
+void test_voice_fatal(uint32_t code)
+{
+    ++fatal_calls;
+    if (code != NRF_ERROR_NO_MEM) abort();
+}
+
 
 unsigned test_critical_depth;
 TickType_t test_ticks;
@@ -385,7 +395,9 @@ static BaseType_t queue_receive(test_queue *queue, void *item)
 
 QueueHandle_t xQueueCreate(UBaseType_t length, UBaseType_t item_size)
 {
-    test_queue *queue = queue_create(length, item_size);
+    test_queue *queue;
+    if (++queue_create_calls == fail_queue_call) return NULL;
+    queue = queue_create(length, item_size);
     if (queue_fixture != NULL) {
         if (queue_fixture->command_queue == NULL)
             queue_fixture->command_queue = queue;
@@ -417,6 +429,7 @@ UBaseType_t uxQueueMessagesWaiting(QueueHandle_t handle)
 
 void vQueueDelete(QueueHandle_t handle)
 {
+    ++queue_delete_calls;
     queue_destroy((test_queue *)handle);
 }
 
@@ -424,6 +437,10 @@ BaseType_t xTaskCreate(TaskFunction_t task, const char *name,
                        uint16_t stack_depth, void *parameters,
                        UBaseType_t priority, TaskHandle_t *created)
 {
+    if (fail_task) {
+        *created = (TaskHandle_t)&fatal_calls;
+        return -1; /* FreeRTOS errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY. */
+    }
     (void)name;
     (void)stack_depth;
     (void)parameters;
@@ -2542,8 +2559,32 @@ static void test_worker_end_to_end(void)
     fixture_destroy(&fixture);
 }
 
+static void test_startup_allocation_failures(void)
+{
+    unsigned attempt;
+    uint8_t packet[4] = {0, 0, BC_VOICE_COMMAND, 0};
+    for (attempt = 1U; attempt <= 3U; ++attempt) {
+        unsigned deleted = queue_delete_calls;
+        unsigned notified = test_notify_calls;
+        queue_create_calls = 0U;
+        fail_queue_call = attempt <= 2U ? attempt : 0U;
+        fail_task = attempt == 3U;
+        app_pdm_thread_create();
+        CHECK(fatal_calls == attempt);
+        CHECK(queue_delete_calls - deleted == (attempt == 3U ? 2U : 1U));
+        /* true is dispatch ownership, never an ACK: do not fall through to
+         * the competing vendor recording owner when startup failed. */
+        CHECK(app_sudo_voice_command(packet, sizeof(packet), 1U));
+        CHECK(test_notify_calls == notified);
+    }
+    fail_queue_call = 0U;
+    fail_task = false;
+    /* The full worker test now verifies a successful retry after cleanup. */
+}
+
 int main(void)
 {
+    test_startup_allocation_failures();
     test_worker_end_to_end();
     fprintf(stdout, "%u checks, %u failures\n", checks, failures);
     return failures == 0U ? EXIT_SUCCESS : EXIT_FAILURE;

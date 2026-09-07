@@ -4,6 +4,11 @@ The source tranche is implemented and host-tested. The remaining work is
 external qualification, supplier/build review, compatibility migration, and
 product decisions:
 
+- **Qualify post-RC1 review fixes.** Exercise voice queue/task allocation failure
+  reset/recovery, IQS silence/reset through partial recording drain and settings
+  recovery, and non-HID/HID pairing plus bonded reconnect/notification retention.
+  Host fault and event-routing tests pass; hardware evidence is still required.
+  See [S04-006 through S04-008](reference/supplier-firmware-change-log.md#s04-post-rc1-review-fixes).
 - **Qualify corrected task-start failures.** S04 fixes the nine inherited
   `xTaskCreate` checks and adds required-task fatal error handling. LED worker
   allocation-failure injection passes on the host; qualify reset/recovery on

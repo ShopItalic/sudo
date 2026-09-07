@@ -99,12 +99,25 @@ static void app_hold_end(bc_voice_gesture *gesture, uint8_t phase)
         (void)gesture->input_event(gesture->event_ctx, BC_VOICE_INPUT_HOLD, phase);
 }
 
+static void contact_fault(bc_voice_gesture *gesture)
+{
+    bool had_contact = gesture->contact_active || gesture->hold_attempted ||
+                       gesture->app_hold_active;
+    app_hold_end(gesture, BC_VOICE_INPUT_CANCELLED);
+    gesture->contact_active = false;
+    gesture->hold_attempted = false;
+    gesture->have_report = false;
+    /* A missing sensor report is not proof that the finger was lifted.
+     * Unlock configuration, but suppress all actions until a valid release. */
+    gesture->await_release = gesture->await_release || had_contact;
+}
+
 void bc_voice_gesture_tick(bc_voice_gesture *gesture, uint32_t now_ms)
 {
     if (gesture == NULL || gesture->recording == NULL) return;
     if (gesture->have_report &&
         (uint32_t)(now_ms - gesture->last_report_ms) >= gesture->config.touch_timeout_ms) {
-        app_hold_end(gesture, BC_VOICE_INPUT_CANCELLED);
+        contact_fault(gesture);
         if (owns_ptt(gesture)) {
             const bc_rec_snapshot *snapshot = bc_recording_snapshot(gesture->recording);
             if (snapshot->error == BC_REC_OK)
@@ -154,7 +167,7 @@ bc_rec_result bc_voice_gesture_report(bc_voice_gesture *gesture,
     /* A late report cannot erase an expired sensor lease. */
     bc_voice_gesture_tick(gesture, now_ms);
     if (!report->valid) {
-        app_hold_end(gesture, BC_VOICE_INPUT_CANCELLED);
+        contact_fault(gesture);
         if (owns_ptt(gesture))
             return bc_recording_fault(gesture->recording, gesture->ptt_id,
                                        BC_REC_TOUCH_ERROR, now_ms);
@@ -164,6 +177,13 @@ bc_rec_result bc_voice_gesture_report(bc_voice_gesture *gesture,
         (report->double_tap && report->triple_tap)) return BC_REC_INVALID;
     gesture->last_report_ms = now_ms;
     gesture->have_report = true;
+    if (gesture->await_release) {
+        if (report->contact) return BC_REC_OK;
+        gesture->await_release = false;
+        gesture->ptt_id = 0U;
+        /* This frame only rearms input; ignore any accumulated tap flags. */
+        return BC_REC_OK;
+    }
     gesture->contact_active = report->contact;
     if (!report->contact) {
         app_hold_end(gesture, BC_VOICE_INPUT_RELEASED);

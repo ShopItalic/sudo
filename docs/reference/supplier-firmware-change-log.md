@@ -942,6 +942,67 @@ blocks or matches for the tested GitHub/AWS/OpenAI/Slack token formats. Two
 private-key-header matches are parser/writer string constants in mbedTLS.
 This records the scan's scope, not an exhaustive security or legal audit.
 
+## S04 post-RC1 review fixes
+
+### S04-006 — Fail explicitly when the voice worker cannot start
+
+Status: implemented on `codex/s04-review-fixes`, after RC1; not in the
+published RC1 assets. The command queue, touch queue and 2048-word voice task
+previously could fail allocation and leave a running application with no
+recording owner. Both allocation paths now clean up their queues and invoke
+`APP_ERROR_HANDLER(NRF_ERROR_NO_MEM)`, matching the other required workers.
+The command dispatch boolean still means ownership, not successful execution
+or a protocol ACK; rejected requests must not reach the vendor recording owner.
+
+Source: `app_sudo_voice.c`. The worker harness injects failure of each queue
+and task allocation (`-1`), checks fatal handling/cleanup and then runs the
+normal worker after a successful retry. Reset/recovery needs target testing.
+
+### S04-007 — Unlock configuration after a failed touch lease
+
+Status: implemented on the same branch, after RC1. Missing or invalid sensor
+reports previously ended PTT as partial but retained contact/hold flags, so
+SETTINGS, INPUTS and TUNING stayed BUSY indefinitely. The gesture owner now
+clears those busy flags on a fault; active recording/drain still blocks writes.
+A separate release gate suppresses stale hold/tap actions until a valid release
+arrives, including after remapping. An already released contact does not gain
+an artificial release requirement when its report ages out. Memo capture
+retains its separate lifecycle.
+
+Source: `bc_voice_gesture.c/.h`. Gesture tests cover timeout and invalid-report
+recovery, stale holds, configuration and release rearming. Service tests send
+all three real configuration commands before timeout, during drain and after
+drain. Physical IQS silence/reset and touch tuning recovery remain to qualify.
+
+### S04-008 — Separate GAP security from GATT attribute recovery
+
+Status: implemented on the same branch, after RC1. Restored the missing break
+in `bc_ble.c` after `BLE_GAP_EVT_SEC_PARAMS_REQUEST`. A security request must
+not fall through and clear GATT system attributes. Non-HID mode still rejects
+pairing; HID type 1 still delegates to the initialized Nordic Peer Manager
+(`bc_ble_init`, `peer_manager_init`, SDK `security_dispatcher.c` and
+`security_manager.c`). The review's assertion that HID pairing has no responder
+was incomplete; adding a second reply here would conflict with that owner.
+
+`test_ble_security.py` compiles the exact adjacent production switch cases with
+SoftDevice call spies. It checks HID delegation, non-HID rejection, explicit
+SYS_ATTR_MISSING handling and the existing rejected-connection guard. This is
+host event-routing coverage, not a physical pairing harness. Test unbonded
+pairing, bonded reconnect and notification subscriptions on a spare Ring.
+
+### Post-RC1 local verification
+
+- 16,970 checks across the existing 24 C suites, plus six archive-normalizer
+  tests and both new BLE event-routing builds, passed with ASan/UBSan.
+- New allocation, gesture and BLE regressions all fail against the original
+  RC1 source and pass with these fixes.
+- Arm GNU 15.2.rel1: 225 objects compiled, zero undefined symbols; startup,
+  vector and memory summary checks passed. Local BIN: 312,500 bytes,
+  SHA-256 `f63be8fb91a29455325562e40da2f48b3935795faf8e94e0e748d362c02f13eb`.
+- No wire format, default mapping, supplier license or published release asset
+  changed. No physical flash, radio pairing, ArmCC reproduction or signing was
+  performed. Existing GNU supplier-archive wchar/syscall warnings remain.
+
 ## How to append future changes
 
 Append a new monotonically named entry such as S03-007 or S04-001; do not
