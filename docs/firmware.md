@@ -92,9 +92,10 @@ pins source `c002956`, the measured local BIN and its checksum.
 Host assertions, archive normalization, BLE routing harnesses and the GNU
 link do not establish physical Ring behavior.
 
-The published S04 RC1 assets remain unchanged at tag `v6.0.3.3S04-rc.1`,
-pointing to source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`; release-era
-provenance stays attached to that immutable bundle. Vendor Arm Compiler 5.06
+S04 RC1 is refreshed at the existing tag `v6.0.3.3S04-rc.1` with the merged
+reliability fixes. The package's `provenance.json` records its exact main
+source, successful CI run and artifact hashes. The original `84c91fc`
+bundle is superseded; the firmware readback and RC number remain unchanged. Vendor Arm Compiler 5.06
 update 7 (build 960) reproduction, physical stack/heap high-water
 measurements, signing/package and recovery review remain pending. No physical
 Ring has been dumped or flashed here; hardware acceptance is not established.

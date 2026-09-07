@@ -2,7 +2,10 @@
 
 This guide describes **S04 RC1**, an unsigned engineering candidate for supplier
 bench testing. The package's `provenance.json` identifies the exact firmware
-source SHA, CI run and asset hashes.
+source SHA, CI run and asset hashes. RC1 is refreshed in place with the
+merged reliability fixes while keeping the same tag and firmware version.
+Re-download and verify the complete asset set; do not mix files from the
+original `84c91fc` bundle with the refreshed package.
 
 **Release:** [v6.0.3.3S04-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)
 

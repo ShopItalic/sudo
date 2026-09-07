@@ -222,10 +222,11 @@ build has its own size and checksum. Source hashes and exact build provenance
 identify the artifact. One supplier wchar ABI warning and eight newlib stub
 warnings remain; static fit does not measure free heap or physical behavior.
 
-The designation remains **S04 / RC1**. Published tag `v6.0.3.3S04-rc.1` and
-its downloads still pin source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
-Their release-era **16,902 C checks** and image hashes remain historical
-bundle evidence; they are not the numbers for current source. The earlier
+The designation remains **S04 / RC1**. Tag `v6.0.3.3S04-rc.1` and its
+downloads are refreshed in place with the merged reliability fixes. Read
+`sourceSHA`, `CIRunURL` and the artifact hashes in the package's
+`provenance.json` for the exact published build. The original `84c91fc`
+bundle's **16,902 C checks** and image hashes are historical evidence. The earlier
 `b75da24` source passed 16,970 checks and [main CI run
 34080036805](https://github.com/ShopItalic/sudo/actions/runs/34080036805).
 Physical qualification, supplier compiler/ABI review, signing and recovery

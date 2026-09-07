@@ -17,8 +17,9 @@ The ledger separates:
 
 This source tree remains **6.0.3.3S04 / S04 RC1**. The published
 [RC1 release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)
-pins source `84c91fc` and its original compiled assets; later S04 source fixes
-do not change those downloads. S03 entries and their separate release retain
+is refreshed in place with the merged S04 reliability fixes. Its package
+provenance identifies the exact main source and successful CI build,
+superseding the original `84c91fc` assets under the same tag and filenames. S03 entries and their separate release retain
 historical source, CI, image hashes and SDK identity in `provenance.json`.
 No entry is a claim about firmware installed on a physical Ring or signed OTA readiness.
 
@@ -30,7 +31,7 @@ No entry is a claim about firmware installed on a physical Ring or signed OTA re
 | S01 | 6.0.3.3S01; published unsigned RC1 | Tag [v6.0.3.3S01-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1), source commit bde62175ea2c3c64a0f633abb6d06d05595d9cc7, CI run 33998477755. The GitHub release assets and tag are immutable evidence for that build. |
 | S02 | 6.0.3.3S02; published on main | Commits 2ba1aa5, 7ffd2c8, and merge 0860373. S02 has source and host/CI evidence, but no separate S02 release asset set. The older S01 binary/checksums remain unchanged. |
 | S03 | 6.0.3.3S03; historical unsigned RC1 | The candidate changes [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h), recording service/protocol, motor, ADC, PMIC, and related tests. Use the separate S03 release provenance to identify the compiled source. The matching app transport/protocol work is commit [492af2a](https://github.com/ShopItalic/app/commit/492af2ad40949de3d54419df5e2fa140c912b94f), merged through [app PR #12](https://github.com/ShopItalic/app/pull/12) into main `664ea438c7265d57885f926e589acb0faa1d05ca`. |
-| S04 | 6.0.3.3S04; current unsigned RC1 designation | Published tag `v6.0.3.3S04-rc.1` pins `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`. Main `b75da24` adds PR #4 startup/touch/BLE fixes; later source validation is recorded below. Published downloads remain the tagged build. S04 app adoption and physical qualification remain open. |
+| S04 | 6.0.3.3S04; current unsigned RC1 designation | Tag `v6.0.3.3S04-rc.1` is refreshed in place to include PR #4 startup/touch/BLE fixes and PR #5 archive result mappings. Package provenance pins the exact main source, CI run and image hashes. S04 app adoption and physical qualification remain open. |
 
 The relevant source sequence is visible with:
 
@@ -949,8 +950,8 @@ This records the scan's scope, not an exhaustive security or legal audit.
 
 ### S04-006 — Fail explicitly when the voice worker cannot start
 
-Status: implemented on `codex/s04-review-fixes`, after RC1; not in the
-published RC1 assets. The command queue, touch queue and 2048-word voice task
+Status: implemented on `codex/s04-review-fixes`, merged through PR #4 and
+included in the refreshed S04 RC1 package. The command queue, touch queue and 2048-word voice task
 previously could fail allocation and leave a running application with no
 recording owner. Both allocation paths now clean up their queues and invoke
 `APP_ERROR_HANDLER(NRF_ERROR_NO_MEM)`, matching the other required workers.
@@ -1012,9 +1013,8 @@ pairing, bonded reconnect and notification subscriptions on a spare Ring.
 
 Status: implemented in source commit
 `c00295639c1e2f5a192de9916ec15a84369a6563`, under the existing
-**6.0.3.3S04 / S04 RC1** designation. Published tag `v6.0.3.3S04-rc.1`
-and its downloads still pin `84c91fc`; these later source changes do not
-replace that bundle.
+**6.0.3.3S04 / S04 RC1** designation. Merged through PR #5 and included in the refreshed
+`v6.0.3.3S04-rc.1` package; the version and RC designation are unchanged.
 
 - Native RESUME with a fresh transfer token after receipted audio has been
   deleted now returns **NOT_FOUND (18)**. The prior native mapping returned
@@ -1053,6 +1053,21 @@ verified S03 app. The retained gamepad helper already has its invalid-handle
 check; no repeat code change was needed. Physical audio/touch/radio/power
 qualification, supplier ArmCC reproduction, signing, DFU and recovery remain
 open. No Ring was flashed.
+
+## S04 RC1 refresh — September 7, 2026
+
+At the user's request, retain **6.0.3.3S04 / S04 RC1** and refresh the existing
+release tag and assets from main after successful CI. This incorporates PR #4
+and PR #5, including startup/touch/BLE fixes, accurate archive error results
+and corrected documentation. The host gate is **17,006 C checks**, six archive
+normalizer tests and two BLE routing builds; the GNU target is 225 objects.
+
+The original RC1 source was `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
+That asset set is superseded, so identify every download by `sourceSHA`,
+`CIRunURL` and SHA-256 in the regenerated package provenance. The refreshed
+HEX is checked against the exact main-CI BIN, and notices remain included.
+S01 and S03 releases are unchanged. No hardware flashing, signing or physical
+qualification is performed by this refresh.
 
 ## How to append future changes
 

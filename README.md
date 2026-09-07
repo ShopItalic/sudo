@@ -104,8 +104,9 @@ archive-normalizer tests and both BLE event-routing harness builds. The GNU
 build compiles/links **225 objects with zero undefined symbols**. See the
 [current S04 evidence table](docs/reference/ring-firmware-candidate.md#current-s04-evidence-and-controls)
 for the verified source commit, local image checksum and validation boundaries.
-The published S04 RC1 bundle still pins source `84c91fc` and its original
-release-era evidence. No Ring was flashed; physical audio/radio/power
+S04 RC1 is refreshed in place with the merged reliability fixes. Its
+`provenance.json` identifies the exact main source, CI run and image hashes;
+use those values to distinguish it from the original `84c91fc` bundle. No Ring was flashed; physical audio/radio/power
 qualification, supplier compiler/ABI review, signing and recovery remain open.
 
 ## Current S04 release versus factory
@@ -123,8 +124,8 @@ Ring**. This repository is public; retained supplier and third-party license ter
 
 ## Repository map
 
-`main` contains S04 firmware, tests and current documentation. Each release tag
-preserves its exact source and assets. [S03 RC1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)
+`main` contains S04 firmware, tests and current documentation. S04 RC1 keeps the same tag and filenames when refreshed;
+its provenance and SHA-256 checksums identify the exact build. [S03 RC1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)
 and S01 RC1 remain available unchanged for historical comparison.
 
 | Location | Contents |
