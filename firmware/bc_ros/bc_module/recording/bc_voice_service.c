@@ -16,7 +16,8 @@ static bc_rec_result store_result(bc_rec_store_status result)
     case BC_REC_STORE_CORRUPT: return BC_REC_CRC_ERROR;
     case BC_REC_STORE_EMPTY: return BC_REC_EMPTY_AUDIO;
     case BC_REC_STORE_RECEIPT_MISMATCH: return BC_REC_CUSTODY_REQUIRED;
-    case BC_REC_STORE_DELETED: return BC_REC_ALREADY_EXISTS;
+    case BC_REC_STORE_DELETED: return BC_REC_NOT_FOUND;
+    case BC_REC_STORE_DELETE_ERROR: return BC_REC_WRITE_ERROR;
     default: return BC_REC_INVALID;
     }
 }
