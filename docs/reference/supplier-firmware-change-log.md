@@ -15,9 +15,11 @@ The ledger separates:
 - **device acceptance pending**: a physical Ring, fitted sensor/Flash, RF
   measurements, and supplier recovery/compiler checks are still required.
 
-S03 entries describe the engineering candidate in this source tree. Its
-[separate release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)
-records immutable source, CI, image hashes and SDK identity in `provenance.json`.
+This source tree remains **6.0.3.3S04 / S04 RC1**. The published
+[RC1 release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)
+pins source `84c91fc` and its original compiled assets; later S04 source fixes
+do not change those downloads. S03 entries and their separate release retain
+historical source, CI, image hashes and SDK identity in `provenance.json`.
 No entry is a claim about firmware installed on a physical Ring or signed OTA readiness.
 
 ## Version and evidence map
@@ -27,7 +29,8 @@ No entry is a claim about firmware installed on a physical Ring or signed OTA re
 | F0 | Factory baseline, 6.0.3.3Z62 | Git baseline 102bfd2; the imported SDK is recorded in [firmware/source-manifest.json](../../firmware/source-manifest.json). The extracted factory image is documented in [ring-firmware.md](ring-firmware.md). |
 | S01 | 6.0.3.3S01; published unsigned RC1 | Tag [v6.0.3.3S01-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S01-rc.1), source commit bde62175ea2c3c64a0f633abb6d06d05595d9cc7, CI run 33998477755. The GitHub release assets and tag are immutable evidence for that build. |
 | S02 | 6.0.3.3S02; published on main | Commits 2ba1aa5, 7ffd2c8, and merge 0860373. S02 has source and host/CI evidence, but no separate S02 release asset set. The older S01 binary/checksums remain unchanged. |
-| S03 | 6.0.3.3S03; engineering candidate | The candidate changes [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h), recording service/protocol, motor, ADC, PMIC, and related tests. Use the separate S03 release provenance to identify the compiled source. The matching app transport/protocol work is commit [492af2a](https://github.com/ShopItalic/app/commit/492af2ad40949de3d54419df5e2fa140c912b94f), merged through [app PR #12](https://github.com/ShopItalic/app/pull/12) into main `664ea438c7265d57885f926e589acb0faa1d05ca`. |
+| S03 | 6.0.3.3S03; historical unsigned RC1 | The candidate changes [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h), recording service/protocol, motor, ADC, PMIC, and related tests. Use the separate S03 release provenance to identify the compiled source. The matching app transport/protocol work is commit [492af2a](https://github.com/ShopItalic/app/commit/492af2ad40949de3d54419df5e2fa140c912b94f), merged through [app PR #12](https://github.com/ShopItalic/app/pull/12) into main `664ea438c7265d57885f926e589acb0faa1d05ca`. |
+| S04 | 6.0.3.3S04; current unsigned RC1 designation | Published tag `v6.0.3.3S04-rc.1` pins `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`. Main `b75da24` adds PR #4 startup/touch/BLE fixes; later source validation is recorded below. Published downloads remain the tagged build. S04 app adoption and physical qualification remain open. |
 
 The relevant source sequence is visible with:
 
@@ -1002,6 +1005,54 @@ pairing, bonded reconnect and notification subscriptions on a spare Ring.
 - No wire format, default mapping, supplier license or published release asset
   changed. No physical flash, radio pairing, ArmCC reproduction or signing was
   performed. Existing GNU supplier-archive wchar/syscall warnings remain.
+
+## S04 archive result mappings and evidence synchronization
+
+### S04-009 — Report deleted audio and failed cleanup accurately
+
+Status: implemented in source commit
+`c00295639c1e2f5a192de9916ec15a84369a6563`, under the existing
+**6.0.3.3S04 / S04 RC1** designation. Published tag `v6.0.3.3S04-rc.1`
+and its downloads still pin `84c91fc`; these later source changes do not
+replace that bundle.
+
+- Native RESUME with a fresh transfer token after receipted audio has been
+  deleted now returns **NOT_FOUND (18)**. The prior native mapping returned
+  **ALREADY_EXISTS (14)**, a recording-identity collision result. Start replay
+  and collision handling use their existing path and remain unchanged.
+- A raw-file removal I/O failure after a checked receipt now returns
+  **WRITE_ERROR (7)** instead of the generic **INVALID (1)**. The receipt
+  remains intact. An exact receipt/delete retry can finish cleanup; retrying
+  after raw removal is also successful. The firmware does not change custody
+  authorization, automatically delete other recordings, or add wire values.
+
+Source: [native service](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c).
+The [service harness](../../tests/firmware/test_voice_service.c) exercises
+native RESUME after deletion, wrong byte-count/CRC rejection, a NOR program
+failure during real LittleFS removal, intact receipt/raw data after failure,
+cleanup retry, already-removed retry, and Start replay/collision handling.
+The extended service suite produces **1,548 checks, two failures** against the
+original mapping, and **1,548 checks, zero failures** with this fix; both were
+independently reproduced during supervisor verification.
+
+The complete host run passes **17,006 checks across 24 C suites**, plus six
+archive-normalizer tests and both BLE event-routing harness builds, under
+ASan/UBSan. Baseline verification still matches all **7,056 factory files**.
+The MBA GNU 15.2.rel1 build of the code commit above compiles/links **225
+objects with zero undefined symbols** and passes startup/vector/memory checks.
+Its isolated-worktree BIN is **313,732 bytes**, SHA-256
+`48c472d27262015eabc2c40635f0c36df761178157860f2f61e867d29ceb3cbb`.
+The image contains `6.0.3.3S04`. This is a local build measurement: diagnostic
+source paths are embedded, so a different checkout path or CI build has its
+own size and checksum. Existing supplier wchar/newlib syscall warnings remain.
+
+Current documentation now distinguishes source evidence from the published
+RC1 bundle and historical S02/S03 evidence, names the two different populations
+of 238 exclusions, and states that S04 app adoption is not implemented by the
+verified S03 app. The retained gamepad helper already has its invalid-handle
+check; no repeat code change was needed. Physical audio/touch/radio/power
+qualification, supplier ArmCC reproduction, signing, DFU and recovery remain
+open. No Ring was flashed.
 
 ## How to append future changes
 

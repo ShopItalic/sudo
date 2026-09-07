@@ -71,16 +71,17 @@ and charging-case parts, and unresolved specifications.
   memo toggle. Previous memo opt-out remains respected during migration.
   Mappings persist independently from lights/haptics. A hold mapped to PTT
   also stops an active memo; other hold mappings follow their selected action.
-- **Faster bounded packet scheduling.** Up to four fragments of one message per
+- **Bounded packet scheduling.** Up to four fragments of one message per
   worker pass, with the same wire bytes and one archive read/verification step.
   A full FILE block at ATT payload 20 takes 8 host-harness polls instead of 29;
   actual radio throughput remains to be measured.
 - **Reliable transfer retries.** Delayed cumulative ACKs remain valid across
   rewind. A 30-second lack of real progress cancels abandoned archive work;
   retired tokens cannot reopen it. Source audio and custody remain intact.
-- **Exact download proof reuse in the SDK.** A verified full download can avoid
-  a second Bluetooth read when the connection, recording and durable receipt
-  match. Partial resumes and reconnects retain full verification.
+- **S03 SDK download proof reuse (historical).** The published S03 client can
+  avoid a second Bluetooth read after a verified full download when the
+  connection, recording and durable receipt match. Partial resumes and
+  reconnects retain full verification. S04 client adoption is a separate task.
 - **Configurable lights, haptics and touch.** Persisted master settings mute
   normal application output, including manual cues. Strength, recording pulse
   durations and touch thresholds are configurable. Startup/bootloader output
@@ -98,13 +99,14 @@ Opus source is preserved in the supplier SDK but excluded from this target.
 PTT runs until release; capture/touch faults, full storage or power loss can
 still end capture. Memo/app recording keeps its separate optional duration limit.
 
-S04 passes **16,902 checks across 24 C suites**, six archive-normalizer tests,
-and a **225-source GNU ARM build** with zero undefined symbols. GitHub CI
-confirms the source checks; physical measurements remain outstanding.
-The S04 release's `provenance.json` identifies the exact source, CI run,
-client compatibility boundary and hashes. No Ring was flashed during preparation; physical
-audio/radio/power qualification, supplier compiler/ABI review, signing and
-proven recovery are still required.
+Current S04 source passes **17,006 checks across 24 C suites**, six
+archive-normalizer tests and both BLE event-routing harness builds. The GNU
+build compiles/links **225 objects with zero undefined symbols**. See the
+[current S04 evidence table](docs/reference/ring-firmware-candidate.md#current-s04-evidence-and-controls)
+for the verified source commit, local image checksum and validation boundaries.
+The published S04 RC1 bundle still pins source `84c91fc` and its original
+release-era evidence. No Ring was flashed; physical audio/radio/power
+qualification, supplier compiler/ABI review, signing and recovery remain open.
 
 ## Current S04 release versus factory
 

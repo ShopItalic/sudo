@@ -1,6 +1,12 @@
 # Ring Voice protocol v1 (candidate)
 
-This document records the candidate voice protocol implemented by the firmware and iOS source in this review. It is a source contract for the candidate service on the existing BCL characteristic. It makes no claim of a physical-ring test, measured performance, signed image, or flash/deployment result. The firmware labels this extension candidate-only: [bc_voice_wire.h](../../firmware/bc_ros/bc_module/recording/bc_voice_wire.h).
+This document records the candidate voice protocol implemented by the firmware.
+The iOS paths cited below show the existing adapter and the requirements for a
+future S04 integration; the checked app does not yet accept S04. It is a source
+contract for the candidate service on the existing BCL characteristic. It makes
+no claim of a physical-ring test, measured performance, signed image, or
+flash/deployment result. The firmware labels this extension candidate-only:
+[bc_voice_wire.h](../../firmware/bc_ros/bc_module/recording/bc_voice_wire.h).
 
 Primary firmware sources are firmware/bc_ros/bc_module/recording/bc_voice_wire.h and .c for framing, bc_voice_protocol.h and bc_voice_service.c for messages and service behavior, bc_recording.h for state/results, and firmware/bc_ros/bc_application/app_sudo_voice.c for the standard worker. The app mirror is apps/ios/Sudo/Services/RingVoiceWire.swift, RingVoiceProtocol.swift, RingVoiceConnection.swift, RingVoiceRecordingTransport.swift, RingVoiceLiveReceiver.swift, RingVoiceLivePreview.swift, and RingProductionBoard.swift.
 
@@ -28,11 +34,15 @@ sequence u32 at 0; input u8 at 4 (hold 1, double 2, triple 3); phase u8 at 5
 (activated 1, released 2, cancelled 3); action 3 at 6; reserved zero at 7.
 Hold emits activation then release/cancellation; taps emit activation only.
 The four-entry queue and an in-flight event expire after one second; link
-changes clear them. The SDK rejects invalid/duplicate sequences within an epoch
-and does not persist or replay events. Consumers must handle loss, cancellation
+changes clear them. S04 clients must reject invalid/duplicate sequences within an epoch
+and must not persist or replay events. Consumers must handle loss, cancellation
 and disconnect rather than assuming reliable offline action execution.
 
-## Application controls in S02
+## Application controls in S02 (historical)
+
+This section preserves the S02 wire behavior. Current S04 input mappings use
+`INPUTS_SET`/`INPUTS_GET` above; they do not reinterpret the historical
+`memo_enabled` field described here.
 
 The post-RC1 S02 candidate uses the existing acknowledged SETTINGS and TUNING
 messages; no new packet layout is needed. SETTINGS enables/disables double-tap
@@ -197,7 +207,7 @@ LIVE is accepted only for the current recording and stream token, with sequence 
 
 CATALOG returns one entry per request in ascending nonzero ID order. The end response is NOT_FOUND with recording ID 0 and the idle sentinel, not an OK snapshot. iOS skips zero/delivered terminal entries and active writing entries, rejects duplicate names or invalid metadata, and merges legacy entries after removing native-name duplicates: [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [RingVoiceRecordingTransport.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceRecordingTransport.swift).
 
-RESUME requires an existing nonempty source. Firmware verifies raw bytes in steps of at most 1024 bytes and sends metadata only after verification. Verification/read failure emits an error and cancels the operation. A token is nonzero and monotonic; equal-token retry is limited to an active operation with the same recording and original offset. In S03, a retired token returns CANCELLED and a new attempt requires a higher token: [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c).
+RESUME requires an existing nonempty source. Firmware verifies raw bytes in steps of at most 1024 bytes and sends metadata only after verification. Verification/read failure emits an error and cancels the operation. A token is nonzero and monotonic; equal-token retry is limited to an active operation with the same recording and original offset. A fresh-token RESUME for already-deleted audio returns **NOT_FOUND (18)**. In S03, a retired token returns CANCELLED and a new attempt requires a higher token: [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c).
 
 FILE carries transfer token, absolute offset, and up to 220 raw bytes. The firmware allows six outstanding FILE blocks and retries stalled progress after 1500 ms. S03 preserves the outstanding block boundaries across rewind, so a delayed valid cumulative ACK remains acceptable; replay cannot regress the acknowledged cursor or consume new window slots. After 30 seconds without real verification progress or an advancing valid ACK, S03 closes the archive reader and cancels the transfer. Retries, duplicate ACKs and same-token RESUME requests do not renew that deadline. The deadline also covers blocked first fragments, mid-message stalls and an EOF resume with no outstanding blocks. It preserves the source file and custody state; a new transfer uses a higher token. The wire service accepts byte offsets within the verified file; the iOS ADPCM transport imposes the stricter 220-byte alignment rule except the exact end, full blocks before the final block, exact contiguous offsets/tokens, and a bounded six-block window: [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [RingVoiceRecordingTransport.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceRecordingTransport.swift).
 
@@ -210,7 +220,7 @@ The client calls its checkpoint before TRANSFER_ACK. It independently computes t
 | Checkpoint ACK | Kind 11 cumulative next byte offset reports a durably retained client prefix, not a complete recording identity. |
 | Exact receipt | Kind 12 exact recording ID, byte count, and raw CRC follows complete proof; only this permits firmware delivered state, with delete as a separate requested action. |
 
-RECEIPT is accepted only with exact ID/size/CRC; firmware records the receipt and honors delete only for that identity: [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [bc_recording.h](../../firmware/bc_ros/bc_module/recording/bc_recording.h); [RingVoiceRecordingTransport.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceRecordingTransport.swift).
+RECEIPT is accepted only with exact ID/size/CRC; firmware records the receipt and honors delete only for that identity. If raw removal after custody fails with a storage I/O error, the result is **WRITE_ERROR (7)**; the checked receipt tombstone remains intact and the same exact receipt/delete request can be retried safely to complete cleanup. These mappings keep the existing wire enum and underlying store/tombstone behavior unchanged: [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [bc_recording.h](../../firmware/bc_ros/bc_module/recording/bc_recording.h); [RingVoiceRecordingTransport.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceRecordingTransport.swift).
 
 ## 7. Settings and touch tuning
 
@@ -256,14 +266,31 @@ Legacy delete 0x12, format 0x13, and batch 0x1a do not claim success. Root legac
 
 BCL remains the CBPeripheral delegate. RingVoiceConnection installs a BCL public peripheral observer, which filters notifications by characteristic and 0x7e command marker and forwards ordered copied values to the native client. This source-level forwarding does not verify physical notification delivery; public observer physical forwarding is UNVERIFIED: [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
-The direct gate accepts hardware 603V1.23.2 and firmware 6.0.3.3S01, 6.0.3.3S02, 6.0.3.3S03 or 6.0.3.3S04 after fixed-field trimming. S02, S03 and S04 use application-wide feedback semantics through that exact version gate. Other board or firmware combinations do not pass the voice-protocol gate: [RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingProductionBoard.swift); [RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
+The S04 integration requirement is hardware 603V1.23.2 with firmware
+6.0.3.3S04 after fixed-field trimming, plus HELLO capability bits 9, 10 and 11
+and the INPUTS_SET/GET contract above. This is a requirement for a future S04
+client; it is not implemented by the currently verified app. At
+ShopItalic/app commit `664ea438`, `RingProductionBoard.swift:48` accepts only
+6.0.3.3S01, 6.0.3.3S02 and 6.0.3.3S03, and its capability gate ends at bit 8.
+S04 client adoption remains a separate task. Other board or firmware
+combinations do not pass the currently verified voice-protocol gate:
+[RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/664ea438c7265d57885f926e589acb0faa1d05ca/apps/ios/Sudo/Services/RingProductionBoard.swift);
+[RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/664ea438c7265d57885f926e589acb0faa1d05ca/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
-### S02 hold-to-stop escape
+### S02 hold-to-stop escape (historical)
 
-When an enabled triple-tap recording is active (S04), a hold requests Stop through
-the same drain-and-finalize path as a second triple tap. Repeated hold reports
-and release cannot start another clip; a new hold after release can start PTT.
-This does not interrupt an app-owned recording. It provides another gesture
-when a triple tap is missed, but still needs a functioning touch sensor.
+When an enabled double-tap recording is active in S02, a hold requests Stop
+through the same drain-and-finalize path as a second double tap. Repeated hold
+reports and release cannot start another clip; a new hold after release can
+start PTT. This does not interrupt an app-owned recording. It provides another
+gesture when a double tap is missed, but still needs a functioning touch sensor.
 Supplier testing must reproduce the reported stuck double-tap behavior on
 physical hardware; passing host tests does not establish its original cause.
+
+### S04 memo-stop mapping
+
+In S04, a hold mapped to PTT requests Stop when an active recording is a memo.
+A hold mapped to another action does not add an implicit stop action. Any input
+mapped to memo toggle can stop that memo. Repeated reports and release are
+handled by the same drain-and-finalize owner; physical sensor behavior remains
+pending acceptance.

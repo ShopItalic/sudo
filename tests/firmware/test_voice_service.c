@@ -1997,10 +1997,12 @@ static void test_query_catalog_receipt_and_id_custody(void)
     const bc_voice_message *response;
     unsigned before;
     int32_t read_count;
+    uint32_t first_crc;
 
     CHECK(fixture_setup(&f));
     CHECK(record_complete(&f, &first, 1U, 0x50U, first_raw, 10U));
     CHECK(record_complete(&f, &second, 1U, 0x60U, second_raw, 20U));
+    first_crc = bc_voice_crc32(first_raw, sizeof(first_raw));
     snapshot = *bc_recording_snapshot(&f.recording);
     CHECK(snapshot.start.id == second.id && snapshot.file.complete);
 
@@ -2077,9 +2079,10 @@ static void test_query_catalog_receipt_and_id_custody(void)
     CHECK(response != NULL && response->payload[4] == BC_REC_NOT_FOUND &&
           bc_voice_get64(response->payload + 5) == 0U);
 
-    /* Wrong custody data never retires raw bytes. */
+    /* Wrong custody data never authorizes raw retirement, even when delete is
+     * requested. Check both the exact byte count and raw CRC. */
     encode_receipt(extra, first.id, BC_REC_FRAME_MAX + 1U,
-                   snapshot.file.crc32, false);
+                   first_crc, true);
     before = f.sink.message_count;
     CHECK(send_request(&f, BC_VOICE_RECEIPT, 405U, extra, 17U, 244U, 80U,
                        false));
@@ -2089,9 +2092,25 @@ static void test_query_catalog_receipt_and_id_custody(void)
     read_count = bc_rec_store_read(&f.store, first.id, 0U, first_raw,
                                    sizeof(first_raw));
     CHECK(read_count == (int32_t)sizeof(first_raw));
+    CHECK(bc_rec_store_lookup(&f.store, first.id, &stored_start, &stored_file) ==
+          BC_REC_STORE_OK && !stored_file.delivered);
 
     encode_receipt(extra, first.id, BC_REC_FRAME_MAX,
-                   bc_voice_crc32(first_raw, sizeof(first_raw)), false);
+                   bc_voice_crc32(first_raw, sizeof(first_raw)) ^ 1U, true);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RECEIPT, 4051U, extra, 17U, 20U, 85U,
+                       false));
+    CHECK(pump(&f, 85U, 20U) != 0U);
+    response = find_response(&f, before, BC_VOICE_RECEIPT, 4051U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_CUSTODY_REQUIRED);
+    read_count = bc_rec_store_read(&f.store, first.id, 0U, first_raw,
+                                   sizeof(first_raw));
+    CHECK(read_count == (int32_t)sizeof(first_raw));
+    CHECK(bc_rec_store_lookup(&f.store, first.id, &stored_start, &stored_file) ==
+          BC_REC_STORE_OK && !stored_file.delivered);
+
+    encode_receipt(extra, first.id, BC_REC_FRAME_MAX,
+                   first_crc, false);
     before = f.sink.message_count;
     CHECK(send_request(&f, BC_VOICE_RECEIPT, 406U, extra, 17U, 20U, 90U,
                        false));
@@ -2114,6 +2133,21 @@ static void test_query_catalog_receipt_and_id_custody(void)
                             sizeof(first_raw)) == BC_REC_STORE_DELETED);
     CHECK(bc_rec_store_lookup(&f.store, first.id, &stored_start, &stored_file) ==
           BC_REC_STORE_OK && stored_file.delivered);
+
+    /* A tombstone is a checked terminal receipt, so a native RESUME after raw
+     * cleanup reports absence through the wire protocol. */
+    {
+        uint8_t resume_extra[16];
+        encode_resume(resume_extra, first.id, 0U, 0x410001U);
+        before = f.sink.message_count;
+        CHECK(send_request(&f, BC_VOICE_RESUME, 4071U, resume_extra,
+                           sizeof(resume_extra), 244U, 105U, false));
+        CHECK(pump(&f, 105U, 244U) != 0U);
+        response = find_response(&f, before, BC_VOICE_RESUME, 4071U);
+        CHECK(response != NULL && response->payload[4] == BC_REC_NOT_FOUND);
+        CHECK(!f.service.verifying && !f.service.transferring &&
+              !f.service.reader.open && !f.store.reader_active);
+    }
 
     /* Tombstone replay is metadata-only and never starts capture. */
     {
@@ -2139,6 +2173,86 @@ static void test_query_catalog_receipt_and_id_custody(void)
         CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
         CHECK(f.capture_start_count == starts);
     }
+    fixture_destroy(&f);
+}
+
+static void test_delete_failure_preserves_custody_and_retries(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x4010U, BC_REC_APP, 0U);
+    uint8_t raw[BC_REC_FRAME_MAX];
+    uint8_t extra[17];
+    uint8_t reread[BC_REC_FRAME_MAX];
+    uint32_t crc32;
+    bc_rec_start stored_start;
+    bc_rec_file stored_file;
+    const bc_voice_message *response;
+    unsigned before;
+    int32_t read_count;
+
+    CHECK(fixture_setup(&f));
+    CHECK(record_complete(&f, &start, 1U, 0x70U, raw, 10U));
+    crc32 = bc_voice_crc32(raw, sizeof(raw));
+    (void)pump(&f, 50U, 244U);
+    clear_messages(&f);
+
+    /* Persist the exact checked receipt first. The separate cleanup request
+     * lets the test inject a failure specifically inside lfs_remove(). */
+    encode_receipt(extra, start.id, sizeof(raw), crc32, false);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RECEIPT, 410U, extra, sizeof(extra),
+                       244U, 60U, false));
+    CHECK(pump(&f, 60U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_RECEIPT, 410U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    CHECK(bc_rec_store_lookup(&f.store, start.id, &stored_start, &stored_file) ==
+          BC_REC_STORE_OK && stored_file.complete && stored_file.delivered &&
+          stored_file.bytes == sizeof(raw) && stored_file.crc32 == crc32);
+    read_count = bc_rec_store_read(&f.store, start.id, 0U, reread,
+                                   sizeof(reread));
+    CHECK(read_count == (int32_t)sizeof(reread) &&
+          memcmp(reread, raw, sizeof(raw)) == 0);
+
+    /* Fail the next NOR program operation. The only write in this request is
+     * the LittleFS directory removal; receipt() sees the existing tombstone
+     * and remains idempotent. */
+    f.ram.fail_prog_call = f.ram.prog_calls + 1U;
+    encode_receipt(extra, start.id, sizeof(raw), crc32, true);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RECEIPT, 411U, extra, sizeof(extra),
+                       244U, 70U, false));
+    CHECK(pump(&f, 70U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_RECEIPT, 411U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_WRITE_ERROR);
+    CHECK(f.ram.fail_prog_call == 0U);
+    CHECK(bc_rec_store_lookup(&f.store, start.id, &stored_start, &stored_file) ==
+          BC_REC_STORE_OK && stored_file.complete && stored_file.delivered &&
+          stored_file.bytes == sizeof(raw) && stored_file.crc32 == crc32);
+    read_count = bc_rec_store_read(&f.store, start.id, 0U, reread,
+                                   sizeof(reread));
+    CHECK(read_count == (int32_t)sizeof(reread) &&
+          memcmp(reread, raw, sizeof(raw)) == 0);
+
+    /* The checked tombstone and untouched raw bytes make cleanup retryable. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RECEIPT, 412U, extra, sizeof(extra),
+                       20U, 80U, false));
+    CHECK(pump(&f, 80U, 20U) != 0U);
+    response = find_response(&f, before, BC_VOICE_RECEIPT, 412U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    CHECK(bc_rec_store_read(&f.store, start.id, 0U, reread,
+                            sizeof(reread)) == BC_REC_STORE_DELETED);
+    CHECK(bc_rec_store_lookup(&f.store, start.id, &stored_start, &stored_file) ==
+          BC_REC_STORE_OK && stored_file.delivered &&
+          stored_file.bytes == sizeof(raw) && stored_file.crc32 == crc32);
+
+    /* A retry after the raw file is already gone is also idempotent. */
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_RECEIPT, 413U, extra, sizeof(extra),
+                       244U, 90U, false));
+    CHECK(pump(&f, 90U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_RECEIPT, 413U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
     fixture_destroy(&f);
 }
 
@@ -2659,6 +2773,7 @@ int main(void)
     test_archive_only_real_progress_renews_stall();
     test_archive_verification_stall_and_progress();
     test_query_catalog_receipt_and_id_custody();
+    test_delete_failure_preserves_custody_and_retries();
     test_settings_errors_and_archive_cancellation();
     test_phone_outcome_lease_and_callback();
     test_tuning_contract_and_busy();

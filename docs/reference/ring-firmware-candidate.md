@@ -6,9 +6,9 @@ resumable BLE for the production **603V1.23.2** Ring. App adapters live separate
 S04 client adoption is outside this firmware-only change.
 
 Production source and host fault harnesses share the same recording, capture,
-gesture, storage and protocol logic. The integrated GNU target compiles and links
-all 225 sources with no undefined symbols. S04 RC1 is the current unsigned
-engineering prerelease. Historical S03 RC1 is also retained as an unsigned
+gesture, storage and protocol logic. Current software evidence is pinned in the
+[current S04 evidence table](#current-s04-evidence-and-controls) to an exact
+source commit. S04 RC1 is the current unsigned engineering prerelease. Historical S03 RC1 is also retained as an unsigned
 engineering prerelease; the older S01 RC1 remains unchanged. S02 was an
 intermediate source version. No candidate has been flashed or signed here. Physical
 radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
@@ -57,7 +57,7 @@ The original supplier archive `1.23.2_6033固件SDK.zip` was copied before editi
 - Local copy: `.local/factory-sdk/1.23.2_6033固件SDK.zip`, excluded from Git.
 - Reviewed source baseline: Git commit **`102bfd2`** on this branch.
 - [Source manifest](../../firmware/source-manifest.json): 7,056 imported files,
-  209,717,697 original bytes, and 238 exclusions. Encodings, line endings,
+  209,717,697 original bytes, and 238 archive import exclusions. Encodings, line endings,
   notices, and vendor library inputs were preserved. Signing material, generated
   images, caches, and unrelated media were excluded.
 - The [factory BIN/HEX/OTA evidence](ring-firmware.md) remains unchanged.
@@ -166,9 +166,10 @@ The cap is not an iOS execution guarantee; Mac/HID forwarding is not implemented
 selects **Sudo Voice 1.23.2**. Its deterministic generator preserves the original
 board/SoftDevice/memory settings and original Arm Compiler **5.06 update 7,
 build 960** selection. It currently selects **227 project entries** and excludes
-**238** unrelated/replaced entries; those are project-entry counts, not linked
-object counts or flash savings. The original project and immutable import
-remain available for supplier baseline reproduction.
+**238 project entries from the voice target**; this is a different population
+from the archive import exclusions above, and neither count is a linked-object
+count or flash saving. The original project and immutable import remain
+available for supplier baseline reproduction.
 
 The independent GNU driver uses official **Arm GNU 15.2.rel1** (GCC 15.2.1,
 Binutils 2.45.1), real vendor SDK headers, Nordic GCC startup and FreeRTOS port.
@@ -201,15 +202,34 @@ Static section fit alone cannot establish FreeRTOS heap high-water marks,
 worst-case stack or physical timing. No warning is silently equated with a
 successful hardware qualification.
 
-## Current S04 controls and cleanup
+## Current S04 evidence and controls
 
-The September 7 local GNU build passed 225/225 sources, no undefined symbols,
-startup/vector and runtime-lock checks. BIN is 312,436 bytes (SHA-256
-`27b6f33f33fd8cf1bbd831508f779997aafe0b96164bc4f4e61f57a32cc5dbe5`);
-static RAM is 203,800 bytes plus separate 8 KiB heap and 8 KiB MSP reservations.
-Current host suites cover 16,902 C checks plus six archive-normalizer tests.
-One supplier wchar ABI warning and eight newlib stub warnings remain; static
-fit is not measured free heap or hardware qualification.
+The firmware and test source below was verified on the MBA at commit
+`c00295639c1e2f5a192de9916ec15a84369a6563`. This includes the archive
+result-mapping fixes after the earlier `b75da24` main build.
+
+| Evidence | Verified result | Boundary |
+| --- | --- | --- |
+| Host C suites | **17,006 checks across 24 C suites** | ASan/UBSan production-code host checks, including receipt/delete failure and retry. |
+| Archive normalizer | **6 tests** | Separate archive conversion regression coverage. |
+| BLE event routing | **2 harness builds** | Production switch-case routing; no over-the-air pairing or goodput measurement. |
+| Factory baseline | **7,056 files match** | Preserved Git baseline checked against the import manifest. |
+| GNU target | **225 objects**, zero undefined symbols; startup/vector/memory checks passed | GNU 15.2.rel1 evidence, not ArmCC reproduction or physical qualification. |
+| Local GNU BIN | **313,732 bytes**, SHA-256 `48c472d27262015eabc2c40635f0c36df761178157860f2f61e867d29ceb3cbb` | Unsigned MBA isolated-worktree artifact; contains the expected `6.0.3.3S04` string. |
+
+The build embeds diagnostic source paths, so another checkout or the Linux CI
+build has its own size and checksum. Source hashes and exact build provenance
+identify the artifact. One supplier wchar ABI warning and eight newlib stub
+warnings remain; static fit does not measure free heap or physical behavior.
+
+The designation remains **S04 / RC1**. Published tag `v6.0.3.3S04-rc.1` and
+its downloads still pin source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
+Their release-era **16,902 C checks** and image hashes remain historical
+bundle evidence; they are not the numbers for current source. The earlier
+`b75da24` source passed 16,970 checks and [main CI run
+34080036805](https://github.com/ShopItalic/sudo/actions/runs/34080036805).
+Physical qualification, supplier compiler/ABI review, signing and recovery
+remain open.
 
 S04 removes the artificial PTT duration cap and adds three independently mapped
 physical inputs: hold, double tap (off by default) and triple tap. The hold

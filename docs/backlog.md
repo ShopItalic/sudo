@@ -20,6 +20,12 @@ product decisions:
   measure catalog/start latency and space with many recordings and `.done`
   receipts. No lifetime-capacity result is claimed.
 
+- **Broaden focused validation.** Add an expected-version check to the built
+  image validation, allocation-failure tests for the remaining required workers,
+  and a real-encoder known-vector test. The current capture harness uses a
+  deterministic encoder shim and worker tests stub capture; those results do
+  not establish supplier codec fidelity or physical timing.
+
 - **Physical qualification and measurements.** On a spare, identified
   production ring, read back the board and firmware identity; measure PDM/audio
   framing, PTT release and stop timing, connected and standalone capture, BLE
