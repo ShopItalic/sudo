@@ -438,7 +438,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 //            //不支持配对
 //            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
 //            APP_ERROR_CHECK(err_code);
-//			break;
+            /* HID pairing is answered by Peer Manager. Never clear GATT
+             * system attributes in response to a GAP security request. */
+            break;
 		} 
 				//系统属性访问正在等待中
 		case BLE_GATTS_EVT_SYS_ATTR_MISSING:

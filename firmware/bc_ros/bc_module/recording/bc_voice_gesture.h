@@ -26,6 +26,7 @@ typedef struct {
     bool (*input_event)(void *ctx, uint8_t input, uint8_t phase);
     bool inputs_configured, contact_active, app_hold_active;
     bool hold_attempted;
+    bool await_release; /* Fault recovery permits config, but not stale actions. */
     bool have_report;
     bool have_tap[2];
 } bc_voice_gesture;
