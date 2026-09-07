@@ -83,14 +83,14 @@ replace the supplier pin map or adapt the older Nordic prototype by assumption.
 
 ## Current S04 validation boundary
 
-Current S04 software evidence is centralized in the [candidate's current S04
-evidence table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls).
-It is pinned to the verified `b75da242f6df0c133b4c8705af33b8a075a8a829`
-baseline, checked on the MBA before the pending result-mapping follow-up.
-The follow-up test count and combined-head build/CI values remain pending
-supervisor integration. `sh tools/firmware/test.sh` remains the host validation
-entry point. Host assertions, archive normalization, BLE routing harnesses and
-the GNU link do not establish physical Ring behavior.
+Current source passes **17,006 checks across 24 C suites**, six archive-normalizer
+tests and both BLE event-routing harness builds. The GNU build compiles/links
+**225 objects with zero undefined symbols**. The [current S04 evidence
+table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls)
+pins source `c002956`, the measured local BIN and its checksum.
+`sh tools/firmware/test.sh` remains the host validation entry point.
+Host assertions, archive normalization, BLE routing harnesses and the GNU
+link do not establish physical Ring behavior.
 
 The published S04 RC1 assets remain unchanged at tag `v6.0.3.3S04-rc.1`,
 pointing to source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`; release-era

@@ -13,14 +13,12 @@ PTT until release, three independently mapped inputs, adjustable hold activation
 persisted light/haptic controls and conservative cleanup. Fresh defaults are
 one-second hold to PTT, double tap off and triple tap to memo toggle.
 
-Current software evidence is pinned in the [candidate's current S04 evidence
-table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls),
-which records the verified `b75da242f6df0c133b4c8705af33b8a075a8a829` baseline
-before the pending result-mapping follow-up. Those measurements are not the
-eventual combined-head results. The published S04 RC1 assets remain unchanged
-at tag `v6.0.3.3S04-rc.1` pointing to `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
-It remains an unsigned engineering prerelease, without physical qualification.
-S04 client integration is outside this firmware-only change.
+Current source passes **17,006 C checks across 24 suites**, six archive-normalizer
+tests, both BLE event-routing harness builds and the 225-object GNU build.
+The [current S04 evidence table](reference/ring-firmware-candidate.md#current-s04-evidence-and-controls)
+pins the verified source and local image checksum. Published S04 RC1 downloads
+remain the `84c91fc` build. S04 is unsigned and physically unqualified;
+S04 client integration remains outside this firmware-only change.
 Published S03 RC1 and historical S01 RC1 retain their pinned source and binaries.
 
 - [S03 changes and qualification plan](reference/ring-s03-reliability.md).

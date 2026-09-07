@@ -7,9 +7,8 @@ S04 client adoption is outside this firmware-only change.
 
 Production source and host fault harnesses share the same recording, capture,
 gesture, storage and protocol logic. Current software evidence is pinned in the
-current S04 evidence table below to an exact source commit; the table labels the
-verified baseline and the pending follow-up separately. S04 RC1 is the current
-unsigned engineering prerelease. Historical S03 RC1 is also retained as an unsigned
+[current S04 evidence table](#current-s04-evidence-and-controls) to an exact
+source commit. S04 RC1 is the current unsigned engineering prerelease. Historical S03 RC1 is also retained as an unsigned
 engineering prerelease; the older S01 RC1 remains unchanged. S02 was an
 intermediate source version. No candidate has been flashed or signed here. Physical
 radio speed, audio fidelity, touch behavior, battery use and power-loss recovery
@@ -205,29 +204,32 @@ successful hardware qualification.
 
 ## Current S04 evidence and controls
 
-The current software evidence below is pinned to exact source commit
-`b75da242f6df0c133b4c8705af33b8a075a8a829`, verified on the MBA before the
-pending result-mapping follow-up. These are baseline measurements for that
-commit. The supervisor must replace them with combined-head test, build and CI
-results after integration; until then, no row below describes the eventual
-combined head.
+The firmware and test source below was verified on the MBA at commit
+`c00295639c1e2f5a192de9916ec15a84369a6563`. This includes the archive
+result-mapping fixes after the earlier `b75da24` main build.
 
-| Evidence | Verified `b75da242` baseline | Boundary |
+| Evidence | Verified result | Boundary |
 | --- | --- | --- |
-| Host C suites | **16,970 checks across 24 C suites** | Sanitizer-backed production-code host checks; the follow-up count is pending. |
+| Host C suites | **17,006 checks across 24 C suites** | ASan/UBSan production-code host checks, including receipt/delete failure and retry. |
 | Archive normalizer | **6 tests** | Separate archive conversion regression coverage. |
-| BLE event-routing harness | **2 builds** | Separate event-routing build checks; this is not a radio-throughput measurement. |
-| GNU target | **225/225 objects**, zero undefined symbols; startup/vector and runtime-lock checks passed | Exact b75 baseline build evidence; this does not establish ArmCC equivalence or physical qualification. |
-| Local GNU BIN | **312,500 bytes**, SHA-256 `f63be8fb91a29455325562e40da2f48b3935795faf8e94e0e748d362c02f13eb` | Unsigned artifact from the exact b75 baseline rebuild. |
-| Exact-main CI | [Run 34080036805](https://github.com/ShopItalic/sudo/actions/runs/34080036805): **PASS** | CI for exact main/b75 baseline; it is not a result for the pending combined head. |
-| Follow-up state | **Pending supervisor integration** | Result-mapping changes may change the host count and artifact/CI provenance. |
+| BLE event routing | **2 harness builds** | Production switch-case routing; no over-the-air pairing or goodput measurement. |
+| Factory baseline | **7,056 files match** | Preserved Git baseline checked against the import manifest. |
+| GNU target | **225 objects**, zero undefined symbols; startup/vector/memory checks passed | GNU 15.2.rel1 evidence, not ArmCC reproduction or physical qualification. |
+| Local GNU BIN | **313,732 bytes**, SHA-256 `48c472d27262015eabc2c40635f0c36df761178157860f2f61e867d29ceb3cbb` | Unsigned MBA isolated-worktree artifact; contains the expected `6.0.3.3S04` string. |
 
-The published S04 RC1 assets remain unchanged at tag `v6.0.3.3S04-rc.1`,
-pointing to source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`. Their earlier
-release-era report records **16,902 C checks**; that value and its hashes stay
-attached to the immutable bundle and are separate from the b75 current-main
-baseline above. Physical qualification,
-supplier compiler/ABI review, signing and proven recovery remain open.
+The build embeds diagnostic source paths, so another checkout or the Linux CI
+build has its own size and checksum. Source hashes and exact build provenance
+identify the artifact. One supplier wchar ABI warning and eight newlib stub
+warnings remain; static fit does not measure free heap or physical behavior.
+
+The designation remains **S04 / RC1**. Published tag `v6.0.3.3S04-rc.1` and
+its downloads still pin source `84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`.
+Their release-era **16,902 C checks** and image hashes remain historical
+bundle evidence; they are not the numbers for current source. The earlier
+`b75da24` source passed 16,970 checks and [main CI run
+34080036805](https://github.com/ShopItalic/sudo/actions/runs/34080036805).
+Physical qualification, supplier compiler/ABI review, signing and recovery
+remain open.
 
 S04 removes the artificial PTT duration cap and adds three independently mapped
 physical inputs: hold, double tap (off by default) and triple tap. The hold

@@ -99,16 +99,14 @@ Opus source is preserved in the supplier SDK but excluded from this target.
 PTT runs until release; capture/touch faults, full storage or power loss can
 still end capture. Memo/app recording keeps its separate optional duration limit.
 
-Current software evidence is pinned to an exact source commit in the
-[current S04 evidence table](docs/reference/ring-firmware-candidate.md#current-s04-evidence-and-controls).
-That table records a verified `b75da242f6df0c133b4c8705af33b8a075a8a829`
-baseline before the pending result-mapping follow-up; its measurements are not
-the eventual combined-head results. The published S04 RC1 assets remain
-unchanged at tag `v6.0.3.3S04-rc.1`, which points to source
-`84c91fcbb2f2dec2514a8b79ce2908e1c7529fb8`; release-era provenance remains
-attached to that immutable bundle. No Ring was flashed during preparation;
-physical audio/radio/power qualification, supplier compiler/ABI review,
-signing and proven recovery are still required.
+Current S04 source passes **17,006 checks across 24 C suites**, six
+archive-normalizer tests and both BLE event-routing harness builds. The GNU
+build compiles/links **225 objects with zero undefined symbols**. See the
+[current S04 evidence table](docs/reference/ring-firmware-candidate.md#current-s04-evidence-and-controls)
+for the verified source commit, local image checksum and validation boundaries.
+The published S04 RC1 bundle still pins source `84c91fc` and its original
+release-era evidence. No Ring was flashed; physical audio/radio/power
+qualification, supplier compiler/ABI review, signing and recovery remain open.
 
 ## Current S04 release versus factory
 

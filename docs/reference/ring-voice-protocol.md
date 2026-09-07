@@ -34,8 +34,8 @@ sequence u32 at 0; input u8 at 4 (hold 1, double 2, triple 3); phase u8 at 5
 (activated 1, released 2, cancelled 3); action 3 at 6; reserved zero at 7.
 Hold emits activation then release/cancellation; taps emit activation only.
 The four-entry queue and an in-flight event expire after one second; link
-changes clear them. The SDK rejects invalid/duplicate sequences within an epoch
-and does not persist or replay events. Consumers must handle loss, cancellation
+changes clear them. S04 clients must reject invalid/duplicate sequences within an epoch
+and must not persist or replay events. Consumers must handle loss, cancellation
 and disconnect rather than assuming reliable offline action execution.
 
 ## Application controls in S02 (historical)
@@ -274,8 +274,8 @@ ShopItalic/app commit `664ea438`, `RingProductionBoard.swift:48` accepts only
 6.0.3.3S01, 6.0.3.3S02 and 6.0.3.3S03, and its capability gate ends at bit 8.
 S04 client adoption remains a separate task. Other board or firmware
 combinations do not pass the currently verified voice-protocol gate:
-[RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingProductionBoard.swift);
-[RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceConnection.swift).
+[RingProductionBoard.swift](https://github.com/ShopItalic/app/blob/664ea438c7265d57885f926e589acb0faa1d05ca/apps/ios/Sudo/Services/RingProductionBoard.swift);
+[RingVoiceConnection.swift](https://github.com/ShopItalic/app/blob/664ea438c7265d57885f926e589acb0faa1d05ca/apps/ios/Sudo/Services/RingVoiceConnection.swift).
 
 ### S02 hold-to-stop escape (historical)
 
