@@ -17,6 +17,9 @@
 #include <stdio.h>
 #include <string.h>
 
+/* glibc hides M_PI under strict C99; the suites define their own. */
+#define TEST_PI 3.14159265358979323846
+
 #define ARRAY_LEN(value) (sizeof(value) / sizeof((value)[0]))
 #define TEST_MAX_CODEC_CALLS 64U
 #define TEST_STORAGE_CAPACITY (BC_REC_FRAME_MAX * 256U)
@@ -582,7 +585,7 @@ static void fill_current(int16_t base)
         return;
     for (i = 0U; i < BC_CAPTURE_SAMPLES; ++i) {
         double t = (double)(test_signal_position + i) / BC_OPUS_PCM_NOMINAL_HZ;
-        buffer[i] = (int16_t)lrint(12000.0 * sin(2.0 * M_PI * test_signal_hz * t));
+        buffer[i] = (int16_t)lrint(12000.0 * sin(2.0 * TEST_PI * test_signal_hz * t));
     }
     test_signal_position += BC_CAPTURE_SAMPLES;
     if (test_block_count < TEST_MAX_BLOCKS)

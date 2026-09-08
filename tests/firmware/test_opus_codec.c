@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* glibc hides M_PI under strict C99; the suites define their own. */
+#define TEST_PI 3.14159265358979323846
+
 static unsigned checks, failures;
 static void check_condition(bool c, const char *e, unsigned line)
 {
@@ -36,15 +39,15 @@ static void synthesize(signal_kind kind, uint32_t rate, int16_t *out, size_t cou
         double v = 0.0;
         switch (kind) {
         case SIG_SILENCE: v = 0.0; break;
-        case SIG_SINE: v = 0.5 * sin(2.0 * M_PI * 440.0 * t); break;
+        case SIG_SINE: v = 0.5 * sin(2.0 * TEST_PI * 440.0 * t); break;
         case SIG_SPEECH: {
             /* Harmonic source with a slowly gliding pitch, formant-like
              * spectral tilt and syllabic amplitude envelope. */
-            double envelope = 0.5 * (1.0 - cos(2.0 * M_PI * 3.0 * t));
+            double envelope = 0.5 * (1.0 - cos(2.0 * TEST_PI * 3.0 * t));
             double sum = 0.0;
             unsigned h;
-            pitch = 120.0 + 40.0 * sin(2.0 * M_PI * 0.7 * t);
-            phase += 2.0 * M_PI * pitch / rate;
+            pitch = 120.0 + 40.0 * sin(2.0 * TEST_PI * 0.7 * t);
+            phase += 2.0 * TEST_PI * pitch / rate;
             for (h = 1; h <= 20U; ++h) {
                 double f = pitch * h;
                 double formant = 1.0 / (1.0 + pow((f - 600.0) / 250.0, 2.0)) +

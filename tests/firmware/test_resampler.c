@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* glibc hides M_PI under strict C99; the suites define their own. */
+#define TEST_PI 3.14159265358979323846
+
 static unsigned checks, failures;
 static void check_condition(bool c, const char *e, unsigned line)
 {
@@ -99,7 +102,7 @@ static void test_sine_fidelity_and_rate(void)
     size_t i, produced, consumed;
     double freq = 1000.0, signal = 0.0, noise = 0.0;
     for (i = 0; i < (size_t)IN_RATE * SECONDS; ++i)
-        in[i] = (int16_t)lrint(20000.0 * sin(2.0 * M_PI * freq * (double)i / IN_RATE));
+        in[i] = (int16_t)lrint(20000.0 * sin(2.0 * TEST_PI * freq * (double)i / IN_RATE));
     CHECK(bc_resampler_init(&r, IN_RATE, OUT_RATE));
     produced = bc_resampler_process(&r, in, (size_t)IN_RATE * SECONDS, out,
                                     sizeof(out) / sizeof(out[0]), &consumed);
@@ -108,7 +111,7 @@ static void test_sine_fidelity_and_rate(void)
      * primes with x[-1] = 0 and introduces no delay (see the unity test). */
     for (i = 200U; i + 200U < produced; ++i) {
         double t = ((double)i * r.in_rate / r.out_rate) / IN_RATE;
-        double ideal = 20000.0 * sin(2.0 * M_PI * freq * t);
+        double ideal = 20000.0 * sin(2.0 * TEST_PI * freq * t);
         double error = (double)out[i] - ideal;
         signal += ideal * ideal;
         noise += error * error;
