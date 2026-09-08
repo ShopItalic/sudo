@@ -1,0 +1,22 @@
+{
+  "name": "profile-short-frame-plus-one",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 12000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 321,
+  "packets": 2,
+  "minPacketBytes": 30,
+  "maxPacketBytes": 30,
+  "decodedSamples": 640,
+  "trimmedSamples": 321,
+  "trailerSamples": 321,
+  "containerBytes": 88,
+  "chunkCount": 1,
+  "maxChunkBytes": 88
+}

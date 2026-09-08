@@ -1,0 +1,22 @@
+{
+  "name": "profile-speech",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 12000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 32000,
+  "packets": 101,
+  "minPacketBytes": 30,
+  "maxPacketBytes": 30,
+  "decodedSamples": 32320,
+  "trimmedSamples": 32000,
+  "trailerSamples": 32000,
+  "containerBytes": 3256,
+  "chunkCount": 17,
+  "maxChunkBytes": 208
+}

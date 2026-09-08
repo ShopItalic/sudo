@@ -1,0 +1,22 @@
+{
+  "name": "cbr-24k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 24000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 16000,
+  "packets": 51,
+  "minPacketBytes": 60,
+  "maxPacketBytes": 60,
+  "decodedSamples": 16320,
+  "trimmedSamples": 16000,
+  "trailerSamples": 16000,
+  "containerBytes": 3186,
+  "chunkCount": 17,
+  "maxChunkBytes": 202
+}
