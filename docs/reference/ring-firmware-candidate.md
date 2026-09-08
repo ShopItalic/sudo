@@ -202,6 +202,29 @@ Static section fit alone cannot establish FreeRTOS heap high-water marks,
 worst-case stack or physical timing. No warning is silently equated with a
 successful hardware qualification.
 
+## Experimental S05 Opus evidence (branch codex/opus-audio)
+
+The `codex/opus-audio` branch records new audio as 16 kHz Opus (libopus 1.6.1
+fixed point, 12 kbps CBR, 20 ms, complexity 0) inside the Sudo container and
+identifies itself as **6.0.3.3S05** so no S04-gated client can mistake it.
+Existing ADPCM recordings stay readable; the published S04 RC1 is unchanged.
+See [S05 in the change ledger](supplier-firmware-change-log.md#s05-opus-recording--september-8-2026)
+and the [protocol](ring-voice-protocol.md#s05-opus-recording-and-format-discovery-experimental).
+
+| Evidence | Result on the MBA | Boundary |
+| --- | --- | --- |
+| Host C suites | all suites pass under ASan/UBSan, including real libopus encode→decode, resampler, container, metadata v1/v2, service format discovery and the Opus capture adapter | Host checks; no device timing |
+| Encoder memory | state 15,268 B; pseudostack bound 20,480 B (profile high-water 14,140 B, worst host scenario 21,572 B at 48 kHz, host 64-bit); 64-byte canary | Allocated once from the FreeRTOS heap at worker start; heap high-water unmeasured |
+| Encoded size | 30-byte packets every 20 ms at 12 kbps CBR; 208-byte container chunks hold six packets | ≈ 1.6 KB/s versus 4 KB/s ADPCM |
+| GNU target | 352 objects, zero undefined symbols, startup/vector/memory checks pass | GNU 15.2.rel1 evidence; ArmCC reproduction pending |
+| Flash / RAM | FLASH 457,132 B (60.3 %); static RAM 209,224 B (85.8 %) plus 8 KiB C heap and 8 KiB main stack; worker stack 3072 words | Static fit; no runtime high-water |
+| Local BIN | 464,424 B, SHA-256 `0f97fd4ece7d8762aa73d79c022bfa40da3f84388494ec16926c1a8b358de20e`; contains `6.0.3.3S05` | Unsigned engineering artifact, never flashed |
+| Fixtures | 54 shared Opus fixture files with a manifest and drift check | Consumed bit-exactly by the iOS tests |
+
+Physical CPU-deadline, battery and audio measurements remain explicit
+qualification gates; FORMAT_GET exposes the encoder instrumentation needed to
+take them on a Ring.
+
 ## Current S04 evidence and controls
 
 The firmware and test source below was verified on the MBA at commit

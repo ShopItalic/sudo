@@ -1,0 +1,22 @@
+{
+  "name": "rate-8k-cbr-12k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 8000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 12000,
+  "vbr": false,
+  "preSkip": 52,
+  "blockSamples": 160,
+  "inputSamples": 8000,
+  "packets": 51,
+  "minPacketBytes": 30,
+  "maxPacketBytes": 30,
+  "decodedSamples": 8160,
+  "trimmedSamples": 8000,
+  "trailerSamples": 8000,
+  "containerBytes": 1656,
+  "chunkCount": 9,
+  "maxChunkBytes": 208
+}

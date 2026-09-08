@@ -1,0 +1,22 @@
+{
+  "name": "rate-48k-cbr-24k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 48000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 24000,
+  "vbr": false,
+  "preSkip": 312,
+  "blockSamples": 960,
+  "inputSamples": 48000,
+  "packets": 51,
+  "minPacketBytes": 60,
+  "maxPacketBytes": 60,
+  "decodedSamples": 48960,
+  "trimmedSamples": 48000,
+  "trailerSamples": 48000,
+  "containerBytes": 3186,
+  "chunkCount": 17,
+  "maxChunkBytes": 202
+}

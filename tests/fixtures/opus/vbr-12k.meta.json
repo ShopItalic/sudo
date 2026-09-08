@@ -1,0 +1,22 @@
+{
+  "name": "vbr-12k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 12000,
+  "vbr": true,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 16000,
+  "packets": 51,
+  "minPacketBytes": 13,
+  "maxPacketBytes": 35,
+  "decodedSamples": 16320,
+  "trimmedSamples": 16000,
+  "trailerSamples": 16000,
+  "containerBytes": 1282,
+  "chunkCount": 7,
+  "maxChunkBytes": 213
+}

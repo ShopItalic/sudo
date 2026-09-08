@@ -506,6 +506,11 @@ int main(void)
     if (failures == 0U) {
         CHECK(write_old_file(&fs, old_name, old_data, sizeof(old_data)));
         CHECK(bc_rec_store_init(&store, &fs.lfs, name_for_start, NULL));
+        {
+            bc_audio_format legacy;
+            bc_audio_format_legacy_adpcm(&legacy);
+            CHECK(bc_rec_store_set_format(&store, &legacy));
+        }
         CHECK(create_record(&store, 1U, new_data, sizeof(new_data)));
         {
             struct send_sink sink;

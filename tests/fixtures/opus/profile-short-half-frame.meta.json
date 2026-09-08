@@ -1,0 +1,22 @@
+{
+  "name": "profile-short-half-frame",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 12000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 160,
+  "packets": 1,
+  "minPacketBytes": 30,
+  "maxPacketBytes": 30,
+  "decodedSamples": 320,
+  "trimmedSamples": 160,
+  "trailerSamples": 160,
+  "containerBytes": 56,
+  "chunkCount": 1,
+  "maxChunkBytes": 56
+}

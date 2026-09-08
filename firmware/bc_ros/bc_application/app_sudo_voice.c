@@ -34,6 +34,11 @@
 
 #define COMMAND_DEPTH 12U
 #define TOUCH_DEPTH 12U
+/* Words. The Opus encoder keeps its large temporaries on the bounded
+ * pseudostack, but its call chain still uses this task's C stack; the GNU
+ * build's -fstack-usage report and physical high-water measurement remain
+ * the qualification evidence for this reservation. */
+#define SUDO_VOICE_WORKER_STACK_WORDS 3072U
 #define SETTINGS_ATTR 0xa6U
 #define SETTINGS_SIZE 20U
 #define TUNING_ATTR 0xa7U
@@ -65,7 +70,7 @@ static bc_recording recording;
 static bc_voice_gesture gesture;
 static bc_voice_service service;
 static bc_voice_legacy_archive legacy;
-static bool mounted, powered, legacy_ready;
+static bool mounted, powered, legacy_ready, capture_prepared;
 static volatile bool initialized;
 static uint32_t idle_since_ms;
 static volatile bool working, touch_overflow;
@@ -142,6 +147,7 @@ static bool export_name(void *ctx, const bc_rec_start *start, char name[BC_REC_N
     lfs_dir_t directory;
     struct lfs_info info;
     char path[BC_REC_STORE_PATH_SIZE];
+    char existing[BC_REC_NAME_SIZE];
     uint8_t metadata[BC_REC_STORE_METADATA_SIZE];
     int result;
     unsigned i;
@@ -166,9 +172,10 @@ static bool export_name(void *ctx, const bc_rec_start *start, char name[BC_REC_N
         memcpy(path + sizeof(BC_REC_STORE_DIR), info.name, length + 1U);
         result = lfs_getattr(&filesystem, path, BC_REC_STORE_META_ATTR, metadata, sizeof(metadata));
         if (result == LFS_ERR_NOATTR) continue; /* Interrupted empty create. */
-        if (result != sizeof(metadata) || memcmp(metadata, "SREC", 4) != 0 ||
-            bc_voice_crc32(metadata, sizeof(metadata) - 4U) != bc_voice_get32(metadata + sizeof(metadata) - 4U) ||
-            memcmp(metadata + 44, name, BC_REC_NAME_SIZE) == 0) {
+        /* Older S01-S04 records carry an 88-byte attribute; current records
+         * carry 104 bytes. Either must decode, and neither may alias the name. */
+        if (result < 0 || !bc_rec_store_decode_metadata_name(metadata, (size_t)result, existing) ||
+            memcmp(existing, name, BC_REC_NAME_SIZE) == 0) {
             (void)lfs_dir_close(&filesystem, &directory); return false;
         }
     }
@@ -183,8 +190,16 @@ static bool mount_store(void)
     if (lfs_sfud_init(&filesystem) != 0) return false;
     mounted = bc_rec_store_init(&store, &filesystem, export_name, NULL);
     if (!mounted) (void)lfs_unmount(&filesystem);
-    else if (initialized)
-        legacy_ready = bc_voice_legacy_archive_init(&legacy, &filesystem, &store, send_packet, NULL);
+    else {
+        bc_audio_format format;
+        /* New recordings carry the prepared encoder's descriptor. Without a
+         * prepared encoder the store refuses to open, so Start fails with
+         * UNSUPPORTED instead of labeling audio with a guessed codec. */
+        if (capture_prepared && app_sudo_capture_format(&format))
+            (void)bc_rec_store_set_format(&store, &format);
+        if (initialized)
+            legacy_ready = bc_voice_legacy_archive_init(&legacy, &filesystem, &store, send_packet, NULL);
+    }
     return mounted;
 }
 
@@ -228,7 +243,14 @@ static bc_rec_result storage_append(void *ctx, const uint8_t *data, uint16_t len
 static bc_rec_result storage_checkpoint(void *ctx, bc_rec_file *file)
 { (void)ctx; return bc_rec_store_checkpoint(&store, file); }
 static bc_rec_result storage_finish(void *ctx, bool complete, bc_rec_file *file)
-{ (void)ctx; return bc_rec_store_finish(&store, complete, file); }
+{
+    (void)ctx;
+    /* The encoder's exact real sample count is persisted with the completion
+     * marker; partial recordings keep it unknown for the phone to derive. */
+    if (complete)
+        (void)bc_rec_store_set_final_samples(&store, app_sudo_capture_sample_count(store.active_id));
+    return bc_rec_store_finish(&store, complete, file);
+}
 
 static bc_rec_result capture_start(void *ctx, uint64_t id)
 {
@@ -246,6 +268,9 @@ static bc_rec_result capture_start(void *ctx, uint64_t id)
 
 static bool live(void *ctx, uint64_t id, uint32_t sequence, const uint8_t *data, uint16_t length)
 { (void)ctx; return bc_voice_service_live(&service, id, sequence, data, length); }
+
+static bool get_audio(void *ctx, bc_audio_format *format, bc_voice_audio_stats *stats)
+{ return app_sudo_capture_audio_stats(ctx, format, stats); }
 
 static void feedback_outcome_clear(void)
 {
@@ -644,10 +669,17 @@ static void run(void *ctx)
     bc_voice_outcome_port outcome_port = {NULL, set_outcome};
     bc_voice_tuning_port tuning_port = {NULL, get_tuning, save_tuning};
     bc_voice_inputs_port inputs_port = {NULL, get_inputs, save_inputs};
+    bc_voice_audio_port audio_port = {NULL, get_audio};
     bc_voice_gesture_config gesture_config = {0U, 0U, 750U, 300U, false};
     uint32_t last_epoch = 0;
     bool last_connected = false;
     (void)ctx;
+    app_sudo_capture_init(worker);
+    /* Prepare the Opus encoder before the store is mounted so the first
+     * mount can label new recordings. A failed preparation leaves recording
+     * unavailable (explicit UNSUPPORTED) while BLE, settings and archive
+     * access keep working. */
+    capture_prepared = app_sudo_capture_prepare();
     load_settings();
     load_inputs();
     /* Apply persisted application-wide feedback policy before accepting
@@ -659,13 +691,13 @@ static void run(void *ctx)
     gesture_config.ptt_limit_ms = settings.ptt_limit_ms;
     gesture_config.memo_limit_ms = settings.memo_limit_ms;
     gesture_config.memo_enabled = settings.memo_enabled;
-    app_sudo_capture_init(worker);
     if (!bc_recording_init(&recording, &port, &config) ||
         !bc_voice_gesture_init(&gesture, &recording, &gesture_config, new_id, NULL) ||
         !bc_voice_service_init(&service, &recording, &store, &gesture, &service_port, &settings) ||
         !bc_voice_service_set_outcome_port(&service, &outcome_port) ||
         !bc_voice_service_set_tuning_port(&service, &tuning_port) ||
         !bc_voice_service_set_inputs_port(&service, &inputs_port) ||
+        (capture_prepared && !bc_voice_service_set_audio_port(&service, &audio_port)) ||
         bc_voice_gesture_set_inputs(&gesture, &inputs) != BC_REC_OK) {
         if (powered) { bc_spi_flash_device_close(); powered = false; }
         /* Invalid static configuration must never register a gesture or
@@ -777,7 +809,7 @@ void app_pdm_thread_create(void)
         APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
         return;
     }
-    if (xTaskCreate(run, "sudo-voice", 2048U, NULL, APP_TASK_MIC_IRQ_PRIO, &worker) != pdPASS) {
+    if (xTaskCreate(run, "sudo-voice", SUDO_VOICE_WORKER_STACK_WORDS, NULL, APP_TASK_MIC_IRQ_PRIO, &worker) != pdPASS) {
         worker = NULL;
         vQueueDelete(commands); vQueueDelete(touches);
         commands = NULL; touches = NULL;

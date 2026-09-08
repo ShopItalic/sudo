@@ -23,6 +23,9 @@ read the downloaded `provenance.json` for its main source and CI identity. S04 i
 S04 client integration remains outside this firmware-only change.
 Published S03 RC1 and historical S01 RC1 retain their pinned source and binaries.
 
+- [Experimental S05 Opus recording (branch codex/opus-audio)](reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026):
+  16 kHz Opus in the Sudo container, per-recording audio descriptors, shared
+  [Opus fixtures](../tests/fixtures/opus) for the app; S04 RC1 unchanged.
 - [S03 changes and qualification plan](reference/ring-s03-reliability.md).
 - [Build, validation evidence and Caption comparison](reference/ring-firmware-candidate.md).
 - [Recording/PTT requirements and physical acceptance matrix](reference/ring-recording-and-ptt.md).

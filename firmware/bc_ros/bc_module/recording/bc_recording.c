@@ -42,11 +42,23 @@ static uint32_t crc_update(uint32_t state, const uint8_t *data, uint16_t length)
 /* Storage reports a verified prefix, never additional accepted audio or a
  * different file. At checkpoints and successful Stop the whole prefix must
  * equal the owner's byte count, frame count, and independently computed CRC. */
+/* The descriptor reported by open must persist unchanged except for the
+ * exact sample count, which storage may learn only at completion. */
+static bool audio_consistent(const bc_audio_format *before, const bc_audio_format *after)
+{
+    bc_audio_format expected = *after;
+    if (!bc_audio_format_valid(after) || after->codec == BC_AUDIO_CODEC_NONE)
+        return false;
+    expected.sample_count = before->sample_count;
+    return bc_audio_format_equal(before, &expected);
+}
+
 static bool metadata_valid(const bc_recording *rec, const bc_rec_file *file,
                            bool entire)
 {
     if (!name_valid(file) || !name_valid(&rec->snapshot.file) || file->delivered ||
         strcmp(file->name, rec->snapshot.file.name) != 0 ||
+        !audio_consistent(&rec->snapshot.file.audio, &file->audio) ||
         file->bytes > rec->snapshot.accepted_bytes ||
         file->frames > rec->snapshot.accepted_frames ||
         ((file->bytes == 0U) != (file->frames == 0U)) ||
@@ -180,6 +192,7 @@ bc_rec_result bc_recording_start(bc_recording *rec, const bc_rec_start *start,
     if (result == BC_REC_ALREADY_EXISTS || result == BC_REC_EMPTY_AUDIO) {
         bc_rec_file *file = &rec->snapshot.file;
         if (!name_valid(file) || (result == BC_REC_EMPTY_AUDIO && file->bytes != 0U) ||
+            !bc_audio_format_valid(&file->audio) || file->audio.codec == BC_AUDIO_CODEC_NONE ||
             ((file->bytes == 0U) != (file->frames == 0U)) ||
             file->frames > file->bytes ||
             (uint64_t)file->bytes > (uint64_t)file->frames * BC_REC_FRAME_MAX ||
@@ -208,7 +221,10 @@ bc_rec_result bc_recording_start(bc_recording *rec, const bc_rec_start *start,
     rec->opened = true;
     if (!name_valid(&rec->snapshot.file) || rec->snapshot.file.bytes != 0U ||
         rec->snapshot.file.frames != 0U || rec->snapshot.file.crc32 != 0U ||
-        rec->snapshot.file.complete || rec->snapshot.file.recovered || rec->snapshot.file.delivered)
+        rec->snapshot.file.complete || rec->snapshot.file.recovered || rec->snapshot.file.delivered ||
+        !bc_audio_format_valid(&rec->snapshot.file.audio) ||
+        rec->snapshot.file.audio.codec == BC_AUDIO_CODEC_NONE ||
+        rec->snapshot.file.audio.sample_count != 0U)
         return start_failed(rec, BC_REC_OPEN_ERROR);
     result = rec->port.capture_start(rec->port.ctx, start->id);
     if (result != BC_REC_OK)
@@ -245,7 +261,7 @@ bc_rec_result bc_recording_fault(bc_recording *rec, uint64_t id,
                                  bc_rec_result error, uint32_t now_ms)
 {
     if (!valid(rec) || id == 0U || error <= BC_REC_OK ||
-        error > BC_REC_CRC_ERROR || error == BC_REC_ALREADY_EXISTS ||
+        error > BC_REC_RESULT_MAX || error == BC_REC_ALREADY_EXISTS ||
         error == BC_REC_DUPLICATE)
         return BC_REC_INVALID;
     if (rec->snapshot.start.id != id)

@@ -89,14 +89,17 @@ product decisions:
 - Test proof reuse on hardware, including catalog refresh, reconnect, partial resume, full phone storage and a retained receipt retry; do not equate the removed duplicate read with a measured throughput figure.
 - Confirm S03 supplier build/signing/recovery before consumer OTA distribution. Preserve the separate S01 RC1 tag and files.
 
-## Proposed codec evaluation
+## S05 Opus qualification (branch codex/opus-audio)
 
-- Evaluate 16 kHz mono Opus at an initial 16 kbps against S03 ADPCM, as recorded
-  in [decision S03-006](reference/supplier-firmware-change-log.md#s03-006--record-the-codec-decision-and-proposed-opus-evaluation).
-  This is a proposed candidate, not an implemented codec change. Verify capture
-  rate, peak encoding time, memory, PTT/recording integrity, resumed storage/SDK
-  compatibility, transcription quality, transfer cost and total energy on the
-  standard Ring. Preserve the S03 RC and existing ADPCM files.
+- The experimental S05 source implements 16 kHz mono Opus at 12 kbps CBR with
+  bounded memory, a per-recording descriptor and the Sudo container; see
+  [S05 in the ledger](reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
+  Remaining gates are physical: encode CPU deadline through FORMAT_GET
+  instrumentation, battery versus ADPCM, listening/transcription checks,
+  the fitted microphone's actual 16.125 kHz rate, FreeRTOS heap and worker
+  stack high-water with the boot-time allocations, and supplier ArmCC
+  reproduction. Bitrate tuning stays a firmware profile change; the app has
+  no bitrate selection. Preserve S04 RC1 and existing ADPCM files.
 - Resolve the cancelled [matching SDK main CI run](https://github.com/ShopItalic/app/actions/runs/34023194481)
   in the app/runner workflow before claiming remote iOS validation; local Ring
   test success does not replace that result.

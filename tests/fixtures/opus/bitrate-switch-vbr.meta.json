@@ -1,0 +1,22 @@
+{
+  "name": "bitrate-switch-vbr",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 0,
+  "vbr": true,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 32000,
+  "packets": 101,
+  "minPacketBytes": 8,
+  "maxPacketBytes": 60,
+  "decodedSamples": 32320,
+  "trimmedSamples": 32000,
+  "trailerSamples": 32000,
+  "containerBytes": 2820,
+  "chunkCount": 0,
+  "maxChunkBytes": 220
+}

@@ -198,6 +198,9 @@ file list, timing logs and resulting audio. Do not substitute a `one_sec` board.
 | Ten-minute mixed use | Record/stop/sync permitted clips under weak signal and foreground/background changes; record goodput, memory/stack, errors and current draw. |
 | Same-iPhone keyboard dictation | With the Sudo keyboard visible in another app, hold/speak/release and insert the complete final once into that document. Changed fields, manual edits, reopened keyboard and stale finals reject insertion. Exercise background denial/expiration, force-quit and missing models; Ring audio stays recoverable. |
 | Update and recovery | Supplier reconciles the baseline/compiler, reviews GNU ABI/map, assigns/signs a release and demonstrates interrupted-update recovery before any user-ring update. |
+| S05 Opus encode deadline (branch) | Multi-minute PTT and memo recordings on the S05 branch never stall capture; FORMAT_GET max/mean encode microseconds and scratch high-water stay within the 20 ms frame budget and the 20,480-byte bound. |
+| S05 Opus battery and audio (branch) | Equal-length Opus and ADPCM recordings compared for current draw; physical recordings listened to and transcribed; the fitted microphone's nominal 16.125 kHz rate confirmed before trusting the 16 kHz resampling. |
+| S05 mixed archive (branch) | Older ADPCM files list, download, verify, receipt and delete unchanged beside Opus files; interrupted Opus recordings recover as parseable prefixes; corrupt descriptors quarantine instead of decoding. |
 
 ## Evidence retained in this repository
 

@@ -1,0 +1,22 @@
+{
+  "name": "frame-40ms-cbr-12k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 40,
+  "bitrate": 12000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 640,
+  "inputSamples": 16000,
+  "packets": 26,
+  "minPacketBytes": 60,
+  "maxPacketBytes": 60,
+  "decodedSamples": 16640,
+  "trimmedSamples": 16000,
+  "trailerSamples": 16000,
+  "containerBytes": 1636,
+  "chunkCount": 9,
+  "maxChunkBytes": 202
+}

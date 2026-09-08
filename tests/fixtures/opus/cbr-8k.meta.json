@@ -1,0 +1,22 @@
+{
+  "name": "cbr-8k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 16000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 8000,
+  "vbr": false,
+  "preSkip": 104,
+  "blockSamples": 320,
+  "inputSamples": 16000,
+  "packets": 51,
+  "minPacketBytes": 20,
+  "maxPacketBytes": 20,
+  "decodedSamples": 16320,
+  "trimmedSamples": 16000,
+  "trailerSamples": 16000,
+  "containerBytes": 1146,
+  "chunkCount": 6,
+  "maxChunkBytes": 220
+}

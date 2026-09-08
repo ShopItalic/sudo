@@ -10,6 +10,12 @@ qualification and signed OTA packaging remain pending. This release is firmware 
 **[Supplier change log: what changed from factory firmware and why](docs/reference/supplier-firmware-change-log.md)**
 records additions, exclusions, refinements and verification status as work proceeds.
 
+Branch `codex/opus-audio` carries the **experimental 6.0.3.3S05 Opus
+recording** source: new recordings are 16 kHz Opus in the Sudo container with
+a per-recording format descriptor, existing ADPCM files stay readable, and the
+published S04 RC1 is unchanged. See the
+[S05 ledger entries](docs/reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
+
 ## Download S04 RC1 (current RC)
 
 **[Release assets: v6.0.3.3S04-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)**

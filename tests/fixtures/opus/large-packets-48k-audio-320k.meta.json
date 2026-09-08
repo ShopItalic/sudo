@@ -1,0 +1,22 @@
+{
+  "name": "large-packets-48k-audio-320k",
+  "libopus": "1.6.1",
+  "encoder": "fixed-point, complexity 0",
+  "sampleRate": 48000,
+  "channels": 1,
+  "frameMilliseconds": 20,
+  "bitrate": 320000,
+  "vbr": true,
+  "preSkip": 312,
+  "blockSamples": 960,
+  "inputSamples": 48000,
+  "packets": 51,
+  "minPacketBytes": 752,
+  "maxPacketBytes": 764,
+  "decodedSamples": 48960,
+  "trimmedSamples": 48000,
+  "trailerSamples": 48000,
+  "containerBytes": 38953,
+  "chunkCount": 205,
+  "maxChunkBytes": 220
+}

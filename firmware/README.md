@@ -20,10 +20,13 @@ is S04, published as an unsigned engineering RC. No physical qualification is cl
 - The standard 1.23.2 PDM adapter has an eight-slot capture queue and a
   completed-block tail guard. Stop drains complete DMA blocks only, so an
   unfinished DMA tail is never reported as audio.
-- Raw ADPCM is stored under `/.sudo-rec/<16 lowercase hex ID>.raw`. Versioned,
+- Raw audio is stored under `/.sudo-rec/<16 lowercase hex ID>.raw`. Versioned,
   checksummed metadata on the same file records the Start parameters, durable
   byte/frame counts, running raw CRC-32/ISO-HDLC, completion/recovery state,
-  and the legacy export name. Checkpoints expose only the last durable prefix;
+  the legacy export name and, from S05, a per-recording audio descriptor.
+  On the `codex/opus-audio` branch new recordings are 16 kHz Opus in the Sudo
+  container (pinned libopus 1.6.1 under `bc_module/opus/opus-1.6.1`); older
+  ADPCM files decode as before. Checkpoints expose only the last durable prefix;
   staged read-only recovery verifies raw bytes in bounded steps and keeps
   damaged or partial files intact.
 - The native versioned voice protocol and the firmware app adapter provide

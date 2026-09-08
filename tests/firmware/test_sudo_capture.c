@@ -1,16 +1,29 @@
 #include "app_sudo_capture.h"
-#include "adpcm_a.h"
 #include "bc_capture.h"
+#include "bc_opus_stream.h"
+#include "bc_opus_profile.h"
+#include "bc_resampler.h"
 #include "nrfx_pdm.h"
+#include "nrf.h"
+
+#include "opus.h"
+#include "custom_support.h"
+
+#include <math.h>
+#include <stdlib.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
+/* glibc hides M_PI under strict C99; the suites define their own. */
+#define TEST_PI 3.14159265358979323846
+
 #define ARRAY_LEN(value) (sizeof(value) / sizeof((value)[0]))
 #define TEST_MAX_CODEC_CALLS 64U
-#define TEST_STORAGE_CAPACITY (BC_REC_FRAME_MAX * TEST_MAX_CODEC_CALLS)
+#define TEST_STORAGE_CAPACITY (BC_REC_FRAME_MAX * 256U)
+#define TEST_MAX_BLOCKS 64U
 
 static unsigned checks;
 static unsigned failures;
@@ -281,61 +294,27 @@ bool test_pdm_emit_stopped(void)
     return true;
 }
 
-/* Deterministic replacement for the supplier archive call. */
-typedef struct {
-    unsigned init_calls;
-    unsigned encode_calls;
-    int lengths[TEST_MAX_CODEC_CALLS];
-    short inputs[TEST_MAX_CODEC_CALLS][BC_CAPTURE_SAMPLES / 2U];
-    uint8_t outputs[TEST_MAX_CODEC_CALLS][BC_REC_FRAME_MAX];
-    adpcm_state state_before[TEST_MAX_CODEC_CALLS];
-    adpcm_state state_after[TEST_MAX_CODEC_CALLS];
-} codec_observation;
 
-codec_observation test_codec;
+/* ---- RTOS heap and DWT shims ---- */
+unsigned test_heap_allocations;
+size_t test_heap_bytes;
+unsigned test_heap_fail_remaining;
 
-static void test_codec_reset(void)
+void *pvPortMalloc(size_t size)
 {
-    memset(&test_codec, 0, sizeof(test_codec));
-}
-
-void mono_adpcm_init(MonoAdpcmProcessor *processor)
-{
-    ++test_codec.init_calls;
-    if (processor != NULL)
-    {
-        processor->mono_state.valprev = 0;
-        processor->mono_state.index = 0;
+    if (test_heap_fail_remaining != 0U) {
+        --test_heap_fail_remaining;
+        return NULL;
     }
+    ++test_heap_allocations;
+    test_heap_bytes += size;
+    return malloc(size);
 }
 
-void adpcm_encoder(short *indata, char *outdata, int len, adpcm_state *state)
-{
-    unsigned call = test_codec.encode_calls;
-    unsigned i;
-
-    ++test_codec.encode_calls;
-    if (call >= TEST_MAX_CODEC_CALLS || indata == NULL || outdata == NULL ||
-        state == NULL)
-        return;
-
-    test_codec.lengths[call] = len;
-    test_codec.state_before[call] = *state;
-    for (i = 0U; i < BC_CAPTURE_SAMPLES / 2U; ++i)
-        test_codec.inputs[call][i] = i < (unsigned)len ? indata[i] : 0;
-    for (i = 0U; i < BC_REC_FRAME_MAX; ++i)
-    {
-        uint16_t sample = (uint16_t)test_codec.inputs[call][i % (BC_CAPTURE_SAMPLES / 2U)];
-        uint8_t value = (uint8_t)(sample ^ (uint16_t)(i +
-            (uint8_t)state->index));
-        outdata[i] = (char)value;
-        test_codec.outputs[call][i] = value;
-    }
-    if (len > 0)
-        state->valprev = indata[len - 1];
-    state->index = (char)(state->index + 1);
-    test_codec.state_after[call] = *state;
-}
+test_dwt_t test_dwt;
+test_coredebug_t test_coredebug;
+uint32_t SystemCoreClock = 64000000U;
+uint32_t test_cycles_per_read = 32000U;
 
 unsigned test_power_on_calls;
 unsigned test_power_off_calls;
@@ -361,7 +340,7 @@ typedef struct {
     uint8_t bytes[TEST_STORAGE_CAPACITY];
     uint32_t byte_count;
     uint32_t frame_count;
-    uint16_t append_lengths[TEST_MAX_CODEC_CALLS];
+    uint16_t append_lengths[256];
     unsigned open_calls;
     unsigned append_calls;
     unsigned checkpoint_calls;
@@ -371,6 +350,7 @@ typedef struct {
     bool last_finish_complete;
     bc_rec_file last_checkpoint;
     bc_rec_file last_finish;
+    bc_rec_file opened;
     bc_rec_result open_error;
     bc_rec_result append_error;
     unsigned append_error_call;
@@ -414,6 +394,10 @@ static bc_rec_result storage_open(void *context, const bc_rec_start *start,
     memset(file, 0, sizeof(*file));
     (void)snprintf(file->name, sizeof(file->name), "capture-%llx.raw",
                    (unsigned long long)start->id);
+    /* Like the real store, label the file with the prepared descriptor;
+     * an unprepared encoder leaves it unlabeled and the owner rejects it. */
+    (void)app_sudo_capture_format(&file->audio);
+    storage->opened = *file;
     return BC_REC_OK;
 }
 
@@ -425,7 +409,7 @@ static bc_rec_result storage_append(void *context, const uint8_t *data,
     if (storage->append_error != BC_REC_OK &&
         storage->append_calls == storage->append_error_call)
         return storage->append_error;
-    if (data == NULL || length > sizeof(storage->bytes) - storage->byte_count)
+    if (data == NULL || length == 0U || length > sizeof(storage->bytes) - storage->byte_count)
         return BC_REC_WRITE_ERROR;
     if (storage->frame_count < ARRAY_LEN(storage->append_lengths))
         storage->append_lengths[storage->frame_count] = length;
@@ -520,6 +504,19 @@ static bc_rec_start capture_start_with_trigger(uint64_t id,
     return start;
 }
 
+/* Every PDM block handed to the adapter is remembered so the stored Opus
+ * stream can be checked against the exact input the microphone produced. */
+static int16_t test_blocks[TEST_MAX_BLOCKS][BC_CAPTURE_SAMPLES];
+static unsigned test_block_count;
+static double test_signal_hz = 440.0;
+static unsigned test_signal_position;
+
+static void test_input_reset(void)
+{
+    test_block_count = 0U;
+    test_signal_position = 0U;
+}
+
 static bool begin_recording_with_start(storage_fixture *storage,
                                        bc_recording *recording,
                                        const bc_rec_start *start)
@@ -530,18 +527,17 @@ static bool begin_recording_with_start(storage_fixture *storage,
     REQUIRE(!test_pdm.initialized);
     storage_reset(storage);
     test_pdm_reset();
-    test_codec_reset();
     test_power_reset();
+    test_input_reset();
     test_ticks = 0U;
     REQUIRE(bc_recording_init(recording, &port, &config));
     REQUIRE(bc_recording_start(recording, start, 0U) == BC_REC_OK);
     REQUIRE(bc_recording_snapshot(recording)->phase == BC_REC_RECORDING);
+    REQUIRE(bc_audio_format_equal(&storage->opened.audio, &bc_recording_snapshot(recording)->file.audio));
     REQUIRE(test_pdm.pending_irq);
     REQUIRE(test_pdm_deliver_pending_request());
-    REQUIRE(test_codec.encode_calls == 0U);
     REQUIRE(test_pdm.buffer_set_calls == 1U);
     REQUIRE(test_pdm_emit_started());
-    REQUIRE(test_codec.encode_calls == 0U);
     REQUIRE(test_pdm.buffer_set_calls == 2U);
     REQUIRE(test_pdm.state == TEST_PDM_RUNNING);
     REQUIRE(test_pdm_enable_register != 0U);
@@ -566,8 +562,8 @@ static bool start_recording_without_irq(storage_fixture *storage,
     REQUIRE(!test_pdm.initialized);
     storage_reset(storage);
     test_pdm_reset();
-    test_codec_reset();
     test_power_reset();
+    test_input_reset();
     test_ticks = initial_ticks;
     REQUIRE(bc_recording_init(recording, &port, &config));
     REQUIRE(bc_recording_start(recording, start, 0U) == BC_REC_OK);
@@ -577,15 +573,24 @@ static bool start_recording_without_irq(storage_fixture *storage,
     return true;
 }
 
+/* Fills the active DMA buffer with the next block of a continuous sine at
+ * the nominal 16.125 kHz microphone rate and remembers it. */
 static void fill_current(int16_t base)
 {
     int16_t *buffer = test_pdm_active_buffer();
     unsigned i;
+    (void)base;
     CHECK(buffer != NULL);
     if (buffer == NULL)
         return;
-    for (i = 0U; i < BC_CAPTURE_SAMPLES; ++i)
-        buffer[i] = (int16_t)(base + (int16_t)i);
+    for (i = 0U; i < BC_CAPTURE_SAMPLES; ++i) {
+        double t = (double)(test_signal_position + i) / BC_OPUS_PCM_NOMINAL_HZ;
+        buffer[i] = (int16_t)lrint(12000.0 * sin(2.0 * TEST_PI * test_signal_hz * t));
+    }
+    test_signal_position += BC_CAPTURE_SAMPLES;
+    if (test_block_count < TEST_MAX_BLOCKS)
+        memcpy(test_blocks[test_block_count], buffer, sizeof(test_blocks[0]));
+    ++test_block_count;
 }
 
 static bool stop_and_drain(storage_fixture *storage, bc_recording *recording,
@@ -615,6 +620,151 @@ static bool stop_and_drain(storage_fixture *storage, bc_recording *recording,
     return snapshot != NULL && !bc_recording_active(recording);
 }
 
+/* Parses the stored container, decodes every packet with the upstream
+ * decoder and reports counts. Returns false on any container error. */
+typedef struct {
+    bc_audio_format format;
+    uint32_t packets;
+    uint32_t decoded_samples;
+    uint32_t trailer_samples;
+    bool ended;
+    bool header;
+    int16_t pcm[BC_OPUS_FRAME_SAMPLES_MAX * 512];
+    size_t pcm_count;
+} stored_stream;
+
+static bool inspect_stored(const storage_fixture *storage, stored_stream *out)
+{
+    bc_opus_stream_parser parser;
+    OpusDecoder *decoder = NULL;
+    size_t pos = 0U, used;
+    bool ok = true;
+    memset(out, 0, sizeof(*out));
+    bc_opus_stream_parser_init(&parser);
+    while (pos < storage->byte_count) {
+        bc_opus_parse_event e = bc_opus_stream_parse(&parser, storage->bytes + pos,
+                                                     storage->byte_count - pos, &used);
+        pos += used;
+        if (e == BC_OPUS_PARSE_HEADER) {
+            /* The adapter's allocation port refuses codec objects, so the
+             * reference decoder lives in test-owned memory. */
+            out->header = true;
+            out->format = parser.format;
+            decoder = malloc((size_t)opus_decoder_get_size(1));
+            if (decoder == NULL ||
+                opus_decoder_init(decoder, (opus_int32)parser.format.sample_rate_hz, 1) != OPUS_OK) {
+                ok = false; break;
+            }
+        } else if (e == BC_OPUS_PARSE_PACKET) {
+            size_t n; const uint8_t *packet = bc_opus_stream_parser_packet(&parser, &n);
+            int samples;
+            if (decoder == NULL) { ok = false; break; }
+            samples = opus_decode(decoder, packet, (opus_int32)n, out->pcm + out->pcm_count,
+                                  (int)(ARRAY_LEN(out->pcm) - out->pcm_count), 0);
+            if (samples != (int)parser.format.block_samples) { ok = false; break; }
+            out->pcm_count += (size_t)samples;
+            ++out->packets;
+            out->decoded_samples += (uint32_t)samples;
+        } else if (e == BC_OPUS_PARSE_TRAILER) {
+            out->ended = true;
+            out->trailer_samples = parser.sample_count;
+        } else if (e != BC_OPUS_PARSE_NEED_MORE) {
+            ok = false; break;
+        }
+    }
+    free(decoder);
+    return ok;
+}
+
+/* Every stored frame is at most one chunk and the stream must reflect the
+ * exact resampled input: trailer sample count within the resampler window,
+ * decoded audio correlated with the microphone sine after pre-skip. */
+static bool check_stored_audio(const storage_fixture *storage, bool expect_trailer)
+{
+    static stored_stream stream;
+    bc_resampler reference;
+    static int16_t expected[TEST_MAX_BLOCKS * BC_CAPTURE_SAMPLES];
+    size_t expected_count = 0U, consumed, i, compare;
+    double sa = 0.0, sb = 0.0, sab = 0.0;
+    unsigned f;
+    for (f = 0U; f < storage->frame_count && f < ARRAY_LEN(storage->append_lengths); ++f)
+        CHECK(storage->append_lengths[f] >= 1U && storage->append_lengths[f] <= BC_REC_FRAME_MAX);
+    REQUIRE(inspect_stored(storage, &stream));
+    REQUIRE(stream.header);
+    CHECK(stream.format.codec == BC_AUDIO_CODEC_OPUS);
+    CHECK(stream.format.sample_rate_hz == BC_OPUS_SAMPLE_RATE_HZ);
+    CHECK(stream.format.block_samples == BC_OPUS_FRAME_SAMPLES);
+    CHECK(stream.ended == expect_trailer);
+    REQUIRE(bc_resampler_init(&reference, BC_OPUS_PCM_NOMINAL_HZ, BC_OPUS_SAMPLE_RATE_HZ));
+    for (i = 0U; i < test_block_count && i < TEST_MAX_BLOCKS; ++i)
+        expected_count += bc_resampler_process(&reference, test_blocks[i], BC_CAPTURE_SAMPLES,
+                                               expected + expected_count,
+                                               ARRAY_LEN(expected) - expected_count, &consumed);
+    if (expect_trailer) {
+        CHECK(stream.trailer_samples == expected_count);
+        CHECK(stream.decoded_samples >= expected_count + stream.format.pre_skip);
+        CHECK(stream.decoded_samples < expected_count + stream.format.pre_skip + 2U * BC_OPUS_FRAME_SAMPLES);
+    }
+    compare = stream.decoded_samples > stream.format.pre_skip ? stream.decoded_samples - stream.format.pre_skip : 0U;
+    if (compare > expected_count) compare = expected_count;
+    for (i = 0U; i < compare; ++i) {
+        double a = expected[i], b = stream.pcm[i + stream.format.pre_skip];
+        sa += a * a; sb += b * b; sab += a * b;
+    }
+    if (compare >= BC_OPUS_FRAME_SAMPLES * 2U) {
+        CHECK(sa > 0.0 && sb > 0.0);
+        if (sa > 0.0 && sb > 0.0) CHECK(sab / sqrt(sa * sb) > 0.85);
+    }
+    return true;
+}
+
+static bool test_unprepared_encoder_is_explicit(void)
+{
+    storage_fixture storage;
+    bc_recording recording;
+    bc_rec_port port;
+    bc_rec_config config = capture_config();
+    bc_rec_start start = capture_start(0x001U);
+    bc_audio_format format;
+    bc_voice_audio_stats stats;
+
+    /* The first heap request fails: the encoder cannot be prepared, so no
+     * descriptor exists and Start reports UNSUPPORTED without touching the
+     * microphone. Nothing is labeled Opus. */
+    test_heap_fail_remaining = 1U;
+    CHECK(!app_sudo_capture_prepare());
+    CHECK(!app_sudo_capture_format(&format));
+    CHECK(!app_sudo_capture_audio_stats(NULL, &format, &stats));
+    storage_reset(&storage);
+    test_pdm_reset();
+    test_power_reset();
+    port = storage_port(&storage);
+    REQUIRE(bc_recording_init(&recording, &port, &config));
+    CHECK(bc_recording_start(&recording, &start, 0U) == BC_REC_OPEN_ERROR);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_FAILED);
+    CHECK(test_power_on_calls == 0U && test_pdm.init_calls == 0U);
+    CHECK(test_heap_fail_remaining == 0U);
+    storage.active = false;
+    /* Recovered allocation: the profile prepares, self-tests one frame and
+     * reports its exact allocations. */
+    REQUIRE(app_sudo_capture_prepare());
+    CHECK(app_sudo_capture_prepare());
+    REQUIRE(app_sudo_capture_format(&format));
+    CHECK(format.codec == BC_AUDIO_CODEC_OPUS && format.sample_rate_hz == 16000U &&
+          format.channels == 1U && format.frame_ms == 20U && format.pre_skip == 104U &&
+          format.block_samples == 320U && format.block_bytes == 0U && format.sample_count == 0U);
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.state_bytes == (uint32_t)opus_encoder_get_size(1));
+    CHECK(stats.scratch_bytes == BC_OPUS_SCRATCH_BYTES);
+    CHECK(stats.scratch_high_water > 0U && stats.scratch_high_water <= BC_OPUS_SCRATCH_BYTES);
+    CHECK(stats.frames == 0U && stats.faults == 0U);
+    CHECK(test_heap_allocations == 2U);
+    CHECK(test_heap_bytes == (size_t)opus_encoder_get_size(1) + BC_OPUS_SCRATCH_BYTES + BC_OPUS_SCRATCH_CANARY_BYTES);
+    CHECK(test_coredebug.DEMCR & CoreDebug_DEMCR_TRCENA_Msk);
+    CHECK(test_dwt.CTRL & DWT_CTRL_CYCCNTENA_Msk);
+    return true;
+}
+
 static bool test_initial_request_and_encoding_contract(void)
 {
     storage_fixture storage;
@@ -623,14 +773,14 @@ static bool test_initial_request_and_encoding_contract(void)
     int16_t *replacement;
     bc_rec_start start = capture_start(0x101U);
     unsigned sets;
-    unsigned i;
+    bc_audio_format format;
+    bc_voice_audio_stats stats;
 
     REQUIRE(begin_recording(&storage, &recording, start.id));
     first = test_pdm_active_buffer();
     REQUIRE(first != NULL);
     fill_current(1000);
     REQUIRE(test_pdm_emit_full());
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(storage.byte_count == 0U);
     CHECK(test_pdm.buffer_set_calls == 3U);
     replacement = test_pdm.buffer_history[2];
@@ -640,20 +790,18 @@ static bool test_initial_request_and_encoding_contract(void)
      * another capture slot, so the DMA pointer cannot be reused early. */
     fill_current(2000);
     REQUIRE(test_pdm_emit_full());
-    CHECK(test_codec.encode_calls == 0U);
+    CHECK(storage.frame_count == 0U);
     CHECK(test_pdm.buffer_set_calls == 4U);
     CHECK(test_pdm.buffer_history[3] != first);
 
+    /* One block is 880 nominal samples: about 873 at 16 kHz, so two full
+     * frames are encoded and the third accumulates. The container waits for
+     * a full chunk before delivering anything to the owner. */
     CHECK(app_sudo_capture_poll(&recording, 10U));
-    CHECK(test_codec.encode_calls == 1U);
-    CHECK(test_codec.lengths[0] == (int)(BC_CAPTURE_SAMPLES / 2U));
-    CHECK(storage.frame_count == 1U);
-    CHECK(storage.byte_count == BC_REC_FRAME_MAX);
-    for (i = 0U; i < BC_CAPTURE_SAMPLES / 2U; ++i)
-        CHECK(test_codec.inputs[0][i] == (short)(1000 + (int)(i * 2U)));
-    CHECK(storage.append_lengths[0] == BC_REC_FRAME_MAX);
-    for (i = 0U; i < BC_REC_FRAME_MAX; ++i)
-        CHECK(storage.bytes[i] == test_codec.outputs[0][i]);
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.frames == 2U);
+    CHECK(stats.max_encode_us > 0U && stats.mean_encode_us > 0U);
+    CHECK(storage.frame_count == 0U);
 
     /* Once the encoder releases the first slot, the next completed boundary
      * is allowed to reuse precisely that DMA buffer. */
@@ -663,21 +811,25 @@ static bool test_initial_request_and_encoding_contract(void)
     CHECK(sets == 5U);
     CHECK(test_pdm.buffer_history[4] == first);
     CHECK(app_sudo_capture_poll(&recording, 20U));
-    CHECK(test_codec.encode_calls == 2U);
-    CHECK(test_codec.state_before[1].valprev ==
-          test_codec.state_after[0].valprev);
-    CHECK(test_codec.state_before[1].index == test_codec.state_after[0].index);
-    CHECK(storage.frame_count == 2U);
-    CHECK(storage.byte_count == 2U * BC_REC_FRAME_MAX);
-    for (i = 0U; i < BC_REC_FRAME_MAX; ++i)
-        CHECK(storage.bytes[BC_REC_FRAME_MAX + i] == test_codec.outputs[1][i]);
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.frames == 5U);
+    /* 16-byte header plus six 32-byte records exceed a chunk only at the
+     * seventh packet; five packets are still buffered. */
+    CHECK(storage.frame_count == 0U);
+    CHECK(app_sudo_capture_poll(&recording, 21U));
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.frames == 8U);
+    CHECK(storage.frame_count == 1U);
+    CHECK(storage.append_lengths[0] == 16U + 6U * 32U);
 
     CHECK(stop_and_drain(&storage, &recording, start.id, 30U));
     CHECK(storage.finish_calls == 1U);
     CHECK(storage.last_finish_complete);
-    CHECK(storage.frame_count == 4U);
-    CHECK(storage.byte_count == 4U * BC_REC_FRAME_MAX);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+    CHECK(check_stored_audio(&storage, true));
+    CHECK(app_sudo_capture_sample_count(start.id) != 0U);
+    CHECK(app_sudo_capture_sample_count(start.id + 1U) == 0U);
+    CHECK(bc_recording_snapshot(&recording)->file.frames == storage.frame_count);
     return true;
 }
 
@@ -691,7 +843,6 @@ static bool test_stop_boundary_and_stopped_tail(void)
     REQUIRE(begin_recording(&storage, &recording, start.id));
     fill_current(400);
     REQUIRE(test_pdm_emit_full());
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(bc_recording_stop(&recording, start.id, 50U) == BC_REC_OK);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
     CHECK(test_pdm.stop_calls == 0U);
@@ -708,7 +859,9 @@ static bool test_stop_boundary_and_stopped_tail(void)
     CHECK(storage.finish_calls == 0U);
 
     /* The remaining hardware buffer is unfinished. STOPPED releases it, but
-     * buffer_requested=false means it cannot become a third audio frame. */
+     * buffer_requested=false means it cannot become audio. Both completed
+     * blocks are encoded, the encoder delay is flushed and the exact sample
+     * count is written before finalization. */
     REQUIRE(test_pdm_emit_stopped());
     CHECK(test_pdm_enable_register == 0U);
     CHECK(app_sudo_capture_poll(&recording, 60U));
@@ -716,10 +869,37 @@ static bool test_stop_boundary_and_stopped_tail(void)
     CHECK(!bc_recording_active(&recording));
     CHECK(storage.finish_calls == 1U);
     CHECK(storage.last_finish_complete);
-    CHECK(storage.frame_count == 2U);
-    CHECK(storage.byte_count == 2U * BC_REC_FRAME_MAX);
-    CHECK(test_codec.encode_calls == 2U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+    CHECK(check_stored_audio(&storage, true));
+    CHECK(test_power_off_calls == 1U);
+    return true;
+}
+
+static bool test_empty_capture_stays_empty(void)
+{
+    storage_fixture storage;
+    bc_recording recording;
+    bc_rec_start start = capture_start(0x212U);
+
+    REQUIRE(begin_recording(&storage, &recording, start.id));
+    CHECK(bc_recording_stop(&recording, start.id, 5U) == BC_REC_OK);
+    /* Stop before any completed block: the header is discarded and the
+     * owner reports EMPTY rather than a header-only Opus file. */
+    REQUIRE(test_pdm_emit_full());
+    REQUIRE(test_pdm_emit_stopped());
+    while (bc_recording_active(&recording)) (void)app_sudo_capture_poll(&recording, 6U);
+    /* The block completed at the stop boundary still carries audio; only a
+     * capture with no completed block at all is empty. */
+    CHECK(storage.byte_count != 0U);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+
+    REQUIRE(begin_recording(&storage, &recording, start.id + 1U));
+    CHECK(bc_recording_stop(&recording, start.id + 1U, 7U) == BC_REC_OK);
+    CHECK(app_sudo_capture_abort(NULL, start.id + 1U));
+    CHECK(bc_recording_drained(&recording, start.id + 1U) == BC_REC_EMPTY_AUDIO);
+    CHECK(storage.byte_count == 0U && storage.frame_count == 0U);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_EMPTY);
+    CHECK(app_sudo_capture_sample_count(start.id + 1U) == 0U);
     return true;
 }
 
@@ -734,7 +914,6 @@ static bool test_overflow_retains_ready_tail_as_partial(void)
     REQUIRE(test_pdm_emit_full());
     fill_current(800);
     REQUIRE(test_pdm_emit_full());
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(storage.frame_count == 0U);
     REQUIRE(test_pdm_emit_overflow());
     CHECK(test_pdm.stop_calls == 1U);
@@ -742,20 +921,18 @@ static bool test_overflow_retains_ready_tail_as_partial(void)
     REQUIRE(test_pdm_emit_stopped());
 
     CHECK(app_sudo_capture_poll(&recording, 100U));
-    CHECK(test_codec.encode_calls == 1U);
-    CHECK(storage.frame_count == 1U);
     CHECK(storage.finish_calls == 0U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_CAPTURE_OVERFLOW);
 
+    /* The second READY block is still encoded and the tail flushed, but the
+     * recording stays PARTIAL because audio after the overflow was lost. */
     CHECK(app_sudo_capture_poll(&recording, 101U));
-    CHECK(test_codec.encode_calls == 2U);
-    CHECK(storage.frame_count == 2U);
-    CHECK(storage.byte_count == 2U * BC_REC_FRAME_MAX);
     CHECK(storage.finish_calls == 1U);
     CHECK(!storage.last_finish_complete);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
     CHECK(!bc_recording_snapshot(&recording)->file.complete);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -774,20 +951,18 @@ static bool test_abort_timeout_retains_ready_tail(void)
     CHECK(test_pdm_enable_register == 0U);
     CHECK(!test_pdm.irq_enabled);
     CHECK(!test_pdm.pending_irq);
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(storage.byte_count == 0U);
     CHECK(storage.finish_calls == 0U);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_STOP_TIMEOUT);
 
     CHECK(app_sudo_capture_poll(&recording, 227U));
-    CHECK(test_codec.encode_calls == 1U);
-    CHECK(storage.frame_count == 1U);
-    CHECK(storage.byte_count == BC_REC_FRAME_MAX);
+    CHECK(storage.frame_count >= 1U);
     CHECK(storage.finish_calls == 1U);
     CHECK(!storage.last_finish_complete);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
     CHECK(!bc_recording_snapshot(&recording)->file.complete);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -811,8 +986,8 @@ static bool test_start_failures_are_quiescent_and_restartable(void)
 
         storage_reset(&storage);
         test_pdm_reset();
-        test_codec_reset();
         test_power_reset();
+        test_input_reset();
         port = storage_port(&storage);
         REQUIRE(bc_recording_init(&recording, &port, &config));
         if (mode == 0U)
@@ -833,7 +1008,7 @@ static bool test_start_failures_are_quiescent_and_restartable(void)
         CHECK(test_critical_depth == 0U);
 
         /* Clearing only the injected error is enough for the next session;
-         * no stale capture owner or PDM state may block a fresh Start. */
+         * no stale capture owner, codec or PDM state may block a fresh Start. */
         test_pdm.init_error = NRFX_SUCCESS;
         test_pdm.start_error = NRFX_SUCCESS;
         storage.active = false;
@@ -846,6 +1021,7 @@ static bool test_start_failures_are_quiescent_and_restartable(void)
         CHECK(stop_and_drain(&storage, &recording, fresh.id, 320U));
         CHECK(storage.finish_calls == 2U);
         CHECK(storage.last_finish_complete);
+        CHECK(check_stored_audio(&storage, true));
     }
     return true;
 }
@@ -861,20 +1037,18 @@ static bool test_abort_clears_pending_irq(void)
 
     storage_reset(&storage);
     test_pdm_reset();
-    test_codec_reset();
     test_power_reset();
+    test_input_reset();
     port = storage_port(&storage);
     REQUIRE(bc_recording_init(&recording, &port, &config));
     REQUIRE(bc_recording_start(&recording, &start, 400U) == BC_REC_OK);
     CHECK(test_pdm.pending_irq);
     CHECK(test_pdm.buffer_set_calls == 0U);
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(app_sudo_capture_abort(NULL, start.id));
     CHECK(test_pdm_enable_register == 0U);
     CHECK(!test_pdm.pending_irq);
     CHECK(!test_pdm.irq_enabled);
     CHECK(test_pdm.buffer_set_calls == 0U);
-    CHECK(test_codec.encode_calls == 0U);
     CHECK(!test_pdm_deliver_pending_request());
     result = bc_recording_fault(&recording, start.id, BC_REC_CAPTURE_ERROR,
                                 401U);
@@ -883,6 +1057,64 @@ static bool test_abort_clears_pending_irq(void)
     CHECK(storage.finish_calls == 1U);
     CHECK(!storage.last_finish_complete);
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
+    CHECK(storage.byte_count == 0U);
+    return true;
+}
+
+static bool test_encoder_fault_is_explicit_and_keeps_prefix(void)
+{
+    storage_fixture storage;
+    bc_recording recording;
+    bc_rec_start start = capture_start(0x717U);
+    uint8_t *scratch;
+    bc_audio_format format;
+    bc_voice_audio_stats stats;
+    unsigned i;
+
+    REQUIRE(begin_recording(&storage, &recording, start.id));
+    for (i = 0U; i < 4U; ++i) {
+        fill_current(0);
+        REQUIRE(test_pdm_emit_full());
+        CHECK(app_sudo_capture_poll(&recording, 10U + i));
+    }
+    CHECK(storage.frame_count >= 1U);
+    /* Corrupt the pseudostack canary: the next encode must report an
+     * explicit ENCODER_ERROR, keep the delivered prefix and never label the
+     * remaining capture as good audio. */
+    scratch = bc_opus_port_alloc_scratch(GLOBAL_STACK_SIZE);
+    REQUIRE(scratch != NULL);
+    scratch[GLOBAL_STACK_SIZE] ^= 0xffU;
+    fill_current(0);
+    REQUIRE(test_pdm_emit_full());
+    CHECK(app_sudo_capture_poll(&recording, 20U));
+    CHECK(bc_recording_snapshot(&recording)->error == BC_REC_ENCODER_ERROR);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.faults == 1U);
+    REQUIRE(test_pdm_emit_full());
+    REQUIRE(test_pdm_emit_stopped());
+    while (bc_recording_active(&recording)) (void)app_sudo_capture_poll(&recording, 21U);
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
+    CHECK(!storage.last_finish_complete);
+    /* The prefix is a parseable container without a trailer. */
+    {
+        static stored_stream stream;
+        CHECK(inspect_stored(&storage, &stream));
+        CHECK(stream.header && !stream.ended && stream.packets >= 6U);
+    }
+    CHECK(app_sudo_capture_sample_count(start.id) == 0U);
+    scratch[GLOBAL_STACK_SIZE] ^= 0xffU;
+
+    /* The fault is sticky only for that recording; a fresh Start re-arms
+     * the encoder and records normally. */
+    REQUIRE(begin_recording(&storage, &recording, start.id + 1U));
+    fill_current(0);
+    REQUIRE(test_pdm_emit_full());
+    CHECK(stop_and_drain(&storage, &recording, start.id + 1U, 30U));
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+    CHECK(check_stored_audio(&storage, true));
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.faults == 1U);
     return true;
 }
 
@@ -932,7 +1164,7 @@ static bool test_ptt_arm_guards_and_normal_stop(void)
     CHECK(!bc_recording_active(&recording));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
     CHECK(storage.finish_calls == 1U);
-    CHECK(storage.frame_count == 2U);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -972,14 +1204,14 @@ static bool test_ptt_limit_runs_without_owner_poll(void)
     CHECK(app_sudo_capture_poll(&recording, 1U));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_STOPPING);
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_OK);
-    CHECK(storage.frame_count == 1U);
     CHECK(storage.finish_calls == 0U);
     REQUIRE(test_pdm_emit_stopped());
     CHECK(!app_sudo_capture_poll(&recording, 2U));
     CHECK(!bc_recording_active(&recording));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
-    CHECK(storage.frame_count == 1U);
+    CHECK(storage.frame_count >= 1U);
     CHECK(storage.finish_calls == 1U);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -1004,7 +1236,6 @@ static bool test_ptt_valid_renew_and_tick_wrap(void)
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_RECORDING);
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_OK);
     CHECK(app_sudo_capture_poll(&recording, 1U));
-    CHECK(storage.frame_count == 1U);
 
     /* Once the renewed lease is actually late, the full boundary becomes a
      * partial capture. A late callback cannot revive it. */
@@ -1021,7 +1252,7 @@ static bool test_ptt_valid_renew_and_tick_wrap(void)
     CHECK(!bc_recording_active(&recording));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
     CHECK(!storage.last_finish_complete);
-    CHECK(storage.frame_count == 2U);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -1103,6 +1334,7 @@ static bool test_stale_ptt_id_and_memo_are_unguarded(void)
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_OK);
     CHECK(stop_and_drain(&storage, &recording, memo_start.id, 3U));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -1129,6 +1361,7 @@ static bool test_stall_without_initial_irq_and_restart(void)
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_CAPTURE_ERROR);
     CHECK(storage.finish_calls == 1U);
     CHECK(!storage.last_finish_complete);
+    CHECK(storage.byte_count == 0U);
 
     /* A stalled session releases every hardware-owned slot before a fresh
      * Start is accepted. */
@@ -1159,12 +1392,13 @@ static bool test_stall_mid_memo_preserves_ready_tail(void)
     CHECK(!test_pdm.initialized);
     CHECK(!test_pdm.irq_enabled);
     CHECK(!test_pdm.pending_irq);
-    CHECK(storage.frame_count == 1U);
+    CHECK(storage.frame_count >= 1U);
     CHECK(storage.finish_calls == 1U);
     CHECK(!storage.last_finish_complete);
     CHECK(!bc_recording_active(&recording));
     CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_PARTIAL);
     CHECK(bc_recording_snapshot(&recording)->error == BC_REC_CAPTURE_ERROR);
+    CHECK(check_stored_audio(&storage, true));
     return true;
 }
 
@@ -1199,15 +1433,47 @@ static bool test_stall_tick_wrap(void)
     return true;
 }
 
+static bool test_long_recording_keeps_exact_counts(void)
+{
+    storage_fixture storage;
+    bc_recording recording;
+    bc_rec_start start = capture_start(0xf4fU);
+    unsigned i;
+    bc_audio_format format;
+    bc_voice_audio_stats stats;
+
+    /* Forty blocks (about 2.2 s) deliver many chunks; the trailer must still
+     * carry the exact resampled count and every chunk stays bounded. */
+    REQUIRE(begin_recording(&storage, &recording, start.id));
+    for (i = 0U; i < 40U; ++i) {
+        fill_current(0);
+        REQUIRE(test_pdm_emit_full());
+        (void)app_sudo_capture_poll(&recording, 100U + i);
+    }
+    CHECK(stop_and_drain(&storage, &recording, start.id, 200U));
+    CHECK(bc_recording_snapshot(&recording)->phase == BC_REC_SAVED);
+    CHECK(storage.frame_count >= 15U);
+    CHECK(check_stored_audio(&storage, true));
+    REQUIRE(app_sudo_capture_audio_stats(NULL, &format, &stats));
+    CHECK(stats.frames >= 110U);
+    CHECK(stats.scratch_high_water > 8000U && stats.scratch_high_water <= BC_OPUS_SCRATCH_BYTES);
+    printf("  capture stats: frames=%u max_encode_us=%u mean_encode_us=%u scratch_high_water=%u state=%u\n",
+           stats.frames, stats.max_encode_us, stats.mean_encode_us, stats.scratch_high_water, stats.state_bytes);
+    return true;
+}
+
 int main(void)
 {
     app_sudo_capture_init((TaskHandle_t)(uintptr_t)1U);
+    (void)test_unprepared_encoder_is_explicit();
     (void)test_initial_request_and_encoding_contract();
     (void)test_stop_boundary_and_stopped_tail();
+    (void)test_empty_capture_stays_empty();
     (void)test_overflow_retains_ready_tail_as_partial();
     (void)test_abort_timeout_retains_ready_tail();
     (void)test_start_failures_are_quiescent_and_restartable();
     (void)test_abort_clears_pending_irq();
+    (void)test_encoder_fault_is_explicit_and_keeps_prefix();
     (void)test_ptt_arm_guards_and_normal_stop();
     (void)test_ptt_limit_runs_without_owner_poll();
     (void)test_ptt_valid_renew_and_tick_wrap();
@@ -1216,6 +1482,7 @@ int main(void)
     (void)test_stall_without_initial_irq_and_restart();
     (void)test_stall_mid_memo_preserves_ready_tail();
     (void)test_stall_tick_wrap();
+    (void)test_long_recording_keeps_exact_counts();
 
     if (test_critical_depth != 0U)
     {
@@ -1229,6 +1496,6 @@ int main(void)
         return 1;
     }
     printf("PASS: %u checks (real capture adapter, PDM boundaries, DMA ownership,\n"
-           "      continuous ADPCM, partial recovery and cleanup)\n", checks);
+           "      real Opus 1.6.1 encoding, exact sample counts, partial recovery and cleanup)\n", checks);
     return 0;
 }
