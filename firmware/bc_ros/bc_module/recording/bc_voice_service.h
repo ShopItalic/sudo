@@ -52,10 +52,23 @@ typedef struct {
     void (*set_outcome)(void *ctx, uint64_t recording_id, uint8_t outcome);
 } bc_voice_outcome_port;
 
+typedef struct {
+    uint32_t state_bytes, scratch_bytes, scratch_high_water;
+    uint32_t frames, max_encode_us, mean_encode_us, faults;
+} bc_voice_audio_stats;
+
+typedef struct {
+    void *ctx;
+    /* Reports the format new recordings receive and encoder instrumentation.
+     * Runs on the voice worker; no I/O. Returns false when unavailable. */
+    bool (*get)(void *ctx, bc_audio_format *format, bc_voice_audio_stats *stats);
+} bc_voice_audio_port;
+
 #define BC_VOICE_LIVE_PREFIX_SLOTS 32U
 
 typedef struct {
     uint32_t sequence;
+    uint16_t length; /* 1..BC_REC_FRAME_MAX container bytes */
     uint8_t data[BC_REC_FRAME_MAX];
 } bc_voice_live_frame;
 
@@ -67,6 +80,7 @@ typedef struct {
     bc_voice_outcome_port outcome_port;
     bc_voice_tuning_port tuning_port;
     bc_voice_inputs_port inputs_port;
+    bc_voice_audio_port audio_port;
     bc_voice_input_event input_events[BC_VOICE_INPUT_EVENT_SLOTS];
     uint8_t input_read, input_count;
     uint32_t input_sequence, input_tx_ms;
@@ -133,6 +147,8 @@ bool bc_voice_service_set_tuning_port(bc_voice_service *service,
                                       const bc_voice_tuning_port *port);
 bool bc_voice_service_set_outcome_port(bc_voice_service *service,
                                        const bc_voice_outcome_port *port);
+bool bc_voice_service_set_audio_port(bc_voice_service *service,
+                                     const bc_voice_audio_port *port);
 /* Worker context only. Connection changes revoke live readiness and discard
  * transport state, never the local recording. */
 void bc_voice_service_link(bc_voice_service *service, uint32_t epoch, bool connected);

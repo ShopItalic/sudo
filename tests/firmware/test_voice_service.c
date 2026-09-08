@@ -372,8 +372,15 @@ static bool runtime_init(fixture *f, uint32_t epoch)
     f->settings_result = BC_REC_OK;
     f->capture_abort_quiescent = true;
 
-    if (!bc_rec_store_init(&f->store, &f->fs.lfs, name_for_start, NULL))
-        return false;
+    {
+        /* The service suites record supplier ADPCM frames; new S05 checks
+         * install an audio port with an Opus descriptor explicitly. */
+        bc_audio_format legacy;
+        bc_audio_format_legacy_adpcm(&legacy);
+        if (!bc_rec_store_init(&f->store, &f->fs.lfs, name_for_start, NULL) ||
+            !bc_rec_store_set_format(&f->store, &legacy))
+            return false;
+    }
 
     memset(&recording_port, 0, sizeof(recording_port));
     recording_port.ctx = f;
@@ -2755,6 +2762,193 @@ static void test_timeout_unlocks_all_configuration_commands(void)
     fixture_destroy(&f);
 }
 
+
+/* S05 audio format discovery: per-recording descriptors in every snapshot,
+ * HELLO/FORMAT_GET reporting the prepared encoder, and container chunks of
+ * any length (1..220) on the LIVE path. */
+static bc_voice_audio_stats test_audio_stats;
+static bc_audio_format test_audio_format;
+static bool test_audio_available;
+
+static bool test_audio_get(void *ctx, bc_audio_format *format, bc_voice_audio_stats *stats)
+{
+    (void)ctx;
+    if (!test_audio_available) return false;
+    *format = test_audio_format;
+    *stats = test_audio_stats;
+    return true;
+}
+
+static void test_s05_format_discovery_and_variable_live(void)
+{
+    fixture f;
+    bc_rec_start legacy_start = start_value(0x5501U, BC_REC_MEMO, 0U);
+    bc_rec_start opus_start = start_value(0x5502U, BC_REC_PTT, 0U);
+    bc_audio_format legacy, decoded;
+    bc_voice_audio_port port = {NULL, test_audio_get};
+    uint8_t extra[13];
+    uint8_t frame[BC_REC_FRAME_MAX];
+    const bc_voice_message *response;
+    unsigned before, i, name_length, seen_live = 0U;
+    uint32_t token;
+    static const uint16_t lengths[3] = {32U, 1U, BC_REC_FRAME_MAX};
+
+    bc_audio_format_legacy_adpcm(&legacy);
+    CHECK(fixture_setup(&f));
+
+    /* Without an audio port the service describes the supplier ADPCM path
+     * and FORMAT_GET is unsupported, so an older worker stays truthful. */
+    test_audio_available = false;
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 1U, NULL, 0U, 244U, 10U, false));
+    CHECK(pump(&f, 10U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 1U);
+    CHECK(response != NULL && response->length == 20U &&
+          (bc_voice_get32(response->payload + 5) & BC_VOICE_CAP_AUDIO_FORMAT) == 0U &&
+          bc_voice_get32(response->payload + 9) == (8000U | (440U << 16)) &&
+          response->payload[13] == BC_REC_FRAME_MAX && response->payload[14] == 0U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_FORMAT_GET, 2U, NULL, 0U, 244U, 11U, false));
+    CHECK(pump(&f, 11U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_FORMAT_GET, 2U);
+    CHECK(response != NULL && response->length == 5U && response->payload[4] == BC_REC_UNSUPPORTED);
+
+    /* Legacy recordings carry the ADPCM descriptor after the snapshot name. */
+    CHECK(record_complete(&f, &legacy_start, 2U, 0x10U, NULL, 20U));
+    name_length = (unsigned)strlen(f.recording.snapshot.file.name);
+    encode_id(extra, legacy_start.id);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_QUERY, 3U, extra, 8U, 244U, 30U, false));
+    CHECK(pump(&f, 30U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_QUERY, 3U);
+    CHECK(response != NULL && response->length == 62U + name_length + BC_AUDIO_FORMAT_WIRE_SIZE);
+    CHECK(response != NULL && bc_audio_format_decode(response->payload + 62U + name_length, &decoded) &&
+          bc_audio_format_equal(&decoded, &legacy));
+
+    /* The prepared Opus encoder is advertised through HELLO and FORMAT_GET
+     * and labels every new recording. */
+    memset(&test_audio_format, 0, sizeof(test_audio_format));
+    test_audio_format.codec = BC_AUDIO_CODEC_OPUS;
+    test_audio_format.container_version = 1U;
+    test_audio_format.sample_rate_hz = 16000U;
+    test_audio_format.channels = 1U;
+    test_audio_format.frame_ms = 20U;
+    test_audio_format.pre_skip = 104U;
+    test_audio_format.block_samples = 320U;
+    test_audio_stats.state_bytes = 15268U; test_audio_stats.scratch_bytes = 20480U;
+    test_audio_stats.scratch_high_water = 14140U; test_audio_stats.frames = 7U;
+    test_audio_stats.max_encode_us = 1200U; test_audio_stats.mean_encode_us = 900U;
+    test_audio_stats.faults = 0U;
+    test_audio_available = true;
+    CHECK(bc_voice_service_set_audio_port(&f.service, &port));
+    CHECK(bc_rec_store_set_format(&f.store, &test_audio_format));
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 4U, NULL, 0U, 244U, 40U, false));
+    CHECK(pump(&f, 40U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 4U);
+    CHECK(response != NULL && response->length == 20U &&
+          (bc_voice_get32(response->payload + 5) & BC_VOICE_CAP_AUDIO_FORMAT) != 0U &&
+          bc_voice_get32(response->payload + 9) == (16000U | (320U << 16)) &&
+          response->payload[13] == BC_REC_FRAME_MAX);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_FORMAT_GET, 5U, NULL, 0U, 244U, 41U, false));
+    CHECK(pump(&f, 41U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_FORMAT_GET, 5U);
+    CHECK(response != NULL && response->length == BC_VOICE_FORMAT_RESPONSE_LENGTH &&
+          response->payload[4] == BC_REC_OK);
+    CHECK(response != NULL && bc_audio_format_decode(response->payload + 5, &decoded) &&
+          bc_audio_format_equal(&decoded, &test_audio_format));
+    CHECK(response != NULL && bc_voice_get32(response->payload + 21) == 15268U &&
+          bc_voice_get32(response->payload + 25) == 20480U &&
+          bc_voice_get32(response->payload + 29) == 14140U &&
+          bc_voice_get32(response->payload + 33) == 7U &&
+          bc_voice_get32(response->payload + 37) == 1200U &&
+          bc_voice_get32(response->payload + 41) == 900U &&
+          bc_voice_get32(response->payload + 45) == 0U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_FORMAT_GET, 6U, (const uint8_t *)"x", 1U, 244U, 42U, false));
+    CHECK(pump(&f, 42U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_FORMAT_GET, 6U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
+
+    /* Container chunks of any bounded length flow through the live path. */
+    encode_start(extra, &opus_start);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_START, 7U, extra, sizeof(extra), 244U, 50U, false));
+    CHECK(pump(&f, 50U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_START, 7U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    name_length = (unsigned)strlen(f.recording.snapshot.file.name);
+    CHECK(response != NULL && response->length == 62U + name_length + BC_AUDIO_FORMAT_WIRE_SIZE &&
+          bc_audio_format_decode(response->payload + 62U + name_length, &decoded) &&
+          decoded.codec == BC_AUDIO_CODEC_OPUS && decoded.pre_skip == 104U);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_READY, 8U, (const uint8_t[]){1U}, 1U, 244U, 51U, false));
+    CHECK(pump(&f, 51U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_READY, 8U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
+    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5);
+    fill_pattern(frame, sizeof(frame), 0x77U);
+    CHECK(!bc_voice_service_live(&f.service, opus_start.id, 1U, frame, 0U));
+    CHECK(!bc_voice_service_live(&f.service, opus_start.id, 1U, frame, BC_REC_FRAME_MAX + 1U));
+    CHECK(!f.service.live_disabled);
+    clear_messages(&f);
+    for (i = 0U; i < 3U; ++i) {
+        fill_pattern(frame, sizeof(frame), (uint8_t)(0x80U + i));
+        CHECK(bc_recording_frame(&f.recording, opus_start.id, i + 1U, frame, lengths[i], 60U + i) == BC_REC_OK);
+        CHECK(pump(&f, 60U + i, 244U) != 0U);
+    }
+    for (i = 0U; i < f.sink.message_count; ++i) {
+        const bc_voice_message *message = &f.sink.messages[i];
+        if (message->kind != BC_VOICE_LIVE) continue;
+        CHECK(seen_live < 3U);
+        if (seen_live < 3U) {
+            fill_pattern(frame, sizeof(frame), (uint8_t)(0x80U + seen_live));
+            CHECK(message->length == 8U + lengths[seen_live]);
+            CHECK(bc_voice_get32(message->payload) == token);
+            CHECK(bc_voice_get32(message->payload + 4) == seen_live + 1U);
+            CHECK(memcmp(message->payload + 8, frame, lengths[seen_live]) == 0);
+        }
+        ++seen_live;
+    }
+    CHECK(seen_live == 3U);
+    CHECK(f.recording.snapshot.accepted_bytes == 32U + 1U + BC_REC_FRAME_MAX);
+
+    /* Stop, then a mixed catalog reports each recording's own descriptor. */
+    encode_id(extra, opus_start.id);
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_STOP, 9U, extra, 8U, 244U, 70U, false));
+    CHECK(pump(&f, 70U, 244U) != 0U);
+    CHECK(bc_recording_drained(&f.recording, opus_start.id) == BC_REC_OK);
+    CHECK(pump(&f, 71U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_STOP, 9U);
+    CHECK(response != NULL && response->payload[4] == BC_REC_OK && response->payload[14] == BC_REC_SAVED);
+    CHECK(response != NULL && bc_audio_format_decode(response->payload + 62U + name_length, &decoded) &&
+          decoded.codec == BC_AUDIO_CODEC_OPUS && decoded.sample_count == 0U);
+    {
+        uint64_t after = 0U;
+        unsigned rows = 0U, adpcm_rows = 0U, opus_rows = 0U;
+        for (i = 0U; i < 8U; ++i) {
+            encode_id(extra, after);
+            before = f.sink.message_count;
+            CHECK(send_request(&f, BC_VOICE_CATALOG, 20U + i, extra, 8U, 244U, 80U + i, false));
+            CHECK(pump(&f, 80U + i, 244U) != 0U);
+            response = find_response(&f, before, BC_VOICE_CATALOG, 20U + i);
+            CHECK(response != NULL);
+            if (response == NULL) break;
+            if (response->payload[4] == BC_REC_NOT_FOUND) break;
+            after = bc_voice_get64(response->payload + 5);
+            CHECK(bc_audio_format_decode(response->payload + 62U + response->payload[61], &decoded));
+            if (decoded.codec == BC_AUDIO_CODEC_ADPCM) ++adpcm_rows;
+            if (decoded.codec == BC_AUDIO_CODEC_OPUS) ++opus_rows;
+            ++rows;
+        }
+        CHECK(rows == 2U && adpcm_rows == 1U && opus_rows == 1U);
+    }
+    test_audio_available = false;
+    fixture_destroy(&f);
+}
+
 int main(void)
 {
     test_timeout_unlocks_all_configuration_commands();
@@ -2778,6 +2972,8 @@ int main(void)
     test_phone_outcome_lease_and_callback();
     test_tuning_contract_and_busy();
     test_input_settings_and_live_events();
+    test_s05_format_discovery_and_variable_live();
     fprintf(stdout, "%u checks, %u failures\n", checks, failures);
     return failures == 0U ? 0 : 1;
 }
+

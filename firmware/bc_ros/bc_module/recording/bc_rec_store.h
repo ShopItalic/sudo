@@ -15,7 +15,11 @@
 #define BC_REC_STORE_DIR "/.sudo-rec"
 #define BC_REC_STORE_META_ATTR 0xa5U
 #define BC_REC_STORE_CACHE_SIZE 256U
-#define BC_REC_STORE_METADATA_SIZE 88U
+/* Metadata version 1 (S01-S04) is 88 bytes; version 2 appends the 16-byte
+ * audio descriptor and moves the checksum. Buffers hold the larger size and
+ * LittleFS zero-fills the tail of an older attribute on read. */
+#define BC_REC_STORE_METADATA_V1_SIZE 88U
+#define BC_REC_STORE_METADATA_SIZE 104U
 #define BC_REC_STORE_PATH_SIZE 64U
 
 /* The callback must write a NUL-terminated legacy export name into name. */
@@ -85,6 +89,13 @@ struct bc_rec_store {
     lfs_t *lfs;
     bc_rec_store_namer namer;
     void *namer_ctx;
+    /* Descriptor written into every new recording. Open fails until the
+     * worker configures it, so a file can never carry a guessed codec. */
+    bc_audio_format format;
+    bool format_set;
+    /* Exact real sample count supplied by the encoder before a complete
+     * finish; persisted only with a completion marker. */
+    uint32_t final_samples;
 
     bool initialized;
     bool active;
@@ -110,6 +121,18 @@ struct bc_rec_store {
 
 bool bc_rec_store_init(bc_rec_store *store, lfs_t *lfs,
                        bc_rec_store_namer namer, void *namer_ctx);
+/* The format every new recording is labeled with. Only a valid non-NONE
+ * descriptor with sample_count 0 is accepted; it cannot change while a
+ * recording is active. */
+bool bc_rec_store_set_format(bc_rec_store *store, const bc_audio_format *format);
+/* Records the exact real sample count of the active Opus recording so the
+ * completion marker can persist it. Ignored for fixed-block codecs. */
+bool bc_rec_store_set_final_samples(bc_rec_store *store, uint32_t samples);
+/* Decodes a raw metadata attribute of either version (v1 88 bytes, v2 104
+ * bytes, or a v2-sized buffer holding a zero-padded v1 record). Used by the
+ * export-name collision scan; returns false for a corrupt attribute. */
+bool bc_rec_store_decode_metadata_name(const uint8_t *bytes, size_t size,
+                                       char name[BC_REC_NAME_SIZE]);
 
 /* These four functions have bc_rec_port-compatible signatures and may be
  * assigned directly to bc_rec_port.open/append/checkpoint/finish. */

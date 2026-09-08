@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "bc_audio_format.h"
+
 /* Allocation-free recording owner, shared by the device adapter and emulator.
  * All calls run on one worker. Ports must not reenter the owner; ISR/capture
  * callbacks post session-tagged events to that worker instead. Time is ms. */
@@ -23,8 +25,12 @@ typedef enum {
     BC_REC_CAPTURE_OVERFLOW, BC_REC_SEQUENCE_GAP, BC_REC_STOP_TIMEOUT,
     BC_REC_ALREADY_EXISTS, BC_REC_EMPTY_AUDIO, BC_REC_INTERRUPTED,
     BC_REC_TOUCH_ERROR, BC_REC_NOT_FOUND, BC_REC_CUSTODY_REQUIRED,
-    BC_REC_UNSUPPORTED, BC_REC_CANCELLED, BC_REC_CRC_ERROR
+    BC_REC_UNSUPPORTED, BC_REC_CANCELLED, BC_REC_CRC_ERROR,
+    /* The audio encoder could not initialize or encode. Audio already
+     * committed stays a valid prefix; nothing is mislabeled. */
+    BC_REC_ENCODER_ERROR
 } bc_rec_result;
+#define BC_REC_RESULT_MAX BC_REC_ENCODER_ERROR
 
 typedef enum { BC_REC_PTT = 1, BC_REC_MEMO = 2, BC_REC_APP = 3 } bc_rec_trigger;
 
@@ -45,6 +51,10 @@ typedef struct {
     bool complete;
     bool recovered;
     bool delivered; /* Persisted phone receipt; raw file may have been retired. */
+    /* Per-recording codec descriptor. Storage fills it at open from its
+     * configured format and persists it with the metadata; legacy records
+     * without one decode as supplier ADPCM. */
+    bc_audio_format audio;
 } bc_rec_file;
 
 typedef struct {

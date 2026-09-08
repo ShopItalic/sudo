@@ -825,6 +825,39 @@ void app_sudo_capture_init(TaskHandle_t worker)
         ++active_fixture->capture.init_calls;
 }
 
+/* The worker suite stubs capture with supplier-ADPCM sized frames, so its
+ * prepared format is the legacy descriptor. Opus capture has its own suite. */
+static bool test_capture_prepared = true;
+
+bool app_sudo_capture_prepare(void)
+{
+    return test_capture_prepared;
+}
+
+bool app_sudo_capture_format(bc_audio_format *format)
+{
+    if (!test_capture_prepared || format == NULL) return false;
+    bc_audio_format_legacy_adpcm(format);
+    return true;
+}
+
+bool app_sudo_capture_audio_stats(void *ctx, bc_audio_format *format,
+                                  bc_voice_audio_stats *stats)
+{
+    (void)ctx;
+    if (!app_sudo_capture_format(format) || stats == NULL) return false;
+    memset(stats, 0, sizeof(*stats));
+    stats->state_bytes = 15268U;
+    stats->scratch_bytes = 20480U;
+    return true;
+}
+
+uint32_t app_sudo_capture_sample_count(uint64_t id)
+{
+    (void)id;
+    return 0U;
+}
+
 void app_sudo_capture_ptt_arm(uint64_t id, uint32_t lease_ms,
                               uint32_t limit_ms)
 {

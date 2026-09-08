@@ -26,9 +26,10 @@ enum bc_voice_kind {
     BC_VOICE_PHONE_OUTCOME = 16, /* + recording u64, live token u32, outcome u8 */
     BC_VOICE_INPUTS_SET = 17, /* + hold_ms u16, hold/double/triple action u8 */
     BC_VOICE_INPUTS_GET = 18,
+    BC_VOICE_FORMAT_GET = 19, /* S05: current recording format + encoder stats */
     BC_VOICE_INPUT_EVENT = 0x43, /* sequence u32, input/phase/action/reserved u8 */
     BC_VOICE_STATE = 0x40,   /* snapshot; request ID is 0 */
-    BC_VOICE_LIVE = 0x41,    /* stream token u32, sequence u32, 220 raw bytes */
+    BC_VOICE_LIVE = 0x41,    /* stream token u32, sequence u32, 1..220 raw bytes */
     BC_VOICE_FILE = 0x42     /* transfer token u32, absolute offset u32, raw */
 };
 
@@ -56,8 +57,19 @@ enum bc_voice_capability {
     BC_VOICE_CAP_PHONE_OUTCOME = 1U << 8,
     BC_VOICE_CAP_TRIPLE_TAP = 1U << 9,
     BC_VOICE_CAP_PTT_UNTIL_RELEASE = 1U << 10,
-    BC_VOICE_CAP_INPUT_MAPPINGS = 1U << 11
+    BC_VOICE_CAP_INPUT_MAPPINGS = 1U << 11,
+    /* S05: every snapshot carries a per-recording audio descriptor, LIVE
+     * blocks are variable length container chunks, and FORMAT_GET reports
+     * the encoder profile and instrumentation. */
+    BC_VOICE_CAP_AUDIO_FORMAT = 1U << 12
 };
+
+/* FORMAT_GET response: request u32, result u8, 16-byte descriptor of the
+ * format new recordings receive (bc_audio_format wire layout) at 5, then
+ * encoder state bytes u32 at 21, scratch bytes u32 at 25, scratch high-water
+ * u32 at 29, encoded frames u32 at 33, maximum encode microseconds u32 at 37,
+ * mean encode microseconds u32 at 41, encoder faults u32 at 45 (49 bytes). */
+#define BC_VOICE_FORMAT_RESPONSE_LENGTH 49U
 
 /* Snapshot response payload:
  * 0 request u32, 4 result u8, 5 recording u64, 13 trigger u8,
@@ -66,13 +78,16 @@ enum bc_voice_capability {
  * 25 accepted bytes u32, 29 accepted frames u32, 33 durable bytes u32,
  * 37 file bytes u32, 41 file frames u32, 45 raw CRC u32,
  * 49 live queued frames u32, 53 live dropped frames u32,
- * 57 live token u32, 61 name length u8, 62 name bytes (no NUL).
+ * 57 live token u32, 61 name length u8, 62 name bytes (no NUL), then the
+ * 16-byte per-recording audio descriptor (S05; zero for the idle sentinel).
  * Stored catalog/query metadata is not a fresh scan of raw content. The
  * resumable reader verifies the complete committed prefix before delivery.
  * CATALOG returns this snapshot with NOT_FOUND and recording=0 at the end.
  * HELLO extends the normal 5-byte response with capabilities u32, sample
  * rate u16, samples/block u16, bytes/block u16, checkpoint_ms u16,
- * release bound_ms u16, transfer window u8 (20 bytes total).
+ * release bound_ms u16, transfer window u8 (20 bytes total). With the audio
+ * format capability the rate and samples/block describe the current encoder
+ * profile and bytes/block is the maximum LIVE/FILE chunk (220).
  * READY extends it with live token u32 and current recording u64 (17 bytes).
  * SETTINGS responses extend it with the same 11 settings bytes as SET.
  * TUNING responses add touch set/clear/strength u8, start/stop active_ms u16,

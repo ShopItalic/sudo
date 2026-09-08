@@ -305,7 +305,12 @@ static void fill_pattern(uint8_t *data, size_t size, uint8_t seed)
 
 static bool store_init(bc_rec_store *store, struct test_fs *fs)
 {
-    return bc_rec_store_init(store, &fs->lfs, name_for_start, NULL);
+    bc_audio_format legacy;
+    if (!bc_rec_store_init(store, &fs->lfs, name_for_start, NULL))
+        return false;
+    /* These suites record with the supplier ADPCM descriptor. */
+    bc_audio_format_legacy_adpcm(&legacy);
+    return bc_rec_store_set_format(store, &legacy);
 }
 
 static void test_crc_duplicate_and_bounded_read(struct ram_nor *ram,
@@ -659,6 +664,174 @@ static void test_receipt_tombstone(struct ram_nor *ram, struct test_fs *fs)
     CHECK(fs_mount_existing(fs, ram));
 }
 
+
+/* Writes a version-1 (S01-S04) attribute image for an existing record so the
+ * current decoder must accept it and label the audio as supplier ADPCM. */
+static bool downgrade_attribute_to_v1(struct test_fs *fs, const char *path)
+{
+    uint8_t v2[BC_REC_STORE_METADATA_SIZE];
+    uint8_t v1[BC_REC_STORE_METADATA_V1_SIZE];
+    uint32_t crc;
+    if (lfs_getattr(&fs->lfs, path, BC_REC_STORE_META_ATTR, v2, sizeof(v2)) != (int)sizeof(v2))
+        return false;
+    memcpy(v1, v2, sizeof(v1));
+    v1[4] = 1U; v1[5] = 0U;                       /* version 1 */
+    v1[6] = (uint8_t)sizeof(v1); v1[7] = 0U;      /* encoded size 88 */
+    crc = lfs_crc(0xffffffffUL, v1, 84U) ^ 0xffffffffUL;
+    v1[84] = (uint8_t)crc; v1[85] = (uint8_t)(crc >> 8);
+    v1[86] = (uint8_t)(crc >> 16); v1[87] = (uint8_t)(crc >> 24);
+    return lfs_setattr(&fs->lfs, path, BC_REC_STORE_META_ATTR, v1, sizeof(v1)) == LFS_ERR_OK;
+}
+
+static void opus_descriptor(bc_audio_format *format)
+{
+    memset(format, 0, sizeof(*format));
+    format->codec = BC_AUDIO_CODEC_OPUS;
+    format->container_version = 1U;
+    format->sample_rate_hz = 16000U;
+    format->channels = 1U;
+    format->frame_ms = 20U;
+    format->pre_skip = 104U;
+    format->block_samples = 320U;
+}
+
+static void test_metadata_versions_and_descriptors(struct ram_nor *ram, struct test_fs *fs)
+{
+    bc_rec_store store;
+    bc_rec_start opus_start = start_for(0x51U);
+    bc_rec_start adpcm_start = start_for(0x52U);
+    bc_rec_start partial_start = start_for(0x53U);
+    bc_rec_start found;
+    bc_rec_file file;
+    bc_audio_format opus, legacy, bad;
+    uint8_t data[64];
+    uint8_t attr[BC_REC_STORE_METADATA_SIZE];
+    bc_rec_store_cursor cursor;
+    bool verified;
+    unsigned seen_opus = 0U, seen_adpcm = 0U;
+    unsigned i;
+
+    fill_pattern(data, sizeof(data), 0x50U);
+    opus_descriptor(&opus);
+    bc_audio_format_legacy_adpcm(&legacy);
+    /* Earlier suites fill the small RAM-NOR; this one needs a fresh volume. */
+    CHECK(lfs_unmount(&fs->lfs) == LFS_ERR_OK);
+    memset(ram->bytes, 0xff, sizeof(ram->bytes));
+    ram_reset_io(ram);
+    CHECK(fs_format_mount(fs, ram));
+
+    /* A store without a configured format refuses to create files. */
+    CHECK(bc_rec_store_init(&store, &fs->lfs, name_for_start, NULL));
+    CHECK(bc_rec_store_open(&store, &opus_start, &file) == BC_REC_UNSUPPORTED);
+    bad = opus; bad.sample_count = 5U;
+    CHECK(!bc_rec_store_set_format(&store, &bad));
+    bad = opus; bad.codec = BC_AUDIO_CODEC_NONE; memset(&bad, 0, sizeof(bad));
+    CHECK(!bc_rec_store_set_format(&store, &bad));
+    bad = opus; bad.block_samples = 321U;
+    CHECK(!bc_rec_store_set_format(&store, &bad));
+    CHECK(bc_rec_store_set_format(&store, &opus));
+
+    /* A complete Opus record persists its descriptor and exact sample count. */
+    CHECK(bc_rec_store_open(&store, &opus_start, &file) == BC_REC_OK);
+    CHECK(bc_audio_format_equal(&file.audio, &opus));
+    CHECK(!bc_rec_store_set_format(&store, &legacy)); /* not while active */
+    CHECK(bc_rec_store_append(&store, data, sizeof(data)) == BC_REC_OK);
+    CHECK(bc_rec_store_checkpoint(&store, &file) == BC_REC_OK);
+    CHECK(file.audio.codec == BC_AUDIO_CODEC_OPUS && file.audio.sample_count == 0U);
+    CHECK(bc_rec_store_set_final_samples(&store, 1234U));
+    CHECK(bc_rec_store_finish(&store, true, &file) == BC_REC_OK);
+    CHECK(file.complete && file.audio.codec == BC_AUDIO_CODEC_OPUS && file.audio.sample_count == 1234U);
+    CHECK(bc_rec_store_lookup(&store, opus_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(file.complete && bc_audio_format_valid(&file.audio) &&
+          file.audio.codec == BC_AUDIO_CODEC_OPUS && file.audio.pre_skip == 104U &&
+          file.audio.sample_count == 1234U);
+
+    /* A partial Opus record keeps the count unknown even when it was set. */
+    CHECK(bc_rec_store_open(&store, &partial_start, &file) == BC_REC_OK);
+    CHECK(bc_rec_store_append(&store, data, sizeof(data)) == BC_REC_OK);
+    CHECK(bc_rec_store_set_final_samples(&store, 99U));
+    CHECK(bc_rec_store_finish(&store, false, &file) == BC_REC_OK);
+    CHECK(!file.complete && file.audio.codec == BC_AUDIO_CODEC_OPUS && file.audio.sample_count == 0U);
+    CHECK(bc_rec_store_lookup(&store, partial_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(!file.complete && file.recovered && file.audio.sample_count == 0U);
+
+    /* Version-1 records from older firmware decode as supplier ADPCM. */
+    CHECK(bc_rec_store_set_format(&store, &legacy));
+    CHECK(bc_rec_store_open(&store, &adpcm_start, &file) == BC_REC_OK);
+    CHECK(!bc_rec_store_set_final_samples(&store, 7U)); /* fixed-block codec */
+    CHECK(bc_rec_store_append(&store, data, sizeof(data)) == BC_REC_OK);
+    CHECK(bc_rec_store_finish(&store, true, &file) == BC_REC_OK);
+    CHECK(downgrade_attribute_to_v1(fs, "/.sudo-rec/0000000000000052.raw"));
+    CHECK(lfs_getattr(&fs->lfs, "/.sudo-rec/0000000000000052.raw", BC_REC_STORE_META_ATTR,
+                      attr, sizeof(attr)) == (int)BC_REC_STORE_METADATA_V1_SIZE);
+    CHECK(bc_rec_store_lookup(&store, adpcm_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(file.complete && bc_audio_format_equal(&file.audio, &legacy) && file.bytes == sizeof(data));
+    CHECK(bc_rec_store_open(&store, &adpcm_start, &file) == BC_REC_ALREADY_EXISTS);
+    CHECK(bc_audio_format_equal(&file.audio, &legacy));
+    {
+        char name[BC_REC_NAME_SIZE];
+        CHECK(bc_rec_store_decode_metadata_name(attr, BC_REC_STORE_METADATA_V1_SIZE, name));
+        CHECK(strcmp(name, file.name) == 0);
+        attr[0] ^= 1U;
+        CHECK(!bc_rec_store_decode_metadata_name(attr, BC_REC_STORE_METADATA_V1_SIZE, name));
+        attr[0] ^= 1U;
+        CHECK(!bc_rec_store_decode_metadata_name(attr, 90U, name));
+    }
+
+    /* A mixed catalog reports every recording with its own descriptor. */
+    CHECK(bc_rec_store_catalog_begin(&store, &cursor, 0U) == BC_REC_STORE_OK);
+    for (i = 0U; i < 16U; ++i) {
+        bc_rec_store_status status = bc_rec_store_catalog_next(&store, &cursor, &found, &file, &verified);
+        if (status != BC_REC_STORE_OK) { CHECK(status == BC_REC_STORE_END); break; }
+        if (found.id == opus_start.id) { ++seen_opus; CHECK(file.audio.codec == BC_AUDIO_CODEC_OPUS && file.audio.sample_count == 1234U); }
+        if (found.id == adpcm_start.id) { ++seen_adpcm; CHECK(bc_audio_format_equal(&file.audio, &legacy)); }
+        if (found.id == partial_start.id) CHECK(file.audio.codec == BC_AUDIO_CODEC_OPUS && !file.complete);
+    }
+    CHECK(seen_opus == 1U && seen_adpcm == 1U);
+    CHECK(bc_rec_store_list_end(&store, &cursor) == BC_REC_STORE_OK);
+
+    /* A receipt for a version-1 record writes a version-2 tombstone whose
+     * descriptor matches the legacy raw file, so custody and delete agree. */
+    CHECK(bc_rec_store_lookup(&store, adpcm_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(bc_rec_store_receipt(&store, adpcm_start.id, file.bytes, file.crc32) == BC_REC_STORE_OK);
+    CHECK(bc_rec_store_lookup(&store, adpcm_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(file.delivered && bc_audio_format_equal(&file.audio, &legacy));
+    CHECK(bc_rec_store_delete(&store, adpcm_start.id, file.bytes, file.crc32) == BC_REC_STORE_OK);
+    CHECK(bc_rec_store_lookup(&store, adpcm_start.id, &found, &file) == BC_REC_STORE_OK);
+    CHECK(file.delivered && file.complete && bc_audio_format_equal(&file.audio, &legacy));
+
+    /* Corrupt descriptors never decode: unknown codec, a sample count on an
+     * incomplete record, or garbage after a version-1 body. */
+    CHECK(lfs_getattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR,
+                      attr, sizeof(attr)) == (int)sizeof(attr));
+    {
+        uint8_t saved[BC_REC_STORE_METADATA_SIZE];
+        uint32_t crc;
+        memcpy(saved, attr, sizeof(saved));
+        attr[84] = 3U; /* unknown codec */
+        crc = lfs_crc(0xffffffffUL, attr, 100U) ^ 0xffffffffUL;
+        attr[100] = (uint8_t)crc; attr[101] = (uint8_t)(crc >> 8); attr[102] = (uint8_t)(crc >> 16); attr[103] = (uint8_t)(crc >> 24);
+        CHECK(lfs_setattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR, attr, sizeof(attr)) == LFS_ERR_OK);
+        CHECK(bc_rec_store_lookup(&store, partial_start.id, &found, &file) == BC_REC_STORE_CORRUPT);
+        memcpy(attr, saved, sizeof(attr));
+        attr[92] = 1U; /* sample count on an incomplete record */
+        crc = lfs_crc(0xffffffffUL, attr, 100U) ^ 0xffffffffUL;
+        attr[100] = (uint8_t)crc; attr[101] = (uint8_t)(crc >> 8); attr[102] = (uint8_t)(crc >> 16); attr[103] = (uint8_t)(crc >> 24);
+        CHECK(lfs_setattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR, attr, sizeof(attr)) == LFS_ERR_OK);
+        CHECK(bc_rec_store_lookup(&store, partial_start.id, &found, &file) == BC_REC_STORE_CORRUPT);
+        memcpy(attr, saved, sizeof(attr));
+        CHECK(lfs_setattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR, attr, sizeof(attr)) == LFS_ERR_OK);
+        CHECK(bc_rec_store_lookup(&store, partial_start.id, &found, &file) == BC_REC_STORE_OK);
+        /* A version-1 image padded with nonzero bytes is not a valid image. */
+        CHECK(downgrade_attribute_to_v1(fs, "/.sudo-rec/0000000000000053.raw"));
+        CHECK(lfs_getattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR,
+                          attr, BC_REC_STORE_METADATA_V1_SIZE) == (int)BC_REC_STORE_METADATA_V1_SIZE);
+        memset(attr + BC_REC_STORE_METADATA_V1_SIZE, 0x5aU, 16U);
+        CHECK(lfs_setattr(&fs->lfs, "/.sudo-rec/0000000000000053.raw", BC_REC_STORE_META_ATTR, attr, sizeof(attr)) == LFS_ERR_OK);
+        CHECK(bc_rec_store_lookup(&store, partial_start.id, &found, &file) == BC_REC_STORE_CORRUPT);
+    }
+}
+
 static void test_full_storage_and_bad_name(struct test_fs *fs)
 {
     bc_rec_store store;
@@ -683,6 +856,11 @@ static void test_full_storage_and_bad_name(struct test_fs *fs)
         (void)bc_rec_store_finish(&store, false, &file);
 
     CHECK(bc_rec_store_init(&bad_store, &fs->lfs, traversal_name, bad_name));
+    {
+        bc_audio_format legacy;
+        bc_audio_format_legacy_adpcm(&legacy);
+        CHECK(bc_rec_store_set_format(&bad_store, &legacy));
+    }
     start.id = 6U;
     CHECK(bc_rec_store_open(&bad_store, &start, &file) == BC_REC_INVALID);
 }
@@ -1301,6 +1479,7 @@ int main(void)
         test_crc_corruption_and_empty(&ram, &fs);
         test_metadata_corruption_and_validation(&fs);
         test_full_storage_and_bad_name(&fs);
+        test_metadata_versions_and_descriptors(&ram, &fs);
         test_capture_power_cut_matrix();
         test_receipt_delete_power_cut_matrix();
     }

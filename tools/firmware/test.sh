@@ -3,6 +3,9 @@ set -eu
 cd "$(dirname "$0")/../.."
 mkdir -p build/firmware/tests
 firmware_host_cc=${CC:-cc}
+. tools/firmware/opus_host_sources.sh
+python3 tools/firmware/import_opus.py --verify
+build_opus_host_library
 app_package_source=${RECORDING_APP_PACKAGE_SOURCE:-firmware/bc_ros/bc_application/app_package.c}
 cmd_handler_source=${RECORDING_CMD_HANDLER_SOURCE:-firmware/bc_ros/bc_application/app_cmd_handler.c}
 python3 tools/firmware/extract_recording_sources.py \
@@ -28,6 +31,7 @@ build/firmware/tests/test_recording_commands
 build/firmware/tests/test_transfer
 "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
   -Ifirmware/bc_ros/bc_module/recording \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_recording.c \
   tests/firmware/test_recording_owner.c -o build/firmware/tests/test_recording_owner
 build/firmware/tests/test_recording_owner
@@ -37,15 +41,45 @@ build/firmware/tests/test_recording_owner
   tests/firmware/test_capture.c -o build/firmware/tests/test_capture
 build/firmware/tests/test_capture
 "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
-  -DSUDO_VOICE_ONLY -DHANDWARE_1_23_2 \
+  -DSUDO_VOICE_ONLY -DHANDWARE_1_23_2 -DGLOBAL_STACK_SIZE=$opus_scratch_bytes \
   -Itests/firmware/sudo_capture \
+  -Itests/firmware/opus_host \
   -Ifirmware/bc_ros/bc_application \
   -Ifirmware/bc_ros/bc_module/recording \
+  $opus_includes \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_recording.c \
   firmware/bc_ros/bc_module/recording/bc_capture.c \
+  firmware/bc_ros/bc_module/recording/bc_resampler.c \
+  firmware/bc_ros/bc_module/recording/bc_opus_stream.c \
+  firmware/bc_ros/bc_module/recording/bc_opus_encoder.c \
   firmware/bc_ros/bc_application/app_sudo_capture.c \
-  tests/firmware/test_sudo_capture.c -o build/firmware/tests/test_sudo_capture
+  tests/firmware/test_sudo_capture.c build/firmware/tests/opus/libopus_profile.a -lm \
+  -o build/firmware/tests/test_sudo_capture
 build/firmware/tests/test_sudo_capture
+"$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
+  -Ifirmware/bc_ros/bc_module/recording \
+  firmware/bc_ros/bc_module/recording/bc_resampler.c \
+  tests/firmware/test_resampler.c -o build/firmware/tests/test_resampler -lm
+build/firmware/tests/test_resampler
+"$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
+  -Ifirmware/bc_ros/bc_module/recording \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
+  firmware/bc_ros/bc_module/recording/bc_opus_stream.c \
+  tests/firmware/test_opus_stream.c -o build/firmware/tests/test_opus_stream
+build/firmware/tests/test_opus_stream
+"$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
+  -DGLOBAL_STACK_SIZE=$opus_host_scratch_bytes \
+  -Ifirmware/bc_ros/bc_module/recording -Itests/firmware/opus_host $opus_includes \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
+  firmware/bc_ros/bc_module/recording/bc_opus_stream.c \
+  firmware/bc_ros/bc_module/recording/bc_opus_encoder.c \
+  tests/firmware/opus_host/bc_opus_port_host.c \
+  tests/firmware/test_opus_codec.c build/firmware/tests/opus/libopus_host.a -lm \
+  -o build/firmware/tests/test_opus_codec
+python3 tools/firmware/export_opus_fixtures.py --check
+build/firmware/tests/test_opus_codec
+python3 tools/firmware/export_opus_fixtures.py --check
 "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
   -Ifirmware/bc_ros/bc_module/recording \
   firmware/bc_ros/bc_module/recording/bc_voice_wire.c \
@@ -58,6 +92,7 @@ build/firmware/tests/test_voice_wire
 build/firmware/tests/test_touch_report
 "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -pedantic -g -fsanitize=address,undefined \
   -Ifirmware/bc_ros/bc_module/recording \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_recording.c \
   firmware/bc_ros/bc_module/recording/bc_voice_gesture.c \
   tests/firmware/test_voice_gesture.c -o build/firmware/tests/test_voice_gesture
@@ -67,6 +102,7 @@ build/firmware/tests/test_voice_gesture
   -Ifirmware/bc_ros/bc_module/file/LittleFS \
   firmware/bc_ros/bc_module/file/LittleFS/lfs.c \
   firmware/bc_ros/bc_module/file/LittleFS/lfs_util.c \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_rec_store.c \
   firmware/bc_ros/bc_module/recording/bc_recording.c \
   firmware/bc_ros/bc_module/recording/bc_voice_gesture.c \
@@ -88,6 +124,7 @@ build/firmware/tests/test_ic_led
   -Ifirmware/bc_ros/bc_module/file/LittleFS \
   firmware/bc_ros/bc_module/file/LittleFS/lfs.c \
   firmware/bc_ros/bc_module/file/LittleFS/lfs_util.c \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_rec_store.c \
   tests/firmware/test_recording_store.c \
   -o build/firmware/tests/test_recording_store
@@ -97,6 +134,7 @@ build/firmware/tests/test_recording_store
   -Ifirmware/bc_ros/bc_module/file/LittleFS \
   firmware/bc_ros/bc_module/file/LittleFS/lfs.c \
   firmware/bc_ros/bc_module/file/LittleFS/lfs_util.c \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_rec_store.c \
   firmware/bc_ros/bc_module/recording/bc_voice_legacy_archive.c \
   tests/firmware/test_voice_legacy_archive.c \
@@ -133,6 +171,7 @@ build/firmware/tests/test_flash_io
   -Ifirmware/bc_ros/bc_algorithm \
   firmware/bc_ros/bc_module/file/LittleFS/lfs.c \
   firmware/bc_ros/bc_module/file/LittleFS/lfs_util.c \
+  firmware/bc_ros/bc_module/recording/bc_audio_format.c \
   firmware/bc_ros/bc_module/recording/bc_rec_store.c \
   firmware/bc_ros/bc_module/recording/bc_recording.c \
   firmware/bc_ros/bc_module/recording/bc_voice_wire.c \

@@ -39,7 +39,7 @@ for group in list(original.findall('./Groups/Group')):
     if group.findtext('./GroupOption/CommonProperty/IncludeInBuild') == '0':
         reason = 'already disabled in supplier 1.23.2 target'
     elif name.startswith('opus/'):
-        reason = 'Opus not selected; production recording uses ADPCM'
+        reason = 'supplier opus-1.5.2 not selected; Sudo Voice compiles the pinned opus-1.6.1 subset'
     if reason:
         removed.extend({'path':f.findtext('FilePath'),'reason':reason} for f in group.findall('./Files/File'))
         original.find('Groups').remove(group)
@@ -66,6 +66,10 @@ for name in ('bc_ble_tx.c','bc_file_transfer.c'):
     E.SubElement(f, 'FileType').text = '1'
     E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\ble\\src\\'+name
 controls = original.find('.//TargetArmAds/Cads/VariousControls')
+# The supplier's excluded opus-1.5.2 include paths must not shadow the pinned
+# 1.6.1 headers selected below.
+controls.find('IncludePath').text = ';'.join(
+    p for p in controls.find('IncludePath').text.split(';') if 'opus-1.5.2' not in p)
 recording = E.SubElement(original.find('Groups'), 'Group')
 E.SubElement(recording, 'GroupName').text = 'Sudo Recording'
 recording_files = E.SubElement(recording, 'Files')
@@ -73,9 +77,13 @@ recording_files = E.SubElement(recording, 'Files')
 # cannot silently enter the candidate target. These are the portable recording
 # sources currently reviewed for Sudo, including the staged store/service API.
 recording_sources = (
+    'bc_audio_format.c',
     'bc_capture.c',
+    'bc_opus_encoder.c',
+    'bc_opus_stream.c',
     'bc_rec_store.c',
     'bc_recording.c',
+    'bc_resampler.c',
     'bc_touch_report.c',
     'bc_touch_tuning.c',
     'bc_voice_gesture.c',
@@ -100,12 +108,55 @@ f = E.SubElement(recording_files, 'File')
 E.SubElement(f, 'FileName').text = 'bc_battery_filter.c'
 E.SubElement(f, 'FileType').text = '1'
 E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\pmic\\bc_battery_filter.c'
+# Pinned upstream libopus 1.6.1: the portable fixed-point encoder/decoder
+# subset verified by tools/firmware/import_opus.py. The source lists come from
+# the upstream .mk files so a review can diff them against the release.
+OPUS_ROOT = ROOT / 'firmware/bc_ros/bc_module/opus/opus-1.6.1'
+def opus_list(mk, name):
+    lines = (OPUS_ROOT / mk).read_text().splitlines()
+    out, active = [], False
+    for line in lines:
+        if line.startswith(f'{name} ='):
+            active = True
+            continue
+        if active:
+            if not line.strip():
+                break
+            out.append(line.strip().rstrip('\\').strip())
+    return out
+opus_sources = []
+for mk, name in (('opus_sources.mk', 'OPUS_SOURCES'), ('celt_sources.mk', 'CELT_SOURCES'),
+                 ('silk_sources.mk', 'SILK_SOURCES'), ('silk_sources.mk', 'SILK_SOURCES_FIXED')):
+    for source in opus_list(mk, name):
+        if any(x in source for x in ('multistream', 'projection', 'mapping_matrix')):
+            continue
+        opus_sources.append(source)
+opus_group = E.SubElement(original.find('Groups'), 'Group')
+E.SubElement(opus_group, 'GroupName').text = 'Sudo Opus 1.6.1'
+opus_files = E.SubElement(opus_group, 'Files')
+for source in opus_sources:
+    f = E.SubElement(opus_files, 'File')
+    E.SubElement(f, 'FileName').text = source.rsplit('/', 1)[-1]
+    E.SubElement(f, 'FileType').text = '1'
+    E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\opus\\opus-1.6.1\\' + source.replace('/', '\\')
+opus_scratch = None
+for line in (ROOT / 'firmware/bc_ros/bc_module/recording/bc_opus_profile.h').read_text().splitlines():
+    if line.startswith('#define BC_OPUS_SCRATCH_BYTES '):
+        opus_scratch = int(line.split()[2].rstrip('U'))
+assert opus_scratch is not None
 controls.find('IncludePath').text += ';..\\..\\..\\..\\bc_ros\\bc_module\\recording'
+for include in ('include', 'celt', 'silk', 'silk\\fixed', 'src'):
+    controls.find('IncludePath').text += ';..\\..\\..\\..\\bc_ros\\bc_module\\opus\\opus-1.6.1\\' + include
+controls.find('IncludePath').text += ';..\\..\\..\\..\\bc_ros\\bc_module\\recording\\opus_support'
 controls.find('Define').text += ' SUDO_VOICE_ONLY'
 # Remove stale options needed only by the pruned Opus and different IMU/NFC sources.
 defines = controls.find('Define').text.split()
 controls.find('Define').text = ' '.join(x for x in defines if x not in {
     'OPUS_BUILD','VAR_ARRAYS','FIXED_POINT','DISABLE_FLOAT_API','REMOVE_FOR_MALLOC','ICM42688P','ST25R200','BLE_POWER_TESTx'})
+# Sudo Opus profile: portable fixed-point C, no float API, worker-owned
+# pseudostack sized by bc_opus_profile.h, Sudo allocation hook.
+controls.find('Define').text += (' OPUS_BUILD FIXED_POINT DISABLE_FLOAT_API NONTHREADSAFE_PSEUDOSTACK'
+                                 f' CUSTOM_SUPPORT GLOBAL_STACK_SIZE={opus_scratch}')
 common = original.find('./TargetOption/TargetCommonOption')
 common.find('OutputName').text = 'sudo_voice_candidate'
 common.find('OutputDirectory').text = '..\\..\\..\\..\\..\\build\\firmware\\sudo_voice\\'

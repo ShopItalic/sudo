@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "bc_audio_format.h"
+
 /*
  * The metadata attribute is intentionally a byte-defined format.  It is
  * never read through a C struct, so the on-disk representation is unchanged
@@ -22,7 +24,12 @@
  *   36..39 persisted custody byte count (LE32)
  *   40..43 persisted custody CRC (LE32)
  *   44..83 NUL-terminated legacy export name (40 bytes)
- *   84..87 metadata CRC-32/ISO-HDLC of bytes 0..83 (LE32)
+ *   84..87 version 1: metadata CRC-32/ISO-HDLC of bytes 0..83 (LE32)
+ *   84..99 version 2: audio descriptor (bc_audio_format wire layout)
+ *   100..103 version 2: metadata CRC-32/ISO-HDLC of bytes 0..99 (LE32)
+ *
+ * Version 1 records (S01-S04 firmware) carry no descriptor and decode as
+ * the supplier ADPCM format. New records are always written as version 2.
  */
 enum {
     META_MAGIC = 0,
@@ -39,12 +46,16 @@ enum {
     META_RECEIPT_BYTES = 36,
     META_RECEIPT_CRC = 40,
     META_NAME = 44,
-    META_CHECKSUM = 84,
-    META_BODY_SIZE = 84
+    META_V1_CHECKSUM = 84,
+    META_V1_BODY_SIZE = 84,
+    META_AUDIO = 84,
+    META_CHECKSUM = 100,
+    META_BODY_SIZE = 100
 };
 
 enum {
-    META_FORMAT_VERSION = 1,
+    META_FORMAT_VERSION_V1 = 1,
+    META_FORMAT_VERSION = 2,
     META_FLAG_COMPLETE = 1U << 0,
     META_FLAG_RECOVERED = 1U << 1,
     META_FLAG_TOMBSTONE = 1U << 2,
@@ -167,7 +178,8 @@ static bool same_file(const bc_rec_file *left, const bc_rec_file *right)
            left->frames == right->frames && left->crc32 == right->crc32 &&
            left->complete == right->complete &&
            left->recovered == right->recovered &&
-           memcmp(left->name, right->name, BC_REC_NAME_SIZE) == 0;
+           memcmp(left->name, right->name, BC_REC_NAME_SIZE) == 0 &&
+           bc_audio_format_equal(&left->audio, &right->audio);
 }
 
 static void path_for_id(char path[BC_REC_STORE_PATH_SIZE], uint64_t id,
@@ -252,7 +264,39 @@ static void encode_metadata(uint8_t bytes[BC_REC_STORE_METADATA_SIZE],
     put_le32(bytes + META_RECEIPT_BYTES, receipt_bytes);
     put_le32(bytes + META_RECEIPT_CRC, receipt_crc);
     memcpy(bytes + META_NAME, file->name, BC_REC_NAME_SIZE);
+    bc_audio_format_encode(bytes + META_AUDIO, &file->audio);
     put_le32(bytes + META_CHECKSUM, crc32_bytes(bytes, META_BODY_SIZE));
+}
+
+/* Accepts a version-1 or version-2 attribute image in a v2-sized buffer.
+ * Returns the checksum-verified version, or 0 for a corrupt image. */
+static unsigned metadata_version(const uint8_t bytes[BC_REC_STORE_METADATA_SIZE])
+{
+    uint16_t version;
+    uint16_t encoded_size;
+    if (memcmp(bytes + META_MAGIC, "SREC", 4U) != 0)
+        return 0U;
+    version = get_le16(bytes + META_VERSION);
+    encoded_size = get_le16(bytes + META_SIZE);
+    if (version == META_FORMAT_VERSION_V1) {
+        unsigned i;
+        if (encoded_size != BC_REC_STORE_METADATA_V1_SIZE ||
+            get_le32(bytes + META_V1_CHECKSUM) != crc32_bytes(bytes, META_V1_BODY_SIZE))
+            return 0U;
+        /* LittleFS zero-fills a shorter stored attribute; anything else in
+         * the tail means a foreign or damaged image. */
+        for (i = BC_REC_STORE_METADATA_V1_SIZE; i < BC_REC_STORE_METADATA_SIZE; ++i)
+            if (bytes[i] != 0U)
+                return 0U;
+        return META_FORMAT_VERSION_V1;
+    }
+    if (version == META_FORMAT_VERSION) {
+        if (encoded_size != BC_REC_STORE_METADATA_SIZE ||
+            get_le32(bytes + META_CHECKSUM) != crc32_bytes(bytes, META_BODY_SIZE))
+            return 0U;
+        return META_FORMAT_VERSION;
+    }
+    return 0U;
 }
 
 static bc_rec_store_status decode_metadata(
@@ -260,19 +304,13 @@ static bc_rec_store_status decode_metadata(
     bool expect_tombstone, bc_rec_start *start, bc_rec_file *file,
     uint32_t *receipt_bytes, uint32_t *receipt_crc)
 {
-    uint16_t encoded_size;
+    unsigned version;
     uint8_t flags;
     uint32_t receipt_count;
     uint32_t receipt_value;
 
-    if (memcmp(bytes + META_MAGIC, "SREC", 4U) != 0 ||
-        get_le16(bytes + META_VERSION) != META_FORMAT_VERSION)
-        return BC_REC_STORE_CORRUPT;
-
-    encoded_size = get_le16(bytes + META_SIZE);
-    if (encoded_size != BC_REC_STORE_METADATA_SIZE ||
-        get_le32(bytes + META_CHECKSUM) !=
-            crc32_bytes(bytes, META_BODY_SIZE))
+    version = metadata_version(bytes);
+    if (version == 0U)
         return BC_REC_STORE_CORRUPT;
 
     if (get_le64(bytes + META_ID) != expected_id ||
@@ -311,6 +349,15 @@ static bc_rec_store_status decode_metadata(
     if (!name_valid(file->name) || !counts_valid(file->bytes, file->frames) ||
         (!expect_tombstone && file->complete && file->bytes == 0U))
         return BC_REC_STORE_CORRUPT;
+    if (version == META_FORMAT_VERSION_V1) {
+        bc_audio_format_legacy_adpcm(&file->audio);
+    } else if (!bc_audio_format_decode(bytes + META_AUDIO, &file->audio) ||
+               file->audio.codec == BC_AUDIO_CODEC_NONE ||
+               (file->audio.sample_count != 0U && !file->complete)) {
+        /* A descriptor is mandatory in version 2, and an exact sample
+         * count exists only once the recording is complete. */
+        return BC_REC_STORE_CORRUPT;
+    }
 
     receipt_count = get_le32(bytes + META_RECEIPT_BYTES);
     receipt_value = get_le32(bytes + META_RECEIPT_CRC);
@@ -734,6 +781,7 @@ bool bc_rec_store_init(bc_rec_store *store, lfs_t *lfs,
     store->lfs = lfs;
     store->namer = namer;
     store->namer_ctx = namer_ctx;
+    store->format_set = false;
     store->file_attr.type = BC_REC_STORE_META_ATTR;
     store->file_attr.buffer = store->metadata;
     store->file_attr.size = BC_REC_STORE_METADATA_SIZE;
@@ -742,6 +790,41 @@ bool bc_rec_store_init(bc_rec_store *store, lfs_t *lfs,
     store->file_config.attr_count = 1U;
     store->initialized = true;
     return true;
+}
+
+bool bc_rec_store_set_format(bc_rec_store *store, const bc_audio_format *format)
+{
+    if (!store_valid(store) || store->active || format == NULL ||
+        !bc_audio_format_valid(format) || format->codec == BC_AUDIO_CODEC_NONE ||
+        format->sample_count != 0U)
+        return false;
+    store->format = *format;
+    store->format_set = true;
+    return true;
+}
+
+bool bc_rec_store_set_final_samples(bc_rec_store *store, uint32_t samples)
+{
+    if (!store_valid(store) || !store->active ||
+        store->current.audio.codec != BC_AUDIO_CODEC_OPUS)
+        return false;
+    store->final_samples = samples;
+    return true;
+}
+
+bool bc_rec_store_decode_metadata_name(const uint8_t *bytes, size_t size,
+                                       char name[BC_REC_NAME_SIZE])
+{
+    uint8_t image[BC_REC_STORE_METADATA_SIZE];
+    if (bytes == NULL || name == NULL ||
+        (size != BC_REC_STORE_METADATA_V1_SIZE && size != BC_REC_STORE_METADATA_SIZE))
+        return false;
+    memset(image, 0, sizeof(image));
+    memcpy(image, bytes, size);
+    if (metadata_version(image) == 0U)
+        return false;
+    memcpy(name, image + META_NAME, BC_REC_NAME_SIZE);
+    return name_valid(name);
 }
 
 static bc_rec_store_status inspect_existing_for_start(
@@ -775,6 +858,8 @@ bc_rec_result bc_rec_store_open(void *ctx, const bc_rec_start *start,
         return BC_REC_INVALID;
     if (store->active || store->reader_active)
         return BC_REC_BUSY;
+    if (!store->format_set)
+        return BC_REC_UNSUPPORTED;
 
     status = ensure_directory(store);
     if (status != BC_REC_STORE_OK)
@@ -816,6 +901,9 @@ bc_rec_result bc_rec_store_open(void *ctx, const bc_rec_start *start,
 
     file->complete = false;
     file->recovered = false;
+    file->audio = store->format;
+    file->audio.sample_count = 0U;
+    store->final_samples = 0U;
     store->active_start = *start;
     store->active_id = start->id;
     store->current = *file;
@@ -961,6 +1049,8 @@ static bc_rec_result mark_complete(bc_rec_store *store,
 
     complete_file.complete = true;
     complete_file.recovered = false;
+    if (complete_file.audio.codec == BC_AUDIO_CODEC_OPUS)
+        complete_file.audio.sample_count = store->final_samples;
     encode_metadata(store->metadata, &store->active_start, &complete_file,
                     META_FLAG_COMPLETE, 0U, 0U);
 
@@ -1065,6 +1155,7 @@ bc_rec_result bc_rec_store_finish(void *ctx, bool complete,
              verified.complete || verified.bytes != store->durable.bytes ||
              verified.frames != store->durable.frames ||
              verified.crc32 != store->durable.crc32 ||
+             !bc_audio_format_equal(&verified.audio, &store->durable.audio) ||
              memcmp(verified.name, store->durable.name,
                     BC_REC_NAME_SIZE) != 0))
             status = BC_REC_STORE_CORRUPT;
@@ -1083,6 +1174,7 @@ bc_rec_result bc_rec_store_finish(void *ctx, bool complete,
         if (result == BC_REC_EMPTY_AUDIO)
             file->complete = false;
     }
+    store->final_samples = 0U;
     return result;
 }
 

@@ -64,7 +64,7 @@ static void live_prefix_clear(bc_voice_service *s)
 }
 
 static bool live_prefix_push(bc_voice_service *s, uint32_t sequence,
-                             const uint8_t *data)
+                             const uint8_t *data, uint16_t length)
 {
     uint8_t index;
     if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
@@ -72,20 +72,22 @@ static bool live_prefix_push(bc_voice_service *s, uint32_t sequence,
     index = (uint8_t)((s->live_prefix_read + s->live_prefix_count) %
                       BC_VOICE_LIVE_PREFIX_SLOTS);
     s->live_prefix[index].sequence = sequence;
-    memcpy(s->live_prefix[index].data, data, BC_REC_FRAME_MAX);
+    s->live_prefix[index].length = length;
+    memcpy(s->live_prefix[index].data, data, length);
     ++s->live_prefix_count;
     return true;
 }
 
 static bool live_prefix_push_front(bc_voice_service *s, uint32_t sequence,
-                                   const uint8_t *data)
+                                   const uint8_t *data, uint16_t length)
 {
     if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
         return false;
     s->live_prefix_read = (uint8_t)((s->live_prefix_read == 0U) ?
         BC_VOICE_LIVE_PREFIX_SLOTS - 1U : s->live_prefix_read - 1U);
     s->live_prefix[s->live_prefix_read].sequence = sequence;
-    memcpy(s->live_prefix[s->live_prefix_read].data, data, BC_REC_FRAME_MAX);
+    s->live_prefix[s->live_prefix_read].length = length;
+    memcpy(s->live_prefix[s->live_prefix_read].data, data, length);
     ++s->live_prefix_count;
     return true;
 }
@@ -112,9 +114,9 @@ static bool live_requeue_active_tx(bc_voice_service *s)
 {
     if (!s->tx_active || s->tx.kind != BC_VOICE_LIVE)
         return true;
-    if (s->tx.length != 8U + BC_REC_FRAME_MAX ||
+    if (s->tx.length < 9U || s->tx.length > 8U + BC_REC_FRAME_MAX ||
         !live_prefix_push_front(s, bc_voice_get32(s->tx.payload + 4U),
-                                s->tx.payload + 8U))
+                                s->tx.payload + 8U, (uint16_t)(s->tx.length - 8U)))
         return false;
     s->tx_active = false;
     s->tx_offset = 0U;
@@ -145,7 +147,9 @@ static void encode_snapshot(bc_voice_message *out, const bc_rec_snapshot *r,
     bc_voice_put32(p + 57, token);
     p[61] = length;
     memcpy(p + 62, r->file.name, length);
-    out->length = (uint16_t)(62U + length);
+    /* S05: the per-recording descriptor follows the name. */
+    bc_audio_format_encode(p + 62 + length, &r->file.audio);
+    out->length = (uint16_t)(62U + length + BC_AUDIO_FORMAT_WIRE_SIZE);
 }
 
 static void snapshot_reply(bc_voice_service *s, const bc_voice_message *request,
@@ -248,6 +252,52 @@ bool bc_voice_service_set_outcome_port(bc_voice_service *s,
     if (!s || !port || !port->set_outcome) return false;
     s->outcome_port = *port;
     return true;
+}
+
+bool bc_voice_service_set_audio_port(bc_voice_service *s,
+                                     const bc_voice_audio_port *port)
+{
+    if (!s || !port || !port->get) return false;
+    s->audio_port = *port;
+    return true;
+}
+
+/* The format new recordings receive; legacy ADPCM when no audio port exists. */
+static bool current_format(bc_voice_service *s, bc_audio_format *format,
+                           bc_voice_audio_stats *stats)
+{
+    bc_voice_audio_stats ignored;
+    if (stats == NULL) stats = &ignored;
+    memset(stats, 0, sizeof(*stats));
+    if (s->audio_port.get && s->audio_port.get(s->audio_port.ctx, format, stats) &&
+        bc_audio_format_valid(format) && format->codec != BC_AUDIO_CODEC_NONE)
+        return true;
+    bc_audio_format_legacy_adpcm(format);
+    return false;
+}
+
+static void format_reply(bc_voice_service *s, const bc_voice_message *request)
+{
+    bc_voice_message response;
+    bc_audio_format format;
+    bc_voice_audio_stats stats;
+    uint8_t *p;
+    if (!current_format(s, &format, &stats)) {
+        simple_reply(s, request, BC_REC_UNSUPPORTED);
+        return;
+    }
+    reply_init(&response, request, BC_REC_OK);
+    p = response.payload;
+    bc_audio_format_encode(p + 5, &format);
+    bc_voice_put32(p + 21, stats.state_bytes);
+    bc_voice_put32(p + 25, stats.scratch_bytes);
+    bc_voice_put32(p + 29, stats.scratch_high_water);
+    bc_voice_put32(p + 33, stats.frames);
+    bc_voice_put32(p + 37, stats.max_encode_us);
+    bc_voice_put32(p + 41, stats.mean_encode_us);
+    bc_voice_put32(p + 45, stats.faults);
+    response.length = BC_VOICE_FORMAT_RESPONSE_LENGTH;
+    (void)queue(s, &response);
 }
 
 static void outcome_clear(bc_voice_service *s)
@@ -396,11 +446,11 @@ bool bc_voice_service_live(bc_voice_service *s, uint64_t id, uint32_t sequence,
                             const uint8_t *data, uint16_t length)
 {
     if (!s || !s->connected || s->live_disabled || s->live_token == 0U ||
-        id != s->token_recording || !data || length != BC_REC_FRAME_MAX ||
+        id != s->token_recording || !data || length == 0U || length > BC_REC_FRAME_MAX ||
         sequence == 0U || sequence == UINT32_MAX)
         return false;
     if (s->live_sequence == 0U || sequence != s->live_sequence ||
-        !live_prefix_push(s, sequence, data)) {
+        !live_prefix_push(s, sequence, data, length)) {
         live_preview_disable(s);
         return false;
     }
@@ -457,8 +507,11 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         (m->kind == BC_VOICE_START || m->kind == BC_VOICE_RESUME ||
          m->kind == BC_VOICE_RECEIPT || m->kind == BC_VOICE_CANCEL)) return;
     switch (m->kind) {
-    case BC_VOICE_HELLO:
+    case BC_VOICE_HELLO: {
+        bc_audio_format format;
+        bool has_format;
         if (m->length != 4) break;
+        has_format = current_format(s, &format, NULL);
         reply_init(&response, m, BC_REC_OK);
         bc_voice_put32(response.payload + 5, BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT |
             BC_VOICE_CAP_MEMO | BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME |
@@ -466,14 +519,19 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
             BC_VOICE_CAP_TRIPLE_TAP | BC_VOICE_CAP_PTT_UNTIL_RELEASE |
             (s->inputs_port.get && s->inputs_port.set ? BC_VOICE_CAP_INPUT_MAPPINGS : 0U) |
             (s->tuning_port.get && s->tuning_port.set ? BC_VOICE_CAP_TUNING : 0U) |
-            (s->outcome_port.set_outcome ? BC_VOICE_CAP_PHONE_OUTCOME : 0U));
-        bc_voice_put16(response.payload + 9, 8000);
-        bc_voice_put16(response.payload + 11, 440);
+            (s->outcome_port.set_outcome ? BC_VOICE_CAP_PHONE_OUTCOME : 0U) |
+            (has_format ? BC_VOICE_CAP_AUDIO_FORMAT : 0U));
+        bc_voice_put16(response.payload + 9, format.sample_rate_hz);
+        bc_voice_put16(response.payload + 11, format.block_samples);
         bc_voice_put16(response.payload + 13, BC_REC_FRAME_MAX);
         bc_voice_put16(response.payload + 15, (uint16_t)s->recording->config.checkpoint_ms);
         bc_voice_put16(response.payload + 17, 1000);
         response.payload[19] = BC_VOICE_TRANSFER_WINDOW; response.length = 20;
         (void)queue(s, &response); return;
+    }
+    case BC_VOICE_FORMAT_GET:
+        if (m->length != 4U) break;
+        format_reply(s, m); return;
     case BC_VOICE_START: {
         bc_rec_start start;
         if (m->length != 17) break;
@@ -923,10 +981,10 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
                    s->live_prefix_count != 0U) {
             bc_voice_live_frame *frame = &s->live_prefix[s->live_prefix_read];
             s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_LIVE;
-            s->tx.direction = BC_VOICE_EVENT; s->tx.length = 8U + BC_REC_FRAME_MAX;
+            s->tx.direction = BC_VOICE_EVENT; s->tx.length = (uint16_t)(8U + frame->length);
             bc_voice_put32(s->tx.payload, s->live_token);
             bc_voice_put32(s->tx.payload + 4U, frame->sequence);
-            memcpy(s->tx.payload + 8U, frame->data, BC_REC_FRAME_MAX);
+            memcpy(s->tx.payload + 8U, frame->data, frame->length);
             s->live_prefix_read = (uint8_t)((s->live_prefix_read + 1U) %
                                             BC_VOICE_LIVE_PREFIX_SLOTS);
             --s->live_prefix_count;

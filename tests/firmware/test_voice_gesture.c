@@ -162,6 +162,7 @@ static bc_rec_result fixture_open(void *context, const bc_rec_start *start,
     memset(file, 0, sizeof(*file));
     (void)snprintf(file->name, sizeof(file->name), "rec-%llx.raw",
                    (unsigned long long)start->id);
+    bc_audio_format_legacy_adpcm(&file->audio);
     return BC_REC_OK;
 }
 
