@@ -1182,6 +1182,18 @@ Opus firmware for S04. No Ring was flashed and no release package exists.
   Decoded output correlates ≥ 0.80 with speech-like input at 12 kbps and
   ≥ 0.90 for tones; silence decodes to silence.
 
+### S05-005 — Pre-flash review follow-up (documentation only)
+
+- The independent pre-flash review of the S05 pair found no confirmed
+  firmware blocker in the default encoder path but corrected two container
+  statements. `BC_OPUS_PACKET_MAX` (1,275) is the profile's single-frame
+  packet bound, which is RFC 6716's per-frame limit, not a codec packet
+  limit: readers must accept multi-frame packets larger than 1,275 bytes up
+  to the u16 record length. A completed recording always ends with a trailer
+  repeating its descriptor sample count, and a trailer may only trim samples
+  the packets carried; readers reject anything else. Comments and protocol
+  documentation only; no source, build output or binary changed.
+
 ### S05 qualification gates (explicit, not claimed)
 
 - Physical CPU deadline: FORMAT_GET reports max/mean encode microseconds and

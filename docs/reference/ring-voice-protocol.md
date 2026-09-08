@@ -30,10 +30,18 @@ phone without decoding.
 New recordings use codec 2 with the **Sudo Opus container v1**: a 16-byte
 header (`SOPU`, version 1, codec 2, sample rate u16, channels u8, frame ms u8,
 pre-skip u16, reserved u32 = 0), then length-prefixed records (u16 length
-1..1275 followed by one RFC 6716 packet), then an 8-byte trailer (length 0,
-kind 1, real sample count u32). A recording interrupted before its trailer is
-a valid prefix whose trailing partial record is ignored and whose sample
-count is unknown. The firmware profile is 16 kHz mono, 20 ms frames, 12 kbps
+followed by one RFC 6716 packet), then an 8-byte trailer (length 0, kind 1,
+real sample count u32). The S05 profile writes single-frame packets of at most
+1,275 bytes, but that is RFC 6716's per-frame bound, not a packet bound:
+readers must accept any valid packet up to the u16 record length, including
+multi-frame packets larger than 1,275 bytes, and validate the codec-defined
+framing (frames of at most 1,275 bytes, at most 120 ms and 48 frames per
+packet). A trailer may only trim samples the packets carried, and a completed
+recording (descriptor sample count nonzero) always ends with a trailer that
+repeats that count; readers must reject a trailer or descriptor that claims
+more samples than the packets decode to. A recording interrupted before its
+trailer is a valid prefix whose trailing partial record is ignored and whose
+sample count is unknown. The firmware profile is 16 kHz mono, 20 ms frames, 12 kbps
 CBR, complexity 0, DTX and in-band FEC off, resampled from the nominal
 16.125 kHz microphone rate ([bc_opus_profile.h](../../firmware/bc_ros/bc_module/recording/bc_opus_profile.h)).
 Clients must accept any valid CBR or VBR packet sequence, including bitrate

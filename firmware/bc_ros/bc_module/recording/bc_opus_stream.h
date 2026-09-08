@@ -14,8 +14,16 @@
  *
  *   Header (16 bytes): "SOPU", version u8 = 1, codec u8 = 2 (Opus),
  *     sample rate u16, channels u8, frame ms u8, pre-skip u16, reserved u32.
- *   Record: length u16 (1..1275) followed by one RFC 6716 Opus packet.
+ *   Record: length u16 (1..65535) followed by one RFC 6716 Opus packet.
  *   Trailer (8 bytes): length u16 = 0, kind u16 = 1, real sample count u32.
+ *
+ * This writer emits the profile's single-frame packets, at most
+ * BC_OPUS_PACKET_MAX bytes each, and the bounded reference parser below
+ * accepts the same records. Readers on the phone must accept any valid RFC
+ * 6716 packet up to the u16 record length, including multi-frame packets
+ * larger than 1,275 bytes. The trailer carries the exact real sample count:
+ * it may only trim samples the packets carried, and a completed recording
+ * (descriptor sample_count != 0) always ends with it.
  *
  * A recording interrupted before its trailer is a valid prefix: the decoder
  * ignores a trailing partial record and treats the sample count as unknown.
