@@ -1,11 +1,11 @@
-# Italic Ring (formerly Sudo Ring) component stack and bill of materials
+# Italic Sudo Ring component stack and bill of materials
 
 Extracted on **2026-09-05** from the factory BOM workbooks, Bravechip
 datasheets, mechanical records, and application/firmware sources.
 
-The public-facing product name is **Italic Ring**. Historical Sudo names remain
-in source filenames, paths, and technical IDs so the original evidence and
-recorded hashes can be checked.
+The product is the **Italic Sudo Ring**: **Italic** is the brand and
+**Sudo Ring** is the product name. Source filenames, paths, and technical IDs
+are preserved so the original evidence and recorded hashes can be checked.
 
 The best-supported hardware baseline is the **Fitwatch / Feiyang ring using
 Bravechip BCL603M3 hardware 1.23.2**, with a BCL603S2P SiP containing Nordic's
@@ -93,7 +93,7 @@ components. The ring's charging contacts belong to the ring assembly; the
 
 | Name | What it identifies | Evidence |
 | --- | --- | --- |
-| Italic Ring (formerly Sudo Ring) | Finished product, including size-specific enclosure, electronics, battery, and haptics. | Product and mechanical records. |
+| Italic Sudo Ring | Finished product, including size-specific enclosure, electronics, battery, and haptics. | Product and mechanical records. |
 | `BCL603M3 1.23.2` | Bravechip's functional ring module/design family in the May 2026 datasheet title. | D1, p. 1. |
 | `BCL603MHV1.23.2` | Flexible PCBA/module material number; 52 × 6.5 mm. CAD labels replace punctuation with underscores. | D1, pp. 1, 7; M1. |
 | `603V1.23.2` | Production hardware identity accepted by the iOS app. | SW1, `supportedHardwareVersion`. |
@@ -138,7 +138,7 @@ electronics, with explicit hierarchy and evidence status.
 The SiP's generic datasheet advertises support for NFC, PPG, NTC, ECG, and other
 peripherals. That is not evidence of an NFC antenna, optical heart-rate sensor,
 blood-oxygen sensor, ECG electrode, or discrete skin-temperature sensor in
-Italic Ring. Likewise, Nordic's generic USB/multiprotocol capability does not
+Italic Sudo Ring. Likewise, Nordic's generic USB/multiprotocol capability does not
 establish a USB data port, Thread, Zigbee, or Bluetooth Classic audio profile
 on this ring. D1's named sensing stack is microphone, IMU, and touch.
 

@@ -1,4 +1,6 @@
-# Documentation
+# Italic Sudo Ring documentation
+
+**Italic** is the brand; **Sudo Ring** is the product name.
 
 Start with the **[S04 RC1 download, flashing and test guide](how-to/test-s04-release-candidate.md)**.
 The **[current RC release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)**

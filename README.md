@@ -1,6 +1,8 @@
-# Italic Ring — firmware, downloads and hardware
+# Italic Sudo Ring — firmware, downloads and hardware
 
-Firmware and hardware evidence for the **standard Bravechip 603V1.23.2 Ring**.
+Firmware and hardware evidence for the **Italic Sudo Ring**, built on the
+standard Bravechip `603V1.23.2` hardware. **Italic** is the brand; **Sudo Ring**
+is the product name.
 Current main firmware and primary release candidate: **6.0.3.3S04 / S04 RC1**.
 S04 is an unsigned engineering prerelease for supplier bench testing; physical
 qualification and signed OTA packaging remain pending. This release is firmware only.

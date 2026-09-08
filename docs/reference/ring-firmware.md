@@ -1,8 +1,8 @@
-# Italic Ring raw firmware extraction
+# Italic Sudo Ring raw firmware extraction
 
 Extracted **2026-09-05** from the factory SDK for **603V1.23.2**. The factory
-image identifies its software as **6.0.3.3Z62**. Historical Sudo and Bravechip
-filenames remain unchanged so the artifacts can be matched to their source.
+image identifies its software as **6.0.3.3Z62**. Original source filenames
+remain unchanged so the artifacts can be matched to their source.
 
 The raw application and the combined factory image are recovered and verified.
 This is extraction of an existing factory distribution, not a readout from a
