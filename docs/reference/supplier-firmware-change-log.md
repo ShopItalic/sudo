@@ -32,6 +32,7 @@ No entry is a claim about firmware installed on a physical Ring or signed OTA re
 | S02 | 6.0.3.3S02; published on main | Commits 2ba1aa5, 7ffd2c8, and merge 0860373. S02 has source and host/CI evidence, but no separate S02 release asset set. The older S01 binary/checksums remain unchanged. |
 | S03 | 6.0.3.3S03; historical unsigned RC1 | The candidate changes [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h), recording service/protocol, motor, ADC, PMIC, and related tests. Use the separate S03 release provenance to identify the compiled source. The matching app transport/protocol work is commit [492af2a](https://github.com/ShopItalic/app/commit/492af2ad40949de3d54419df5e2fa140c912b94f), merged through [app PR #12](https://github.com/ShopItalic/app/pull/12) into main `664ea438c7265d57885f926e589acb0faa1d05ca`. |
 | S04 | 6.0.3.3S04; current unsigned RC1 designation | Tag `v6.0.3.3S04-rc.1` is refreshed in place to include PR #4 startup/touch/BLE fixes and PR #5 archive result mappings. Package provenance pins the exact main source, CI run and image hashes. S04 app adoption and physical qualification remain open. |
+| S05 | 6.0.3.3S05; experimental Opus branch, unreleased | Branch `codex/opus-audio` only. New recordings are 16 kHz Opus in the Sudo container; existing ADPCM files remain readable. Host codec/container/store/service/capture suites and the GNU link pass; no tag, package, flash or physical qualification. S04 RC1 is unchanged. |
 
 The relevant source sequence is visible with:
 
@@ -1068,6 +1069,131 @@ That asset set is superseded, so identify every download by `sourceSHA`,
 HEX is checked against the exact main-CI BIN, and notices remain included.
 S01 and S03 releases are unchanged. No hardware flashing, signing or physical
 qualification is performed by this refresh.
+
+## S05 Opus recording — September 8, 2026
+
+**Request:** replace ADPCM encoding for new Ring recordings with a
+battery-focused Opus profile, keep every existing ADPCM recording readable and
+retrievable, negotiate the audio format per recording, and keep the published
+S04 RC1 unchanged. This is **experimental 6.0.3.3S05 source on branch
+`codex/opus-audio`**: the identity exists so an S04-gated client cannot mistake
+Opus firmware for S04. No Ring was flashed and no release package exists.
+
+### S05-001 — Encode new recordings as 16 kHz mono Opus with bounded memory
+
+- **Before → after:** the capture adapter decimated the 880-sample PDM block
+  2:1 and ran the supplier IMA ADPCM encoder into fixed 220-byte frames.
+  It now resamples the nominal 16.125 kHz block (1.032 MHz PDM clock, ratio
+  64; pins, edge, clock and gain unchanged) to 16 kHz with an exact 129:128
+  fixed-point four-tap resampler and feeds a libopus 1.6.1 fixed-point
+  encoder: **16 kHz mono, 20 ms frames, 12 kbps CBR, complexity 0, VOIP,
+  DTX and in-band FEC off**. Every tunable is in
+  [bc_opus_profile.h](../../firmware/bc_ros/bc_module/recording/bc_opus_profile.h).
+- The codec source is the unmodified upstream `opus-1.6.1.tar.gz` subset
+  (SHA-256 `6ffcb593…411a1`) imported and verified by
+  [import_opus.py](../../tools/firmware/import_opus.py) with its licenses;
+  optional neural-network code (DRED, OSCE, deep PLC), platform intrinsics and
+  float SILK are not imported or enabled. The supplier's `opus-1.5.2` drop is
+  untouched and unselected; its include paths are removed from the generated
+  target so headers cannot alias.
+- Encoding runs on the recording worker, never in the PDM interrupt. libopus
+  temporaries live on a **20,480-byte pseudostack** owned by the worker
+  (host-measured profile high-water 14,140 bytes, checked with a 25 % margin
+  by the codec suite) followed by a 64-byte canary; the **15,268-byte**
+  encoder state and the scratch are allocated once from the FreeRTOS heap at
+  worker start and never freed. Allocation or self-test failure leaves
+  recording explicitly **UNSUPPORTED**; a canary breach or libopus error
+  during a recording is **ENCODER_ERROR (23)** and keeps the committed prefix
+  as a partial recording. Nothing is ever labeled with a codec that did not run.
+- Stop drains completed DMA blocks, pads the final frame with silence, encodes
+  enough silence to flush the 104-sample encoder delay, and writes the exact
+  real sample count. An empty capture stays EMPTY rather than a header-only file.
+- Files: [bc_resampler.c](../../firmware/bc_ros/bc_module/recording/bc_resampler.c),
+  [bc_opus_encoder.c](../../firmware/bc_ros/bc_module/recording/bc_opus_encoder.c),
+  [opus_support/custom_support.h](../../firmware/bc_ros/bc_module/recording/opus_support/custom_support.h),
+  [app_sudo_capture.c](../../firmware/bc_ros/bc_application/app_sudo_capture.c),
+  [app_sudo_voice.c](../../firmware/bc_ros/bc_application/app_sudo_voice.c)
+  (worker stack 2048 → 3072 words), [sudo_voice_profile.h](../../firmware/bc_ros/bc_config/sudo_voice_profile.h).
+
+### S05-002 — Per-recording audio descriptor and metadata version 2
+
+- Every stored recording carries a 16-byte descriptor (codec, container
+  version, sample rate, channels, frame ms, pre-skip, exact sample count,
+  block bytes, block samples). Metadata version 2 is 104 bytes with the
+  descriptor at 84 and the checksum at 100; version 1 records written by
+  S01-S04 (88 bytes) decode unchanged as supplier ADPCM 8 kHz / 220 bytes /
+  440 samples. A version-2 record without a descriptor, with an unknown codec,
+  or with a sample count before completion is CORRUPT, never guessed.
+- The store refuses to open a file until the worker configures the prepared
+  encoder's descriptor, and only the completion marker persists the exact
+  sample count. Receipt tombstones for legacy files carry the legacy
+  descriptor, so custody comparison, delete and retry semantics are unchanged.
+- Files: [bc_audio_format.c](../../firmware/bc_ros/bc_module/recording/bc_audio_format.c),
+  [bc_rec_store.c](../../firmware/bc_ros/bc_module/recording/bc_rec_store.c),
+  [bc_recording.c](../../firmware/bc_ros/bc_module/recording/bc_recording.c).
+
+### S05-003 — Container, chunked live delivery and format discovery
+
+- Opus audio is stored as the **Sudo container v1**: `SOPU` header with the
+  descriptor fields, u16 length-prefixed RFC 6716 packets, and a trailer with
+  the real sample count. The same bytes are the live preview stream, so one
+  parser serves archive sync and live decoding. Interrupted recordings are
+  valid prefixes without a trailer.
+- The recording owner still receives ≤ 220-byte frames: chunks end on a
+  packet boundary whenever a packet fits (at 12 kbps, six 32-byte records per
+  208-byte chunk after the header) and only a packet larger than 220 bytes
+  is fragmented across consecutive chunks. No existing 220-byte buffer grew.
+- Wire: HELLO bit **12** (format discovery; rate 16000, block 320, max chunk
+  220), **FORMAT_GET (19)** returning the descriptor plus encoder state bytes,
+  scratch bytes, scratch high-water, frames, max/mean encode microseconds and
+  faults; the 16-byte descriptor after the name in every snapshot; LIVE blocks
+  of 1..220 bytes; result 23. FILE transfer, byte resume, verification, exact
+  receipts and retryable deletion are unchanged.
+- Files: [bc_opus_stream.c](../../firmware/bc_ros/bc_module/recording/bc_opus_stream.c),
+  [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h),
+  [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c),
+  [ring-voice-protocol.md](ring-voice-protocol.md).
+
+### S05-004 — Validation, build and measurements
+
+- Host suites (ASan/UBSan, clang): real libopus 1.6.1 encoder-to-decoder
+  checks across 8/12/16/24/32 kbps CBR, 12/24 kbps VBR, 8/12/16/24/48 kHz,
+  10/20/40/60 ms frames, silence, sine, speech-like, noise and impulse
+  signals, one-sample to multi-second lengths, pre-skip and final-frame
+  trimming, packet-size changes, bitrate changes between packets, oversized
+  packet fragmentation, container corruption and truncation; resampler
+  exactness and chunk equivalence; container writer/parser; metadata v1/v2,
+  mixed catalogs, tombstones and corrupt descriptors; service format
+  discovery and variable LIVE; the real capture adapter with the PDM shim
+  (DMA ownership, stop tail, overflow, abort, PTT, stall, encoder fault and
+  exact counts). Shared fixtures for the app live in
+  [tests/fixtures/opus](../../tests/fixtures/opus) with a drift check.
+- GNU 15.2.rel1: **352 objects, zero undefined symbols**; FLASH 457,132 of
+  757,760 bytes (60.3 %), static RAM 209,224 of 243,880 bytes (85.8 %) before
+  the separate 8 KiB C heap and 8 KiB main stack; runtime Opus allocations
+  35,876 bytes from the 140 KiB FreeRTOS heap; local BIN 464,424 bytes,
+  SHA-256 `0f97fd4ece7d8762aa73d79c022bfa40da3f84388494ec16926c1a8b358de20e`.
+  The largest static frames in the encode path are 1,304 bytes
+  (`bc_opus_stream_write_packet`) and 792 bytes (`silk_encode_frame_FIX`).
+  These are compiler facts, not physical measurements.
+- Size comparison from the codec suite: the profile stores 30-byte packets
+  every 20 ms (1,500 bytes/s plus 2-byte lengths, about 1.6 KB/s) against
+  4,000 bytes/s of ADPCM, roughly 2.5× less Flash and BLE traffic per second.
+  Decoded output correlates ≥ 0.80 with speech-like input at 12 kbps and
+  ≥ 0.90 for tones; silence decodes to silence.
+
+### S05 qualification gates (explicit, not claimed)
+
+- Physical CPU deadline: FORMAT_GET reports max/mean encode microseconds and
+  the scratch high-water from the DWT cycle counter; measure a multi-minute
+  recording on a Ring and confirm the worker never stalls capture.
+- Battery: compare Opus and ADPCM recordings of equal length on hardware;
+  the encoder cost and the reduced Flash/BLE traffic are unmeasured.
+- Audio: listen to and transcribe physical recordings; host correlation is
+  not a fidelity claim. Verify the nominal 16.125 kHz microphone rate on the
+  fitted board before trusting the 129:128 ratio.
+- FreeRTOS heap high-water with the two boot-time allocations, the 3072-word
+  worker stack high-water, and supplier Arm Compiler reproduction.
 
 ## How to append future changes
 

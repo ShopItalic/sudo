@@ -1,7 +1,12 @@
 # Production firmware baseline
 
-Current source is **6.0.3.3S04**, with PTT until release, three mappable inputs,
+Current main source is **6.0.3.3S04**, with PTT until release, three mappable inputs,
 configurable hold activation, persisted light/haptic controls and conservative cleanup. S04 RC1 is the current unsigned engineering prerelease; S03 RC1 remains historical. See the [S04 change ledger](reference/supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026).
+Branch `codex/opus-audio` is the experimental **6.0.3.3S05** Opus recording
+source: pinned libopus 1.6.1 under `firmware/bc_ros/bc_module/opus/opus-1.6.1`
+(verified by `tools/firmware/import_opus.py --verify`), a 16 kHz Opus capture
+path, metadata version 2 with a per-recording descriptor and the Sudo Opus
+container. See the [S05 ledger](reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
 
 The source task inspected `Firmware/1.23.2_6033固件SDK.zip` in the Sudo Google
 Drive folder on the MBA. Its source board selection agrees with the production
@@ -124,9 +129,11 @@ S03 RC1 is published as an unsigned engineering prerelease.
    review the candidate diff from `102bfd2`.
 2. Reproduce the unmodified vendor build and the candidate with recorded tool
    versions, commands, output hashes, memory use, and supplier confirmation.
-3. Read back a correctly identified physical board. Verify audio rate and ADPCM
-   framing against the app's current 8 kHz mono interpretation; older 16 kHz /
-   Opus requirements do not establish the fitted firmware contract.
+3. Read back a correctly identified physical board. Verify the nominal
+   16.125 kHz PDM rate and, on S04, the ADPCM framing against the app's 8 kHz
+   mono interpretation; on the S05 branch verify the 16 kHz Opus resampling
+   ratio and encode timing through FORMAT_GET. Neither establishes the fitted
+   firmware contract without a physical readback.
 4. Verify live streaming and stored-file transfer, interruption/resume,
    battery and charging states, touch, motion, haptics, and recording cleanup
    through the current app adapter.

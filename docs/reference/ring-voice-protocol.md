@@ -8,7 +8,55 @@ no claim of a physical-ring test, measured performance, signed image, or
 flash/deployment result. The firmware labels this extension candidate-only:
 [bc_voice_wire.h](../../firmware/bc_ros/bc_module/recording/bc_voice_wire.h).
 
-Primary firmware sources are firmware/bc_ros/bc_module/recording/bc_voice_wire.h and .c for framing, bc_voice_protocol.h and bc_voice_service.c for messages and service behavior, bc_recording.h for state/results, and firmware/bc_ros/bc_application/app_sudo_voice.c for the standard worker. The app mirror is apps/ios/Sudo/Services/RingVoiceWire.swift, RingVoiceProtocol.swift, RingVoiceConnection.swift, RingVoiceRecordingTransport.swift, RingVoiceLiveReceiver.swift, RingVoiceLivePreview.swift, and RingProductionBoard.swift.
+Primary firmware sources are firmware/bc_ros/bc_module/recording/bc_voice_wire.h and .c for framing, bc_voice_protocol.h and bc_voice_service.c for messages and service behavior, bc_recording.h for state/results, bc_audio_format.h for the per-recording audio descriptor, bc_opus_stream.h for the Opus container, and firmware/bc_ros/bc_application/app_sudo_voice.c for the standard worker. The app mirror is apps/ios/Sudo/Services/RingVoiceWire.swift, RingVoiceProtocol.swift, RingVoiceConnection.swift, RingVoiceRecordingTransport.swift, RingVoiceLiveReceiver.swift, RingVoiceLivePreview.swift, RingProductionBoard.swift and the shared ItalicAudio* decoder files.
+
+## S05 Opus recording and format discovery (experimental)
+
+The **6.0.3.3S05** experimental identity records new audio as Opus and never
+reuses the S04 identity, so an S04-gated client cannot mistake an Opus Ring
+for ADPCM firmware. Existing ADPCM recordings remain readable and retrievable
+through the same catalog, resume, receipt and delete operations.
+
+Every recording carries a 16-byte **audio descriptor** (codec u8, container
+version u8, sample rate u16, channels u8, frame ms u8, pre-skip u16, exact
+sample count u32, block bytes u16, block samples u16, all little endian). It is
+persisted in the recording's metadata (version 2, 104 bytes; version 1 records
+from S01-S04 decode as ADPCM `1,0,8000,1,55,0,0,220,440`) and appended after
+the name bytes of every START/STOP/QUERY/CATALOG/STATE snapshot. The idle or
+end-of-catalog sentinel carries an all-zero descriptor. Codec values are
+1 = supplier IMA ADPCM and 2 = Opus; unknown values must be preserved on the
+phone without decoding.
+
+New recordings use codec 2 with the **Sudo Opus container v1**: a 16-byte
+header (`SOPU`, version 1, codec 2, sample rate u16, channels u8, frame ms u8,
+pre-skip u16, reserved u32 = 0), then length-prefixed records (u16 length
+1..1275 followed by one RFC 6716 packet), then an 8-byte trailer (length 0,
+kind 1, real sample count u32). A recording interrupted before its trailer is
+a valid prefix whose trailing partial record is ignored and whose sample
+count is unknown. The firmware profile is 16 kHz mono, 20 ms frames, 12 kbps
+CBR, complexity 0, DTX and in-band FEC off, resampled from the nominal
+16.125 kHz microphone rate ([bc_opus_profile.h](../../firmware/bc_ros/bc_module/recording/bc_opus_profile.h)).
+Clients must accept any valid CBR or VBR packet sequence, including bitrate
+changes between packets, and derive duration from the packets, pre-skip and
+trailer rather than from the profile.
+
+HELLO capability bit **12** advertises format discovery. With it, the HELLO
+sample rate and samples/block fields describe the current encoder profile
+(16000 and 320) and bytes/block is the maximum LIVE/FILE chunk (220).
+**FORMAT_GET (19)** returns the descriptor new recordings receive plus encoder
+instrumentation: encoder state bytes u32 at 21, scratch bytes u32 at 25,
+scratch high-water u32 at 29, encoded frames u32 at 33, maximum encode
+microseconds u32 at 37, mean encode microseconds u32 at 41 and encoder faults
+u32 at 45 (49 bytes). Without a prepared encoder FORMAT_GET returns
+UNSUPPORTED (20) and START reports UNSUPPORTED instead of labeling audio.
+
+**LIVE** blocks are now container chunks of 1..220 bytes; the phone
+reassembles the byte stream in sequence order and parses records from it.
+Chunks end on a record boundary whenever a record fits, and only a record
+larger than 220 bytes is fragmented across consecutive chunks. FILE transfer
+is unchanged and byte based; Opus resume offsets need no alignment. The new
+result **ENCODER_ERROR (23)** reports an encoder initialization or encoding
+failure; audio already committed remains a valid prefix.
 
 ## S04 controls
 
@@ -125,6 +173,7 @@ Every request begins with a nonzero request ID u32 at payload offset 0. The leng
 | 16 PHONE_OUTCOME (S03+) | request | 17 | recording ID u64 at 4; live token u32 at 12; outcome u8 at 16 (1 = keyboard inserted) |
 | 17 INPUTS_SET (S04) | request | 9 | hold ms u16 at 4; hold/double/triple action u8 at 6, 7, 8 |
 | 18 INPUTS_GET (S04) | request | 4 | none |
+| 19 FORMAT_GET (S05) | request | 4 | none |
 | 0x43 INPUT_EVENT (S04) | event | 8 | sequence u32; input/phase/action/reserved u8, as above |
 
 Trigger values are PTT 1, memo 2, and app 3. START IDs are persistent idempotency keys across reconnects and reboots. Lengths, IDs, tokens, booleans, duration bounds, and tuning bounds are enforced by [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h), [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c), and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
@@ -133,8 +182,8 @@ Event kinds are:
 
 | Kind | Direction | Length | Payload |
 |---:|---|---:|---|
-| 0x40 STATE | event | 62 plus name length | Snapshot, request ID 0; idle/end sentinel has recording ID 0 |
-| 0x41 LIVE | event | exactly 228 | stream token u32 at 0; sequence u32 at 4; exactly 220 raw bytes at 8 |
+| 0x40 STATE | event | 62 plus name length plus 16 (S05) | Snapshot, request ID 0; idle/end sentinel has recording ID 0 |
+| 0x41 LIVE | event | 9 through 228 | stream token u32 at 0; sequence u32 at 4; 1 through 220 container bytes at 8 (S01-S04: exactly 220 ADPCM bytes) |
 | 0x42 FILE | event | 9 through 228 | transfer token u32 at 0; absolute file offset u32 at 4; 1 through 220 raw bytes at 8 |
 
 These event shapes are defined in [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h) and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
@@ -148,11 +197,12 @@ Every response begins with request ID u32 at offset 0 and result u8 at offset 4.
 | HELLO | 20 | capabilities u32 at 5; sample rate u16 at 9; samples/block u16 at 11; bytes/block u16 at 13; checkpoint interval ms u16 at 15; release bound ms u16 at 17; transfer window u8 at 19 |
 | READY | 17 | live token u32 at 5; current recording ID u64 at 9 |
 | INPUTS_GET or INPUTS_SET | 11 | hold ms u16 at 5; hold/double/triple action u8 at 7, 8, 9; sensor apply status u8 at 10 |
+| FORMAT_GET (S05) | 49 | audio descriptor 16 bytes at 5; encoder state bytes u32 at 21; scratch bytes u32 at 25; scratch high-water u32 at 29; frames u32 at 33; max encode µs u32 at 37; mean encode µs u32 at 41; faults u32 at 45 |
 | SETTINGS_GET or SETTINGS_SET | 16 | PTT limit u32 at 5; memo limit u32 at 9; memo, LED, haptic u8 at 13, 14, 15 |
 | TUNING_GET or TUNING_SET | 13 | touch set u8 at 5; touch clear u8 at 6; haptic strength u8 at 7; start-active ms u16 at 8; stop-active ms u16 at 10; apply status u8 at 12 |
 | RESUME | 29 | recording ID u64 at 5; transfer token u32 at 13; file bytes u32 at 17; raw CRC u32 at 21; requested offset u32 at 25 |
 
-START, STOP, QUERY, and CATALOG normally return a snapshot response of length 62 plus name length; the Swift decoder also accepts a five-byte error response. Response construction is in [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h), [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c), and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
+START, STOP, QUERY, and CATALOG normally return a snapshot response of length 62 plus name length, followed in S05 by the 16-byte audio descriptor; the Swift decoder also accepts a five-byte error response and treats an absent descriptor as legacy ADPCM. Response construction is in [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h), [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c), and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
 Snapshot offsets are:
 
@@ -178,12 +228,13 @@ Snapshot offsets are:
 | 57 | 4 | Live stream token |
 | 61 | 1 | Name length |
 | 62 onward | 0 through 39 | Name bytes, without a NUL |
+| after name | 16 | S05 audio descriptor: codec, container version, sample rate u16, channels, frame ms, pre-skip u16, sample count u32, block bytes u16, block samples u16 |
 
 Phase values are idle 0, starting 1, recording 2, stopping 3, saved 4, partial 5, failed 6, empty 7 and delivered 8.
 
-The complete result enum is: 0 OK; 1 INVALID; 2 BUSY; 3 WRONG_SESSION; 4 DUPLICATE; 5 NO_SPACE; 6 OPEN_ERROR; 7 WRITE_ERROR; 8 SYNC_ERROR; 9 CLOSE_ERROR; 10 CAPTURE_ERROR; 11 CAPTURE_OVERFLOW; 12 SEQUENCE_GAP; 13 STOP_TIMEOUT; 14 ALREADY_EXISTS; 15 EMPTY_AUDIO; 16 INTERRUPTED; 17 TOUCH_ERROR; 18 NOT_FOUND; 19 CUSTODY_REQUIRED; 20 UNSUPPORTED; 21 CANCELLED; 22 CRC_ERROR. The enum is [bc_recording.h](../../firmware/bc_ros/bc_module/recording/bc_recording.h) and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
+The complete result enum is: 0 OK; 1 INVALID; 2 BUSY; 3 WRONG_SESSION; 4 DUPLICATE; 5 NO_SPACE; 6 OPEN_ERROR; 7 WRITE_ERROR; 8 SYNC_ERROR; 9 CLOSE_ERROR; 10 CAPTURE_ERROR; 11 CAPTURE_OVERFLOW; 12 SEQUENCE_GAP; 13 STOP_TIMEOUT; 14 ALREADY_EXISTS; 15 EMPTY_AUDIO; 16 INTERRUPTED; 17 TOUCH_ERROR; 18 NOT_FOUND; 19 CUSTODY_REQUIRED; 20 UNSUPPORTED; 21 CANCELLED; 22 CRC_ERROR; 23 ENCODER_ERROR (S05). The enum is [bc_recording.h](../../firmware/bc_ros/bc_module/recording/bc_recording.h) and [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
-HELLO capability bits are local storage 0, PTT 1, memo 2, live 3, resume 4, custody 5, settings 6, tuning 7, optional phone outcome 8 (S03+, advertised only with an outcome handler), triple tap 9, PTT until release 10, and input mappings 11 (S04, advertised with the inputs port): [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
+HELLO capability bits are local storage 0, PTT 1, memo 2, live 3, resume 4, custody 5, settings 6, tuning 7, optional phone outcome 8 (S03+, advertised only with an outcome handler), triple tap 9, PTT until release 10, input mappings 11 (S04, advertised with the inputs port), and audio format discovery 12 (S05, advertised only with a prepared encoder): [bc_voice_protocol.h](../../firmware/bc_ros/bc_module/recording/bc_voice_protocol.h); [RingVoiceProtocol.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceProtocol.swift).
 
 ## 4. Handshake, epochs, and ordering
 
@@ -201,7 +252,7 @@ The standard 1.23.2 worker declares `{1000U, 4096U, 500U}`. With bc_rec_config o
 
 ## 5. LIVE and stateful decoding
 
-LIVE is accepted only for the current recording and stream token, with sequence beginning at 1 and exactly 220 bytes per block. LIVE_ACK carries cumulative next sequence. The iOS receiver decodes each contiguous block once, accepts an exact retained duplicate without decoding again, rejects a conflicting duplicate or gap, and uses a stateful ADPCM decoder. Explicit start/end resets the decoder; reconnect/rejoin and a lost ACK do not. A suffix without the required sequence-1 prefix falls back to archive sync: [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [RingVoiceLiveReceiver.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceLiveReceiver.swift).
+LIVE is accepted only for the current recording and stream token, with sequence beginning at 1 and, on S05, 1 through 220 container bytes per block (exactly 220 ADPCM bytes on S01-S04). LIVE_ACK carries cumulative next sequence. The iOS receiver decodes each contiguous block once, accepts an exact retained duplicate without decoding again, rejects a conflicting duplicate or gap, and uses a stateful decoder selected by the recording's descriptor. Explicit start/end resets the decoder; reconnect/rejoin and a lost ACK do not. A suffix without the required sequence-1 prefix falls back to archive sync: [bc_voice_service.c](../../firmware/bc_ros/bc_module/recording/bc_voice_service.c); [RingVoiceLiveReceiver.swift](https://github.com/ShopItalic/app/blob/main/apps/ios/Sudo/Services/RingVoiceLiveReceiver.swift).
 
 ## 6. Catalog, native transfer, and custody
 
