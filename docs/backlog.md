@@ -126,3 +126,15 @@ product decisions:
 - Wider supplier command-surface reduction still requires a supported-command
   inventory. Keep identity, pairing, time, battery, motion, update compatibility
   and old-recording retrieval intact; do not remove callers without evidence.
+
+## S05 download hosting — 2026-09-09
+
+- Deployed `italic-ring-firmware` at `firmware.italic.com` with CI-built S05
+  binary, checksums, notices and explicit unsigned/OTA-unavailable metadata.
+  Config and source provenance: `tools/firmware-hosting/`.
+- Public HTTPS download and SHA-256 verified. A logged Super Bot Fight Mode
+  exception applies only to GET/HEAD on firmware.italic.com at `/` or
+  `/ring/s05/`; managed WAF and rate limiting remain enabled.
+- Obtain supplier-signed S05 DFU package and validate it for the target Ring.
+  ShopItalic/app commit `6e9ceb3` implements HTTPS release checking and verified
+  package preparation; keep OTA unavailable until the signed ZIP is published.
