@@ -935,6 +935,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\bc_ros\bc_util\bc_delay\bc_delay.c</FilePath>
             </File>
+            <File>
+              <FileName>bc_log_task.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\bc_ros\bc_util\bc_log\bc_log_task.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

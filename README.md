@@ -3,15 +3,31 @@
 Firmware and hardware evidence for the **Italic Sudo Ring**, built on the
 standard Bravechip `603V1.23.2` hardware. **Italic** is the brand; **Sudo Ring**
 is the product name.
-Current main firmware and primary release candidate: **6.0.3.3S04 / S04 RC1**.
+
+**September 9 qualification status:** an S05 engineering update completed its
+transfer but failed physical acceptance; the Ring could not reconnect or report
+its firmware version. Recovery remains unresolved. Do not install that build on
+another working Ring. Start with the [recovery and qualification workflow](docs/how-to/qualify-firmware.md)
+and [incident evidence](docs/backlog.md#s05-physical-update-failure--2026-09-09).
+The S04 release descriptions and measurements below are historical, not evidence
+that the current main/S05 code is qualified. Public S05 OTA remains unavailable.
+
+**September 10 software result:** the exact ArmCC 5.06u7 build 960 environment
+is installed on MBP-M5. The supplier baseline matches the factory application
+byte for byte; the repaired Sudo target builds with zero errors and passes the
+full host suite and 33 linked ARM regression scenarios. Recording and Opus are
+retained. See the [software qualification report](docs/reference/ring-armcc5-qualification.html)
+for artifact hashes, runtime fixes, all task budgets and the remaining physical boundary.
+
+Previously published primary release candidate: **6.0.3.3S04 / S04 RC1**.
 S04 is an unsigned engineering prerelease for supplier bench testing; physical
 qualification and signed OTA packaging remain pending. This release is firmware only.
 
 **[Supplier change log: what changed from factory firmware and why](docs/reference/supplier-firmware-change-log.md)**
 records additions, exclusions, refinements and verification status as work proceeds.
 
-Branch `codex/opus-audio` carries the **experimental 6.0.3.3S05 Opus
-recording** source: new recordings are 16 kHz Opus in the Sudo container with
+The **experimental 6.0.3.3S05 Opus recording** source, originally developed on
+`codex/opus-audio` and now present on main, uses 16 kHz Opus in the Sudo container with
 a per-recording format descriptor, existing ADPCM files stay readable, and the
 published S04 RC1 is unchanged. See the
 [S05 ledger entries](docs/reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
@@ -114,7 +130,7 @@ build compiles/links **225 objects with zero undefined symbols**. See the
 for the verified source commit, local image checksum and validation boundaries.
 S04 RC1 is refreshed in place with the merged reliability fixes. Its
 `provenance.json` identifies the exact main source, CI run and image hashes;
-use those values to distinguish it from the original `84c91fc` bundle. No Ring was flashed; physical audio/radio/power
+use those values to distinguish it from the original `84c91fc` bundle. No Ring had been flashed at that S04 review; physical audio/radio/power
 qualification, supplier compiler/ABI review, signing and recovery remain open.
 
 ## Current S04 release versus factory
@@ -132,7 +148,7 @@ Ring**. This repository is public; retained supplier and third-party license ter
 
 ## Repository map
 
-`main` contains S04 firmware, tests and current documentation. S04 RC1 keeps the same tag and filenames when refreshed;
+`main` contains the experimental S05 firmware, tests and documentation. S04 RC1 keeps the same tag and filenames when refreshed;
 its provenance and SHA-256 checksums identify the exact build. [S03 RC1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S03-rc.1)
 and S01 RC1 remain available unchanged for historical comparison.
 

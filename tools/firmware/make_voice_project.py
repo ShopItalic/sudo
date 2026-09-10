@@ -65,6 +65,13 @@ for name in ('bc_ble_tx.c','bc_file_transfer.c'):
     E.SubElement(f, 'FileName').text = name
     E.SubElement(f, 'FileType').text = '1'
     E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_module\\ble\\src\\'+name
+logger_files = next(
+    g.find('Files') for g in original.findall('./Groups/Group')
+    if any(f.findtext('FileName') == 'bc_logger.c' for f in g.findall('./Files/File')))
+f = E.SubElement(logger_files, 'File')
+E.SubElement(f, 'FileName').text = 'bc_log_task.c'
+E.SubElement(f, 'FileType').text = '1'
+E.SubElement(f, 'FilePath').text = '..\\..\\..\\..\\bc_ros\\bc_util\\bc_log\\bc_log_task.c'
 controls = original.find('.//TargetArmAds/Cads/VariousControls')
 # The supplier's excluded opus-1.5.2 include paths must not shadow the pinned
 # 1.6.1 headers selected below.

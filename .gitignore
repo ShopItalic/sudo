@@ -17,6 +17,12 @@ dist/
 .env.*
 __pycache__/
 .local/
+# Local uVision RTE instantiation; keep the supplier startup sources tracked.
+/firmware/BCL603S2X/app/project/mdk5/RTE/_*/
+/firmware/BCL603S2X/app/project/mdk5/RTE/Device/**/*.base@*
+/firmware/BCL603S2X/app/project/mdk5/RTE/Device/**/*.update@*
+/firmware/BCL603S2X/app/project/mdk5/*.uvguix.*
+/firmware/BCL603S2X/app/project/mdk5/Listings/
 *.key
 *.pem
 !artifacts/ring-firmware/603v1.23.2-6.0.3.3z62/verification/dfu-public-key.pem

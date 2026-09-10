@@ -33,6 +33,9 @@
 #include "bc_delay.h"
 #include "bc_rtos.h"
 #include <stdlib.h>
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
 
 static q_device_t *g_sensor_int_device_handler;
 static void sport_count_timer_callback (void * pvParameter);
@@ -49,7 +52,11 @@ static bool bc_g_sensor_acc_and_gyro_status_flag = false;
 static bc_rtos_timer_struct  g_sensor_timer[G_SENSOR_TIMER_NUM] = {
     {
         .timer_name = "sport_count_timer",                          //定时器名字
+#if defined(SUDO_VOICE_ONLY)
+        .uxAutoReload = false,
+#else
         .uxAutoReload = true,                                      //周期定时器
+#endif
         .xTimerPeriodInTicks = 1000*5,                              //定时器时间
         .timer_callback_function = sport_count_timer_callback,      //定时器回调
     },
@@ -62,14 +69,26 @@ static void bc_g_sensor_int_callback(uint8_t pin,uint8_t pin_status)
 //    ret_code_t err_code;
 	BC_LOG_INFO("bc_g_sensor_int_callback sport_num:%d \r\n",sport_num);
 
+#if defined(SUDO_VOICE_ONLY)
+    BaseType_t woken = pdFALSE;
+    /* Leave GPIO enabled if the timer queue is full so a later motion can
+     * retry. Never disable the source without a queued re-enable operation. */
+    if (g_sensor_timer[0].timer_handler != NULL &&
+        xTimerStartFromISR(g_sensor_timer[0].timer_handler, &woken) == pdPASS)
+        q_device_close(g_sensor_int_device_handler);
+#else
 	q_device_close(g_sensor_int_device_handler);
   bc_rtos_timer_start(g_sensor_timer[0].timer_handler,50);
+#endif
 //    bc_gsensor_irqOff();
     sport_num += 1;
 	if(g_sensor_irq_callback != NULL)
 	{
 		g_sensor_irq_callback();
 	}
+#if defined(SUDO_VOICE_ONLY)
+    bc_portYIELD_FROM_ISR(woken);
+#endif
 }
 
 
@@ -82,7 +101,9 @@ void sport_count_timer_callback (void * pvParameter)
     q_device_open(g_sensor_int_device_handler);
 	q_device_reg_callback(g_sensor_int_device_handler,0,bc_g_sensor_int_callback);
 //	bc_timer_stop(&g_sensor_timer[0]);
+#if !defined(SUDO_VOICE_ONLY)
   bc_rtos_timer_stop(g_sensor_timer[0].timer_handler,50);
+#endif
 //	bc_gsensor_irqOn();
 }
 
@@ -108,9 +129,20 @@ void gsensor_int_timer_create(void)
 //gsensor中断初始化
 void bc_gsensor_int_init(void)
 {
+#if defined(SUDO_VOICE_ONLY)
+  /* Create the one-shot recovery timer before GPIO can deliver an event. */
+  gsensor_int_timer_create();
+  if (g_sensor_timer[0].timer_handler == NULL) {
+    APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+    return;
+  }
+  q_device_reg_callback(g_sensor_int_device_handler,0,bc_g_sensor_int_callback);
+  q_device_open(g_sensor_int_device_handler);
+#else
   q_device_open(g_sensor_int_device_handler);
   q_device_reg_callback(g_sensor_int_device_handler,0,bc_g_sensor_int_callback);
   gsensor_int_timer_create();
+#endif
 }
 
 //gsensor中断查找

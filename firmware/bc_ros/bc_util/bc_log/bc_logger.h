@@ -7,6 +7,9 @@
 
 #define LOG_ENABLE  1
 
+#if defined(SUDO_VOICE_ONLY) && (HARDWARE_ARCH_TYPE_NORDIC == 1)
+#include "bc_log_task.h"
+#else
 #if (DEBUG_INFO == 1)
 
 													
@@ -107,6 +110,8 @@
 #define BC_LOG_HEX(chars,data,length)              BC_LOG_PRINTF("%s,%d,%d",chars,data[0],length) ;
 
 #endif
+
+#endif /* Sudo task logging / original vendor logging */
 
 void BC_LOG_BLE(const char* format, ...);
 

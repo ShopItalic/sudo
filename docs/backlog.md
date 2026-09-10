@@ -138,3 +138,138 @@ product decisions:
 - Obtain supplier-signed S05 DFU package and validate it for the target Ring.
   ShopItalic/app commit `6e9ceb3` implements HTTPS release checking and verified
   package preparation; keep OTA unavailable until the signed ZIP is published.
+
+## S05 physical update failure — 2026-09-09
+
+- A user-authorized application-only engineering DFU of source
+  `8632de604b2bd79c103e43292e91eab4ba13aed1` completed its Bluetooth transfer on
+  a Ring freshly identified as standard `603V1.23.2`, factory `6.0.3.3Z62`.
+  The transferred 464,220-byte BIN SHA-256 was
+  `e99d68e970476da98034e47c6f6a4872766f490be2fe7ea3ea55bf0c4eae3f3d`.
+  A locally produced DFU signature was verified against the factory public
+  key; this was not supplier qualification or a public OTA release.
+- **Failed acceptance:** the app could not read back `6.0.3.3S05` after the
+  transfer. Subsequent iPhone pairing timed out. A separately authorized Mac
+  check saw the normal Ring name and HID advertisement but could not establish
+  an application connection, including with iPhone Bluetooth off. No firmware
+  version, working recording, or usable DFU service was read from the updated
+  device. Advertising does not establish that the application is healthy.
+- Preserve the unresolved app maintenance record and recording custody. Do not
+  treat the completed transfer, valid signature, GNU build, or host tests as
+  successful installation. Keep public OTA unavailable and withhold this build
+  from further device testing until the failure and recovery are resolved.
+- The [continued S05 failure audit](reference/ring-s05-failure-audit.html)
+  reproduces reset requests in the preserved application binary; the physical
+  Ring's first fault and reset sequence still need target evidence. The
+  supplied bootloader configuration disables button
+  and pin-reset DFU entry; it supports the application-requested GPREGRET path.
+  A compatible signed factory package exists, but no usable transport to
+  install it is established. Obtain a verified recovery entry procedure and
+  physical debug access if an iPhone connection cannot be recovered. Preserve
+  device flash and external recordings before any debugger erase/recovery.
+- A direct same-iPhone test in Nordic nRF Connect 2.8.2 also remained at
+  `Connecting`: advertisements were received and marked connectable, but no
+  successful connection callback or service discovery appeared after several
+  minutes. Placing the Ring on its powered charger did not immediately restore
+  the connection. The user reports the Mac never connected historically, so
+  the Mac result does not establish a regression caused by this update.
+- USB capture of the same iPhone's `bluetoothd` on September 9, 16:04–16:06
+  confirmed 78 controller connection-complete events followed by 78
+  disconnections for this Ring. Identity was correlated against the app's
+  saved Ring association, not inferred from nearby-device log timing. iOS
+  reported reason `762`, `encryptionPending 0`, `linkReady:0`, and skipped the
+  application disconnection callback because the link never became ready.
+  Nordic nRF Connect still exposed no services. This localizes the observed
+  failure before app commands/service discovery; it does not identify the
+  firmware fault or prove permanent hardware damage. A status-only HCI logger
+  opened but returned zero packets in 45 seconds, so the raw HCI error remains
+  unverified. Do not infer a pairing-key failure from the Apple numeric code.
+
+### S05 runtime audit continuation — 2026-09-09
+
+- The hash-pinned original ARM ELF/BIN reproducer now runs 14 scenarios. Six
+  interrupt routes reach the GNU Newlib reset guard: BLE connection, RTC
+  calendar conversion, Peer Manager security start, BLE receive logging,
+  PWM0 stopped notification, and motion GPIO. Cold/warm BLE logging are two
+  variants of one route. Keep the guard and remove/defer incompatible library
+  calls throughout these callbacks; removing the first BLE log alone is
+  insufficient. The PWM probe models the already-idle stopped state, not
+  physical PWM activity.
+- Rebudget motor, hardware-check and motion worker stacks. The first two
+  write 664 bytes against 512-byte budgets. The motion timer-creation helper
+  alone writes 672 bytes, excluding its task/driver caller frames. Enable
+  stack/allocation diagnostics and measure all worker and timer paths with
+  interrupt/preemption margin. These are CPU-model measurements with relocated
+  stacks, not a readout of corrupted device RAM.
+- Fix the motion GPIO callback's task-context timer command with a 50-tick
+  wait (`bc_gsensor.c`, `bc_rtos.h`): use an ISR-safe command or defer to the
+  worker. The selected binary contains this mismatch, but the earlier logging
+  reset prevents the current probe from reaching it.
+- The original ARM Opus startup preparation/silent-frame self-test returns
+  success with 4,872-byte helper stack depth in the isolated model. All 352
+  selected source hashes match the incident inventory; the full host suite
+  and 7,056-file supplier baseline verification pass again (one existing
+  Python test skipped). These results do not qualify full boot, sustained
+  audio, runtime heap pressure, radio coexistence or physical recovery.
+- Preserve the original failing artifact and its forensic reproducer at
+  `tools/firmware/reproduce_s05_runtime_failures.py`. A successful reproducer
+  exit means expected defects were observed, not that firmware is safe.
+  Future repaired builds need integration tests expecting no reset/overrun,
+  then the [hardware qualification workflow](how-to/qualify-firmware.md).
+
+### Arm Compiler 5 Docker preparation — 2026-09-09
+
+- The pinned Ubuntu x86-64 host image and 32-bit compatibility dependencies
+  build on MBP-M5; both 32-bit and 64-bit x86 execution probes pass.
+- Installed the user-selected Linux build 960 mirror after EULA approval.
+  It identifies itself as Arm Compiler 5.06u7 **for Certification**. Preserve
+  that edition and the archive/tool hashes in build provenance; matching the
+  filename does not establish equivalence with Bravechip's actual build.
+- Actual `armcc --vsn` and a minimal Cortex-M4 compile both exit 1 with
+  `C9555E` because no license file/server is configured. Jeremy confirmed the
+  supplier has a license for the sample collaboration. Configure compatible
+  compiler access locally or use the supplier's configured build environment
+  before baseline/candidate compilation can proceed.
+- The host check is not firmware qualification. At this Docker-preparation
+  stage neither target had compiled. The Windows route subsequently completed
+  the software qualification below. See [the setup and exact evidence](how-to/qualify-firmware.md#linux-docker-host-preparation).
+
+### ArmCC 5 software qualification — 2026-09-10
+
+- **Completed:** legitimate MDK Professional evaluation and exact Arm Compiler
+  5.06u7 for Certification build 960 installed on MBP-M5 through CrossOver.
+  CMSIS 5.7.0 and Nordic DeviceFamilyPack 8.35.0 are installed. The Linux Docker
+  compiler remains separately unlicensed; it is not the selected working build.
+- **Completed:** the supplier baseline compiles/links with zero errors and
+  exactly matches the preserved factory application: 184,132 bytes,
+  SHA-256 `96f1186e20f09ea2b97f48090626965437fb5e8cc4ff8b87679294cea8d853bf`.
+  All 7,056 source archive entries verify. The prepared build regenerated only
+  comment/formatting content in its RTE header; all other originals match.
+- **Completed:** the repaired candidate clean build produces 351 objects,
+  zero errors, 588 compiler warnings and no linker warnings. All 123 Opus
+  1.6.1 sources remain selected. Original ARM startup, system source, allocator,
+  ARM/CMSIS FreeRTOS port and supplier algorithm archive are unchanged.
+- **Completed:** interrupt logging/calendar failures, motion timer context,
+  the BLE connection tick read, the three demonstrated stack overruns and
+  disabled stack/allocation diagnostics are addressed. Touch, BLE receive,
+  shared timer and idle budgets also received margin after linked-path review.
+  The full host suite and 33 actual ARM instruction scenarios pass, including
+  the intended diagnostic reset after deliberate stack-guard corruption.
+- **Evidence:** [qualification report](reference/ring-armcc5-qualification.html)
+  and [repeatable commands](how-to/qualify-firmware.md#repeat-the-recorded-software-build).
+  Candidate BIN: 330,648 bytes, SHA-256
+  `227ce7e5cd68d8aaa09660182e39960d55360b8892ea983de6da311f2d2c1238`.
+  Compiler/actual input/object/output hashes, maps, logs and model boundaries
+  are recorded. Actual flash/RAM placement fits physical/reserved bounds.
+- **Still open, physical scope:** verified recovery for the failed Ring,
+  identified recoverable test hardware, firmware readback, full boot, bonding,
+  reconnect, audio/transfer, sensor/bus/power behavior and actual task/heap
+  high-water measurements under sustained workload and interrupt nesting.
+  No signing, flashing, publishing or recovery operation was performed here.
+- **Follow-up source scope:** retain and triage inherited compiler warnings
+  where reachable, including missing-return diagnostics. Static call graphs
+  have unresolved indirect calls/cycles and are not worst-case stack proofs.
+  Keep the post-link physical-bound checks: the supplier's declared maximum
+  RAM/ROM regions extend beyond the usable application boundaries, although
+  both actual linked images fit. Keep the original failing GNU reproducer as
+  evidence; do not replace its artifact or remove its interrupt guard.

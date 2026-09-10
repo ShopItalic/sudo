@@ -35,7 +35,11 @@
 
 
 /*  app ble config */
+#if defined(SUDO_VOICE_ONLY)
+#define APP_TASK_BLE_RECV_STACK_SIZE                      768
+#else
 #define APP_TASK_BLE_RECV_STACK_SIZE                      512
+#endif
 #define APP_TASK_BLE_RECV_PRIO                            12
 
 #define APP_TASK_BLE_SEND_STACK_SIZE                      256
@@ -66,8 +70,21 @@
 #define APP_TASK_RTC_PRIO                                 8
 
 
+/* Sudo budgets are StackType_t words (4 bytes on Cortex-M4). The motor,
+ * motion and hardware-check workers reserve 2 KiB each. Linked-path checks
+ * and later physical high-water measurements remain separate evidence. */
+#if defined(SUDO_VOICE_ONLY)
+#define APP_TASK_HARDWARE_CHECK_STACK_SIZE                512
+#else
+#define APP_TASK_HARDWARE_CHECK_STACK_SIZE                APP_TASK_RTC_STACK_SIZE
+#endif
+
 /*  app linear motor config */
+#if defined(SUDO_VOICE_ONLY)
+#define APP_LINEAR_MOTOR_STACK_SIZE                       512
+#else
 #define APP_LINEAR_MOTOR_STACK_SIZE                       128
+#endif
 #define APP_LINEAR_MOTOR_PRIO                             8
 
 
@@ -75,7 +92,11 @@
 #define APP_TOUCH_IRQ_STACK_SIZE                          128
 #define APP_TOUCH_IRQ_PRIO                                13
 
+#if defined(SUDO_VOICE_ONLY)
+#define APP_TOUCH_EVENT_STACK_SIZE                        768
+#else
 #define APP_TOUCH_EVENT_STACK_SIZE                        256
+#endif
 #define APP_TOUCH_EVENT_PRIO                              12
 
 
@@ -92,7 +113,11 @@
 #define APP_TASK_SLEEP_PRIO                               8
 
 /*  app g_sensor config */
+#if defined(SUDO_VOICE_ONLY)
+#define APP_TASK_G_SENSOR_STACK_SIZE                      512
+#else
 #define APP_TASK_G_SENSOR_STACK_SIZE                      128
+#endif
 #define APP_TASK_G_SENSOR_PRIO                            8
 
 /*  app tsdb config */

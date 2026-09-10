@@ -126,7 +126,12 @@ static void app_ble_connect_idie_timeout_timer_callback(void * pvParameter)
 static void app_ble_connect_callback(void)
 {
     //BC_LOG_INFO("app ble connect callback\r\n");
+#if defined(SUDO_VOICE_ONLY)
+    /* SoftDevice dispatch model 0 calls this from SWI2/EGU2. */
+    ble_connect_tick = xTaskGetTickCountFromISR();
+#else
     ble_connect_tick = xTaskGetTickCount();
+#endif
     ble_notify_inhibit = true;
 
 #if ( HARDWARE_1191_ENABLED == 1)	
@@ -457,7 +462,14 @@ void app_connect_idie_timer_start(enum app_ble_timer_type time_id)
 void app_connect_idie_timer_start_from_isr(enum app_ble_timer_type time_id)
 {
     BaseType_t yieldReq = pdFALSE;
+#if defined(SUDO_VOICE_ONLY)
+    if (ble_timer[time_id].timer_handler != NULL) {
+        (void)xTimerStartFromISR(ble_timer[time_id].timer_handler, &yieldReq);
+        bc_portYIELD_FROM_ISR(yieldReq);
+    }
+#else
     xTimerStartFromISR(ble_timer[time_id].timer_handler, &yieldReq);
+#endif
 }
 
 bool app_ble_connect_status(void)

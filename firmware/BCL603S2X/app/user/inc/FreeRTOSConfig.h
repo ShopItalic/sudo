@@ -73,7 +73,12 @@
 #define configMAX_PRIORITIES                                                      ( 32 )
 
 //空闲任务使用的堆栈大小
+/* Include tickless-idle fault reporting and Cortex-M4F context reserve. */
+#if defined(SUDO_VOICE_ONLY)
+#define configMINIMAL_STACK_SIZE                                                  ( 256 )
+#else
 #define configMINIMAL_STACK_SIZE                                                  ( 128 )
+#endif
 
 //系统所有总的堆大小
 #define configTOTAL_HEAP_SIZE                                                     ( 1024*140 )
@@ -139,13 +144,21 @@
 #define configUSE_TICK_HOOK                                                       0
 
 //使用内存申请失败钩子函数
+#if defined(SUDO_VOICE_ONLY)
+#define configCHECK_FOR_STACK_OVERFLOW                                            2
+#else
 #define configCHECK_FOR_STACK_OVERFLOW                                            0
+#endif
 
 /*
  * 大于0时启用堆栈溢出检测功能，如果使用此功能 
  * 用户必须提供一个栈溢出钩子函数，如果使用的话
  * 此值可以为1或者2，因为有两种栈溢出检测方法 */
+#if defined(SUDO_VOICE_ONLY)
+#define configUSE_MALLOC_FAILED_HOOK                                              1
+#else
 #define configUSE_MALLOC_FAILED_HOOK                                              0
+#endif
 
 /* Run time and task stats gathering related definitions. */
 //启用运行时间统计功能
@@ -177,7 +190,12 @@
 #define configTIMER_QUEUE_LENGTH                                                  32
 
 //软件定时器任务堆栈大小
+/* Timer callbacks share this stack; include their indirect call paths. */
+#if defined(SUDO_VOICE_ONLY)
+#define configTIMER_TASK_STACK_DEPTH                                              768
+#else
 #define configTIMER_TASK_STACK_DEPTH                                              256 //(configMINIMAL_STACK_SIZE*2)  //( 80 )
+#endif
 
 /* Tickless Idle configuration. */
 #define configEXPECTED_IDLE_TIME_BEFORE_SLEEP                                     2

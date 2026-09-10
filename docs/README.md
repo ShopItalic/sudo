@@ -2,15 +2,27 @@
 
 **Italic** is the brand; **Sudo Ring** is the product name.
 
-Start with the **[S04 RC1 download, flashing and test guide](how-to/test-s04-release-candidate.md)**.
+Start with the **[recovery and firmware qualification workflow](how-to/qualify-firmware.md)**.
+The September 9 S05 physical update failed connection/version verification;
+recovery remains unresolved. The S04 information below describes the earlier release.
+The **[S04 RC1 download, flashing and test guide](how-to/test-s04-release-candidate.md)** describes that historical candidate.
 The **[current RC release](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)**
 contains unsigned application/debug files and a supplier review bundle.
+
+The [continued S05 failure audit](reference/ring-s05-failure-audit.html) records
+six reproduced interrupt reset routes, three worker stack-budget violations,
+and the remaining physical evidence needed.
+
+The [September 10 ArmCC 5 software qualification](reference/ring-armcc5-qualification.html)
+records the factory-identical baseline, repaired candidate, 33 linked ARM
+regressions and all thirteen task budgets. Software checks pass; physical
+recovery and acceptance remain unresolved.
 
 ## Candidate engineering
 
 - [Supplier change log: factory baseline to current source](reference/supplier-firmware-change-log.md).
 
-Current main firmware and primary RC are **S04 / S04 RC1**, merged through [PR #3](https://github.com/ShopItalic/sudo/pull/3):
+The historical primary RC is **S04 / S04 RC1**, merged through [PR #3](https://github.com/ShopItalic/sudo/pull/3):
 PTT until release, three independently mapped inputs, adjustable hold activation,
 persisted light/haptic controls and conservative cleanup. Fresh defaults are
 one-second hold to PTT, double tap off and triple tap to memo toggle.

@@ -1,9 +1,22 @@
 # Production firmware baseline
 
-Current main source is **6.0.3.3S04**, with PTT until release, three mappable inputs,
+**September 10 software result:** the restored ArmCC 5.06u7 build 960 supplier
+baseline exactly matches the factory application. The repaired Sudo candidate
+retains recording and Opus, builds with zero errors, and passes the full host
+suite plus 33 linked ARM scenarios. The
+[software qualification report](reference/ring-armcc5-qualification.html)
+records the runtime fixes, all task/interrupt budgets, compiler/map/input/output
+hashes and explicit physical limits. No signing or flashing was performed.
+
+**September 9 update:** main includes experimental S05 source. A physical S05
+update failed post-transfer connection/version verification; recovery is still
+unresolved. Follow the [recovery, supplier build and physical qualification workflow](how-to/qualify-firmware.md)
+before another installation. The S04 measurements below are historical.
+
+The preceding **6.0.3.3S04** source introduced PTT until release, three mappable inputs,
 configurable hold activation, persisted light/haptic controls and conservative cleanup. S04 RC1 is the current unsigned engineering prerelease; S03 RC1 remains historical. See the [S04 change ledger](reference/supplier-firmware-change-log.md#s04-controls-and-cleanup--september-7-2026).
-Branch `codex/opus-audio` is the experimental **6.0.3.3S05** Opus recording
-source: pinned libopus 1.6.1 under `firmware/bc_ros/bc_module/opus/opus-1.6.1`
+Originally developed on `codex/opus-audio`, the experimental **6.0.3.3S05** Opus recording
+source is now on main: pinned libopus 1.6.1 under `firmware/bc_ros/bc_module/opus/opus-1.6.1`
 (verified by `tools/firmware/import_opus.py --verify`), a 16 kHz Opus capture
 path, metadata version 2 with a per-recording descriptor and the Sudo Opus
 container. See the [S05 ledger](reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
@@ -102,8 +115,8 @@ reliability fixes. The package's `provenance.json` records its exact main
 source, successful CI run and artifact hashes. The original `84c91fc`
 bundle is superseded; the firmware readback and RC number remain unchanged. Vendor Arm Compiler 5.06
 update 7 (build 960) reproduction, physical stack/heap high-water
-measurements, signing/package and recovery review remain pending. No physical
-Ring has been dumped or flashed here; hardware acceptance is not established.
+measurements, signing/package and recovery review were pending at that S04
+review. The subsequent S05 physical update failed acceptance as recorded above.
 
 ### Historical S03 validation boundary
 
@@ -128,7 +141,8 @@ S03 RC1 is published as an unsigned engineering prerelease.
 1. Verify the saved source baseline with `tools/firmware/verify_baseline.py` and
    review the candidate diff from `102bfd2`.
 2. Reproduce the unmodified vendor build and the candidate with recorded tool
-   versions, commands, output hashes, memory use, and supplier confirmation.
+   versions, commands, output hashes and memory use. The software reproduction
+   and checks completed September 10; supplier/physical acceptance remains open.
 3. Read back a correctly identified physical board. Verify the nominal
    16.125 kHz PDM rate and, on S04, the ADPCM framing against the app's 8 kHz
    mono interpretation; on the S05 branch verify the 16 kHz Opus resampling

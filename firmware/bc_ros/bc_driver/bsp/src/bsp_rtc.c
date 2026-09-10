@@ -172,8 +172,18 @@ static void bsp_rtc_callback(nrf_drv_rtc_int_type_t int_type)
 	
 	{
 		unix_time++;
-		struct tm p_real_time ;
+		struct tm p_real_time;
+#if defined(SUDO_VOICE_ONLY)
+        /* This interrupt only compares clock-of-day alarms. The device's
+         * stored clock has no timezone/DST adjustment. Avoid localtime's
+         * shared state and library locks in RTC2. */
+        uint32_t seconds_of_day = unix_time % 86400U;
+        p_real_time.tm_hour = (int)(seconds_of_day / 3600U);
+        p_real_time.tm_min = (int)((seconds_of_day / 60U) % 60U);
+        p_real_time.tm_sec = (int)(seconds_of_day % 60U);
+#else
 		bsp_rtc_get_date_time(&p_real_time);
+#endif
 		for (uint8_t i = 0; i < array_size(bsp_list); i++) 
 		{
 			if(p_real_time.tm_hour == bsp_list[i].timer_config.tm_hour

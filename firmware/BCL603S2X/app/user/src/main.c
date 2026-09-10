@@ -136,6 +136,34 @@ static void logger_thread(void * arg)
 /**@brief A function which is hooked to idle task.
  * @note Idle hook must be enabled in FreeRTOS configuration (configUSE_IDLE_HOOK).
  */
+#if defined(SUDO_VOICE_ONLY)
+/* Debugger-visible, in-session diagnostics. These fields are not a persisted
+ * crash record and are cleared by startup after reset. Never log from the
+ * overflow hook: the affected task may already have exhausted its stack. */
+volatile uint32_t sudo_rtos_malloc_failed;
+volatile uint32_t sudo_rtos_stack_overflow;
+volatile uintptr_t sudo_rtos_overflow_task;
+volatile uintptr_t sudo_rtos_overflow_name;
+
+void vApplicationMallocFailedHook(void)
+{
+    /* Preserve callers' existing allocation-failure handling and fallbacks. */
+    sudo_rtos_malloc_failed = 1U;
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
+{
+    sudo_rtos_stack_overflow = 1U;
+    sudo_rtos_overflow_task = (uintptr_t)task;
+    sudo_rtos_overflow_name = (uintptr_t)name;
+    __disable_irq();
+    if ((CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) != 0U)
+        __BKPT(0);
+    NVIC_SystemReset();
+    for (;;) { }
+}
+#endif
+
 void vApplicationIdleHook( void )
 {
 #if NRF_LOG_ENABLED

@@ -17,6 +17,8 @@ jobs:
           fetch-depth: 0
       - name: Verify preserved factory source
         run: python3 tools/firmware/verify_baseline.py
+      - name: Check isolated supplier baseline preparation
+        run: python3 tests/firmware/test_vendor_baseline.py
       - name: Check generated Keil profile
         run: |
           python3 tools/firmware/make_voice_project.py

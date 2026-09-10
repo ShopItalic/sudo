@@ -332,3 +332,14 @@ build/firmware/tests/test_gnu_sbrk
   tests/firmware/test_gnu_newlib_locks.c \
   -o build/firmware/tests/test_gnu_newlib_locks
 build/firmware/tests/test_gnu_newlib_locks
+
+for runtime_debug_info in 0 1; do
+  "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -g \
+    -fsanitize=address,undefined -DSUDO_VOICE_ONLY -DDEBUG_INFO=$runtime_debug_info \
+    -Itests/firmware/runtime -Ifirmware/bc_ros/bc_util/bc_log \
+    firmware/bc_ros/bc_util/bc_log/bc_log_task.c \
+    tests/firmware/test_task_logging.c \
+    -o build/firmware/tests/test_task_logging_$runtime_debug_info
+  build/firmware/tests/test_task_logging_$runtime_debug_info
+done
+python3 tests/firmware/test_runtime_callbacks.py

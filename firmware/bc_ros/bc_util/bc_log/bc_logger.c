@@ -103,6 +103,10 @@ int fgetc(FILE * p_file)
 
 void BC_LOG_HEX_P(char *_cData, uint8_t *_pu8Data ,uint16_t _u16Len)
 {
+#if defined(SUDO_VOICE_ONLY) && (HARDWARE_ARCH_TYPE_NORDIC == 1)
+  bc_log_task_hex(_cData, _pu8Data, _u16Len);
+  return;
+#endif
   if(bc_log_ble_enable_flag)
   {
 	  if(_u16Len > 120)

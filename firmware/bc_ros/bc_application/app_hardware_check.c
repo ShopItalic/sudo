@@ -66,7 +66,7 @@ static void app_hardware_check_handler_thread(void *thread_handler);
 static bc_rtos_thread_struct app_rtc_thread[HARDWARE_CHECK_TASK_TYPE_NUM] = {
                                                                     {
                                                                       .thread_name          = "app rtc irq handler task",
-                                                                      .thread_stack_depth   = APP_TASK_RTC_STACK_SIZE ,
+                                                                      .thread_stack_depth   = APP_TASK_HARDWARE_CHECK_STACK_SIZE ,
                                                                       .thread_priority      = APP_TASK_RTC_PRIO+5,
                                                                       .thread_parameters    = NULL,
                                                                       .thread_task_code     = app_hardware_check_handler_thread,
