@@ -1207,6 +1207,60 @@ Opus firmware for S04. No Ring was flashed and no release package exists.
 - FreeRTOS heap high-water with the two boot-time allocations, the 3072-word
   worker stack high-water, and supplier Arm Compiler reproduction.
 
+## Brick-risk audit and release safeguards — September 11, 2026
+
+**Request:** deeply audit the firmware after the second dev-Ring bricking and
+close concrete failure paths. This is a
+**source/documentation change only**: no Ring was built, flashed, signed or
+recovered, and no release asset was published.
+
+- **Failure mechanism (confirmed, GNU-only).** `firmware/gnu/newlib_locks.c`
+  `contract_failure()` calls `NVIC_SystemReset()` whenever a Newlib lock is
+  acquired or released with `__get_IPSR() != 0`. With
+  `NRF_SDH_DISPATCH_MODEL=0`, BLE/SDH callbacks run in SWI2, so the S05 GNU
+  image reset before connection handling. The production ArmCC5 `Sudo Voice
+  1.23.2` project does not compile `newlib_locks.c` and routes `BC_LOG_*`
+  through the task-only `bc_log_task.c` (ISR logs are dropped), and the RTC and
+  motion ISR paths were made lock-free/ISR-safe in `24b648b`.
+- **Withdrawn artifact.** The S05 GNU BIN
+  (`e99d68e970476da98034e47c6f6a4872766f490be2fe7ea3ea55bf0c4eae3f3d`,
+  464,220 bytes) is the artifact reproduced by the S05 failure audit and is no
+  longer advertised: `tools/firmware-hosting/s05-manifest.json` is `withdrawn`
+  with a null `binary.url`. `tests/firmware/test_release_manifest.py` enforces
+  that a public manifest cannot advertise a non-ArmCC5, non-flashable or OTA
+  artifact, and the hosting README records the remote-delete/404 procedure.
+- **CI gating.** `gnu-build` now `needs: host-tests` and uploads only after a
+  successful GNU build, with a `NON-FLASHABLE.txt` notice in the artifact.
+- **Identity guard.** New `tools/firmware/check_build_identity.py` verifies the
+  linked BIN contains the expected Sudo version and not the factory
+  `6.0.3.3Z62` fallback; `tests/firmware/test_build_identity.py` covers the
+  pass, fallback, conflict and unknown cases, and the recorded ArmCC5 build
+  command runs the check before packaging.
+- **Defensive source fixes.** `app_connect_idie_timer_start` no longer passes a
+  NULL timer handle to the task-only start path; `bc_queue_init` enters the
+  fatal-error path on allocation failure under `SUDO_VOICE_ONLY`;
+  `bsp_sys_reset_reason()` returns the reset reason it reads.
+- **Recorded, not implemented.** The core brick — a valid-CRC app that resets
+  before buttonless DFU — still has no boot-time escape. The backlog records
+  the retained boot-attempt/GPREGRET design, the SWI2 FDS/`APP_ERROR_*`
+  question, unmeasured stacks/MSP, silent Opus allocation downgrade, and the
+  missing version-identity check as required follow-ups.
+
+**Files:** `firmware/bc_ros/bc_application/app_ble_handler.c`,
+`firmware/bc_ros/bc_module/queue/bc_queue.c`,
+`firmware/bc_ros/bc_driver/bsp/src/bsp_sys.c`,
+`tools/firmware-hosting/s05-manifest.json`, `tools/firmware-hosting/README.md`,
+`tools/firmware/check_build_identity.py`, `tests/firmware/test_build_identity.py`,
+`tests/firmware/test_release_manifest.py`,
+`tools/firmware/test.sh`, `.github/workflows/firmware-checks.yml`,
+`docs/how-to/qualify-firmware.md`, `docs/backlog.md`.
+
+**Compatibility and supplier validation:** None of these changes alter the wire
+protocol, storage format, pin map or version identity. The hosted-binary
+withdrawal needs an operator redeploy and a confirmed 404. The recovery-escape
+and stack/ISR measurements still require a target build and a recoverable
+standard 603V1.23.2 board.
+
 ## How to append future changes
 
 Append a new monotonically named entry such as S03-007 or S04-001; do not

@@ -67,6 +67,7 @@ static uint32_t bsp_sys_reset_reason(void)
 	Q_DEVICE_LOG_INFO("reset source %x",resetReason);
     // 输出复位原因
     print_reset_reason(resetReason);	
+    return resetReason;
 }
 
 static void bsp_sys_device_mac_get(uint8_t *mac_buff)

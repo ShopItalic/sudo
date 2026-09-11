@@ -142,6 +142,8 @@ build/firmware/tests/test_recording_store
 build/firmware/tests/test_voice_legacy_archive
 python3 tests/firmware/test_armcc_archive.py
 python3 tests/firmware/test_ble_security.py
+python3 tests/firmware/test_release_manifest.py
+python3 tests/firmware/test_build_identity.py
 "$firmware_host_cc" -std=c99 -Wall -Wextra -Werror -g -fsanitize=address,undefined \
   -DSUDO_VOICE_ONLY -DHANDWARE_1_23_1 -DHANDWARE_1_23_2 \
   -Itests/firmware/flash_io \

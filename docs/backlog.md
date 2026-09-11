@@ -69,6 +69,71 @@ product decisions:
   case/mechanical clearance, RF and antenna evidence, crystal/microphone data,
   and supplier cost/BOM discrepancies.
 
+## Brick-risk audit — 2026-09-11
+
+A failure-oriented re-audit after the second dev-Ring bricking. Scope: interrupt
+context, task stacks/heap, boot/DFU/recovery, and the release pipeline. The
+confirmed S05 mechanism is a **GNU-only** defect: `firmware/gnu/newlib_locks.c`
+calls `NVIC_SystemReset()` when a Newlib lock is taken with `__get_IPSR() != 0`,
+and `NRF_SDH_DISPATCH_MODEL=0` (`firmware/BCL603S2X/app/user/inc/sdk_config.h`)
+runs BLE callbacks in SWI2 interrupt context. The production ArmCC5 Sudo project
+does not compile `newlib_locks.c`, so that specific reset is not in the ArmCC5
+candidate; the source-level and release safeguards below still apply.
+
+### Fixed in this audit
+
+- **Hosted defective binary withdrawn.** `tools/firmware-hosting/s05-manifest.json`
+  now marks the S05 GNU binary withdrawn with a null `binary.url` and
+  `flashable: false`; a new `tests/firmware/test_release_manifest.py` policy test
+  refuses a public manifest that advertises a non-ArmCC5, non-flashable or OTA
+  artifact. The live Cloudflare asset must be deleted and verified 404 by an
+  operator (see the hosting README).
+- **CI cannot publish a failed GNU build.** `.github/workflows/firmware-checks.yml`
+  gates `gnu-build` on `host-tests` and uploads artifacts only when the build
+  step succeeds, with a `NON-FLASHABLE.txt` notice in the artifact.
+- **NULL timer handle HardFault removed.** `app_connect_idie_timer_start` now
+  returns when heap-pressure timer creation failed instead of passing NULL to
+  `xTimerGenericCommand`, matching the existing ISR helper.
+- **Queue allocation fails closed.** Under `SUDO_VOICE_ONLY`, `bc_queue_init`
+  now enters the fatal-error path on queue-creation failure instead of leaving a
+  NULL transport queue.
+- **Reset-reason accessor returned.** `bsp_sys_reset_reason()` now returns the
+  value it already reads, so `SYS_RESET_REASON_GET` no longer reports an
+  undefined stack value.
+
+### Still open — highest priority first
+
+1. **No boot-time recovery escape (the core brick).** A valid-CRC application
+   that resets before serving BLE is booted forever; the factory bootloader
+   disables button and pin-reset DFU entry, and buttonless DFU requires a live
+   acknowledged GATT connection (`bc_ble_dfu.c`, `ble_dfu_unbonded.c`,
+   `nrf_bootloader.c`). The watchdog only turns a hang into the same reset loop.
+   Add a retained boot-attempt counter (`.noinit`/System-OFF retained RAM) that
+   sets `BOOTLOADER_DFU_START` in `GPREGRET` after N unsuccessful boots, or have
+   the supplier enable the pin-reset DFU entry. This needs a target build and a
+   recoverable spare, and is intentionally not implemented from source alone.
+2. **SDK flash/error calls reachable from SWI2.** Peer Manager event handling can
+   drive FDS/flash operations and several `APP_ERROR_*` paths reset from the BLE
+   interrupt (`bc_ble.c`, `peer_manager_handler.c`, `bc_ble_adv.c`,
+   `bc_ble_hids_service.c`). Verify whether FDS defers `sd_flash_*` out of the
+   SWI2 context and move any that do not to task context; do not blanket-reset
+   from an interrupt.
+3. **Unmeasured stacks and ISR/MSP stack.** The three confirmed overruns are
+   rebudgeted, but `ble send` (1 KiB), `ic led` (512 B), the timer task and the
+   8 KiB MSP/interrupt stack still need high-water measurement. The
+   `configCHECK_FOR_STACK_OVERFLOW` reset hook amplifies an unresolved overflow
+   into a boot loop given item 1.
+4. **Opus allocation downgrade is silent.** `vApplicationMallocFailedHook` only
+   sets a flag with no firmware reader, and a failed 35.8 KiB encoder/scratch
+   allocation leaves recording `UNSUPPORTED` while the app looks healthy.
+5. **Version identity is not verified at release.** The image can fall back to
+   the factory `6.0.3.3Z62` string if `SUDO_VOICE_ONLY` is lost, and no build or
+   release check reads the embedded version. Add a post-build identity check
+   before any hosted or signed artifact.
+6. **GNU build remains buildable.** Even with release gating, CI still emits a
+   GNU image with the reset guard. Consider failing the GNU link or removing the
+   reset backend once the ArmCC5 path is the sole production route.
+
 ## S02 application controls follow-up
 
 - Reproduce the reported stuck double-tap recording on hardware; qualify the
@@ -135,6 +200,14 @@ product decisions:
 - Public HTTPS download and SHA-256 verified. A logged Super Bot Fight Mode
   exception applies only to GET/HEAD on firmware.italic.com at `/` or
   `/ring/s05/`; managed WAF and rate limiting remain enabled.
+- **Withdrawn 2026-09-11.** The hosted GNU 15.2.rel1 binary
+  (`e99d68e9…`, 464,220 bytes) is the exact artifact whose interrupt-context
+  MCU reset routes were confirmed in the S05 failure audit. It is unsafe to
+  flash. `tools/firmware-hosting/s05-manifest.json` now sets `withdrawn: true`,
+  a null `binary.url` and `binary.flashable: false`. An operator must redeploy,
+  delete the remote path, purge the cache and confirm the URL returns 404; see
+  the hosting README. Do not restore any download until the replacement passes
+  the audit and physical qualification.
 - Obtain supplier-signed S05 DFU package and validate it for the target Ring.
   ShopItalic/app commit `6e9ceb3` implements HTTPS release checking and verified
   package preparation; keep OTA unavailable until the signed ZIP is published.

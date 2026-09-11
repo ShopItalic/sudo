@@ -30,6 +30,7 @@ jobs:
 
   gnu-build:
     name: GNU ARM candidate build
+    needs: host-tests
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -102,8 +103,21 @@ jobs:
             --toolchain-sha256 "$ARM_GNU_SHA256" \
             --toolchain-archive "$ARM_GNU_CACHE_DIR/$ARM_GNU_ARCHIVE"
 
+      - name: Mark GNU artifact non-flashable
+        if: ${{ steps.gnu-build.outcome == 'success' }}
+        run: |
+          cat > "$GNU_BUILD_DIR/NON-FLASHABLE.txt" <<'EOF'
+          GNU 15.2.rel1 engineering build. NOT qualified and NOT flashable.
+
+          This artifact exists for source review only. Do not install it on a
+          Ring. The GNU Newlib lock backend resets the MCU from interrupt
+          context; see docs/reference/ring-s05-failure-audit.html. Production
+          candidates must be built with Arm Compiler 5 and pass the physical
+          qualification workflow in docs/how-to/qualify-firmware.md.
+          EOF
+
       - name: Upload GNU candidate artifacts
-        if: always()
+        if: ${{ steps.gnu-build.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sudo-voice-gnu-${{ github.run_id }}
@@ -117,3 +131,4 @@ jobs:
             build/firmware/gnu/sudo_voice/undefined-symbols.txt
             build/firmware/gnu/sudo_voice/logs/link.log
             build/firmware/gnu/sudo_voice/toolchain-version.txt
+            build/firmware/gnu/sudo_voice/NON-FLASHABLE.txt

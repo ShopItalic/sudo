@@ -175,8 +175,15 @@ python3 tools/firmware/armcc5/build_windows.py \
   --output-stem build/firmware/sudo_voice/sudo_voice_candidate \
   --map firmware/BCL603S2X/app/project/mdk5/Listings/sudo_voice_candidate.map \
   --evidence build/diagnostics/armcc5-next --rebuild
+python3 tools/firmware/check_build_identity.py \
+  --bin build/firmware/sudo_voice/sudo_voice_candidate.bin \
+  --expect 6.0.3.3S05
 sh tools/firmware/test.sh
 ```
+
+The identity check reads the linked version bytes so a build that lost
+`SUDO_VOICE_ONLY` (and silently identifies as factory `6.0.3.3Z62`) fails before
+the image is packaged, signed or hosted.
 
 For the baseline, use the prepared build-only project, target `1.23.2`, its
 prepared `firmware` source root, `Objects/app` output stem and `Listings/app.map`.

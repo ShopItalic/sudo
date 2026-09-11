@@ -3,15 +3,19 @@
   "product": "Italic Sudo Ring",
   "hardware": "603V1.23.2",
   "version": "6.0.3.3S05",
-  "status": "unsigned-engineering-build",
+  "status": "withdrawn-unqualified-engineering-build",
   "otaAvailable": false,
   "otaPackageURL": null,
+  "withdrawn": true,
+  "withdrawnReason": "Withdrawn 2026-09-11 after the S05 failure audit: GNU 15.2.rel1 build whose Newlib lock backend calls NVIC_SystemReset() from interrupt context. This is the exact binary that failed physical acceptance on a 603V1.23.2 Ring. Do not download or flash it.",
   "sourceCommit": "8632de604b2bd79c103e43292e91eab4ba13aed1",
   "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34237323221",
+  "toolchain": "arm-none-eabi-gcc 15.2.rel1",
   "binary": {
-    "url": "https://firmware.italic.com/ring/s05/8632de6/italic-ring-6.0.3.3S05-unsigned.bin",
+    "url": null,
     "sha256": "e99d68e970476da98034e47c6f6a4872766f490be2fe7ea3ea55bf0c4eae3f3d",
-    "bytes": 464220
+    "bytes": 464220,
+    "flashable": false
   },
-  "notice": "Application-only unsigned engineering binary. Not a Nordic DFU package. Supplier signing and physical qualification remain pending."
+  "notice": "Withdrawn. This application-only unsigned engineering binary is not a Nordic DFU package and must not be installed. Supplier signing, physical qualification and recovery remain pending."
 }

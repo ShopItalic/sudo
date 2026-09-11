@@ -456,6 +456,12 @@ static void app_ble_time_create(void)
  *******************************************************************************/										               
 void app_connect_idie_timer_start(enum app_ble_timer_type time_id)
 {
+#if defined(SUDO_VOICE_ONLY)
+  /* Creation can fail under heap pressure. Never pass a NULL handle to the
+   * task-only timer command: that is a HardFault with configASSERT disabled. */
+  if (ble_timer[time_id].timer_handler == NULL)
+    return;
+#endif
   bc_rtos_timer_start(ble_timer[time_id].timer_handler,50);
 }
 

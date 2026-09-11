@@ -23,6 +23,10 @@
 #include "bc_rtos.h"
 #include "bc_sem.h"
 
+#if defined(SUDO_VOICE_ONLY)
+#include "app_error.h"
+#endif
+
 #if (defined(HANDWARE_1_23_3 ) || defined(HANDWARE_1_23_4))
 #include "bc_linear_motor_ic.h"
 #endif
@@ -345,6 +349,12 @@ void bc_queue_init(void)
 		else
 		{
 			BC_LOG_ERROR("create %s queue fail!\r\n",bc_queue[i].queue_name);
+#if defined(SUDO_VOICE_ONLY)
+			/* A missing queue becomes a NULL xQueueSend/xQueueReceive and a
+			 * HardFault. Fail closed with the same fatal path as the required
+			 * workers instead of continuing without a transport queue. */
+			APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+#endif
 		}
 	}
 	
