@@ -199,9 +199,11 @@ candidate; the source-level and release safeguards below still apply.
 
 - Firmware is now distributed **only** through GitHub Releases; the Cloudflare
   Worker `italic-ring-firmware` and the `firmware.italic.com/ring/` catalog are
-  retired and the Worker is deleted. `tools/firmware-hosting/wrangler.jsonc` is
-  removed. `ShopItalic/sudo` is public, so Release assets and
-  `raw.githubusercontent.com` are anonymously readable.
+  retired and the Worker is **deleted** (last deployment
+  `e6dfa457-cc26-4cea-b807-6e758db5bae5`; the retired asset URL and catalog no
+  longer serve). `tools/firmware-hosting/wrangler.jsonc` is removed.
+  `ShopItalic/sudo` is public, so Release assets and `raw.githubusercontent.com`
+  are anonymously readable.
 - Canonical catalog: committed `tools/firmware-hosting/s05-manifest.json`, served
   at `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
   Each release attaches a byte-identical `manifest.json` plus `SHA256SUMS` and

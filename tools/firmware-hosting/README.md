@@ -2,8 +2,9 @@
 
 GitHub Releases are the only firmware distribution channel. There is no
 Cloudflare Worker, custom domain, R2 bucket or other third-party asset host in
-the path. The earlier `italic-ring-firmware` Worker and the
-`firmware.italic.com/ring/` catalog were retired on 2026-09-11.
+the path. The `italic-ring-firmware` Worker (last deployment
+`e6dfa457-cc26-4cea-b807-6e758db5bae5`) and the `firmware.italic.com/ring/`
+catalog were deleted on 2026-09-11, so the retired S05 URL no longer serves.
 
 ## Where each object lives
 

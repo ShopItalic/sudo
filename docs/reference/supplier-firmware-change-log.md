@@ -1268,11 +1268,12 @@ Releases and set the catalog up for the new channel. This is a
 **source/documentation change only**: no firmware was built, flashed, signed or
 published here, and the S05 GNU binary is never uploaded.
 
-- **Retired Cloudflare.** The `italic-ring-firmware` Worker, the
-  `firmware.italic.com/ring/` catalog and the Super Bot Fight Mode exception are
-  removed from the distribution path; `tools/firmware-hosting/wrangler.jsonc` is
-  deleted. The unsafe S05 asset disappears with the Worker rather than by
-  deleting an object inside it.
+- **Retired Cloudflare.** The `italic-ring-firmware` Worker (last deployment
+  `e6dfa457-cc26-4cea-b807-6e758db5bae5`), the `firmware.italic.com/ring/`
+  catalog and the Super Bot Fight Mode exception are deleted, and
+  `tools/firmware-hosting/wrangler.jsonc` is removed; the retired asset URL and
+  catalog no longer serve. The unsafe S05 asset disappeared with the Worker
+  rather than by deleting an object inside it.
 - **New channel.** The authoritative catalog stays committed at
   `tools/firmware-hosting/s05-manifest.json` and is served from
   `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
