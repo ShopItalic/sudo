@@ -1228,7 +1228,7 @@ recovered, and no release asset was published.
   longer advertised: `tools/firmware-hosting/s05-manifest.json` is `withdrawn`
   with a null `binary.url`. `tests/firmware/test_release_manifest.py` enforces
   that a public manifest cannot advertise a non-ArmCC5, non-flashable or OTA
-  artifact, and the hosting README records the remote-delete/404 procedure.
+  artifact. Distribution later moved to GitHub Releases; see the next entry.
 - **CI gating.** `gnu-build` now `needs: host-tests` and uploads only after a
   successful GNU build, with a `NON-FLASHABLE.txt` notice in the artifact.
 - **Identity guard.** New `tools/firmware/check_build_identity.py` verifies the
@@ -1243,8 +1243,8 @@ recovered, and no release asset was published.
 - **Recorded, not implemented.** The core brick — a valid-CRC app that resets
   before buttonless DFU — still has no boot-time escape. The backlog records
   the retained boot-attempt/GPREGRET design, the SWI2 FDS/`APP_ERROR_*`
-  question, unmeasured stacks/MSP, silent Opus allocation downgrade, and the
-  missing version-identity check as required follow-ups.
+  question, unmeasured stacks/MSP, silent Opus allocation downgrade, and wiring
+  the version-identity check into the ArmCC5 build as required follow-ups.
 
 **Files:** `firmware/bc_ros/bc_application/app_ble_handler.c`,
 `firmware/bc_ros/bc_module/queue/bc_queue.c`,
@@ -1260,6 +1260,50 @@ protocol, storage format, pin map or version identity. The hosted-binary
 withdrawal needs an operator redeploy and a confirmed 404. The recovery-escape
 and stack/ISR measurements still require a target build and a recoverable
 standard 603V1.23.2 board.
+
+## Firmware hosting moved to GitHub Releases — September 11, 2026
+
+**Request:** replace the Cloudflare Worker/custom-domain hosting with GitHub
+Releases and set the catalog up for the new channel. This is a
+**source/documentation change only**: no firmware was built, flashed, signed or
+published here, and the S05 GNU binary is never uploaded.
+
+- **Retired Cloudflare.** The `italic-ring-firmware` Worker, the
+  `firmware.italic.com/ring/` catalog and the Super Bot Fight Mode exception are
+  removed from the distribution path; `tools/firmware-hosting/wrangler.jsonc` is
+  deleted. The unsafe S05 asset disappears with the Worker rather than by
+  deleting an object inside it.
+- **New channel.** The authoritative catalog stays committed at
+  `tools/firmware-hosting/s05-manifest.json` and is served from
+  `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
+  Packages are immutable GitHub Release assets at
+  `https://github.com/ShopItalic/sudo/releases/download/<tag>/<asset>`; each
+  release also attaches a byte-identical `manifest.json`, `SHA256SUMS` and
+  provenance. `ShopItalic/sudo` is public, so both are anonymously readable.
+- **Policy updated.** `tests/firmware/test_release_manifest.py` now requires any
+  advertised download to be a ShopItalic/sudo Release URL and forbids the
+  retired host, on top of the existing ArmCC5/flashable/signed-OTA rules.
+- **Publish helper.** `tools/firmware-hosting/publish_release.py` re-runs the
+  catalog policy, runs `check_build_identity.py` on every BIN, stages
+  `manifest.json`/`SHA256SUMS` and creates or updates the release. It refuses a
+  withdrawn catalog.
+- **App dependency, not changed here.** `ShopItalic/app`
+  (`RingFirmwareRelease.isTrustedURL`) trusts only `firmware.italic.com/ring/`.
+  It must add `raw.githubusercontent.com/ShopItalic/sudo/`,
+  `github.com/ShopItalic/sudo/releases/` and the GitHub asset redirect hosts
+  before the custom domain is fully decommissioned. This firmware repository
+  cannot make that change.
+
+**Files:** `tools/firmware-hosting/README.md`,
+`tools/firmware-hosting/publish_release.py`,
+`tools/firmware-hosting/wrangler.jsonc` (removed),
+`tools/firmware-hosting/s05-manifest.json`,
+`tests/firmware/test_release_manifest.py`, `docs/backlog.md`.
+
+**Compatibility and supplier validation:** No wire-protocol, storage, pin-map or
+version change. The catalog URL and trusted-origin allowlist are an app-side
+contract; OTA stays `otaAvailable: false` until a supplier-signed package
+exists.
 
 ## How to append future changes
 

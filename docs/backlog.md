@@ -82,12 +82,13 @@ candidate; the source-level and release safeguards below still apply.
 
 ### Fixed in this audit
 
-- **Hosted defective binary withdrawn.** `tools/firmware-hosting/s05-manifest.json`
-  now marks the S05 GNU binary withdrawn with a null `binary.url` and
-  `flashable: false`; a new `tests/firmware/test_release_manifest.py` policy test
-  refuses a public manifest that advertises a non-ArmCC5, non-flashable or OTA
-  artifact. The live Cloudflare asset must be deleted and verified 404 by an
-  operator (see the hosting README).
+- **Defective binary withdrawn.** `tools/firmware-hosting/s05-manifest.json`
+  marks the S05 GNU binary withdrawn with a null `binary.url` and
+  `flashable: false`; `tests/firmware/test_release_manifest.py` now refuses a
+  public manifest that advertises a download outside a ShopItalic/sudo Release
+  asset, a non-ArmCC5 image, a non-flashable image, or an OTA package that is not
+  `supplier-signed-ota`. The binary was never uploaded to a GitHub Release, and
+  the retired Cloudflare asset goes away with the Worker (below).
 - **CI cannot publish a failed GNU build.** `.github/workflows/firmware-checks.yml`
   gates `gnu-build` on `host-tests` and uploads artifacts only when the build
   step succeeds, with a `NON-FLASHABLE.txt` notice in the artifact.
@@ -126,10 +127,12 @@ candidate; the source-level and release safeguards below still apply.
 4. **Opus allocation downgrade is silent.** `vApplicationMallocFailedHook` only
    sets a flag with no firmware reader, and a failed 35.8 KiB encoder/scratch
    allocation leaves recording `UNSUPPORTED` while the app looks healthy.
-5. **Version identity is not verified at release.** The image can fall back to
-   the factory `6.0.3.3Z62` string if `SUDO_VOICE_ONLY` is lost, and no build or
-   release check reads the embedded version. Add a post-build identity check
-   before any hosted or signed artifact.
+5. **Version identity is only enforced at publish time.** The image can fall back
+   to the factory `6.0.3.3Z62` string if `SUDO_VOICE_ONLY` is lost.
+   `tools/firmware/check_build_identity.py` runs on every BIN in
+   `tools/firmware-hosting/publish_release.py` before a release is created, but
+   the ArmCC5 build/qualification step must still call it (see
+   `docs/how-to/qualify-firmware.md`).
 6. **GNU build remains buildable.** Even with release gating, CI still emits a
    GNU image with the reset guard. Consider failing the GNU link or removing the
    reset backend once the ArmCC5 path is the sole production route.
@@ -192,22 +195,43 @@ candidate; the source-level and release safeguards below still apply.
   inventory. Keep identity, pairing, time, battery, motion, update compatibility
   and old-recording retrieval intact; do not remove callers without evidence.
 
-## S05 download hosting — 2026-09-09
+## Firmware hosting migration — 2026-09-11
 
-- Deployed `italic-ring-firmware` at `firmware.italic.com` with CI-built S05
-  binary, checksums, notices and explicit unsigned/OTA-unavailable metadata.
-  Config and source provenance: `tools/firmware-hosting/`.
-- Public HTTPS download and SHA-256 verified. A logged Super Bot Fight Mode
-  exception applies only to GET/HEAD on firmware.italic.com at `/` or
-  `/ring/s05/`; managed WAF and rate limiting remain enabled.
-- **Withdrawn 2026-09-11.** The hosted GNU 15.2.rel1 binary
-  (`e99d68e9…`, 464,220 bytes) is the exact artifact whose interrupt-context
-  MCU reset routes were confirmed in the S05 failure audit. It is unsafe to
-  flash. `tools/firmware-hosting/s05-manifest.json` now sets `withdrawn: true`,
-  a null `binary.url` and `binary.flashable: false`. An operator must redeploy,
-  delete the remote path, purge the cache and confirm the URL returns 404; see
-  the hosting README. Do not restore any download until the replacement passes
-  the audit and physical qualification.
+- Firmware is now distributed **only** through GitHub Releases; the Cloudflare
+  Worker `italic-ring-firmware` and the `firmware.italic.com/ring/` catalog are
+  retired and the Worker is deleted. `tools/firmware-hosting/wrangler.jsonc` is
+  removed. `ShopItalic/sudo` is public, so Release assets and
+  `raw.githubusercontent.com` are anonymously readable.
+- Canonical catalog: committed `tools/firmware-hosting/s05-manifest.json`, served
+  at `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
+  Each release attaches a byte-identical `manifest.json` plus `SHA256SUMS` and
+  provenance. `tools/firmware-hosting/publish_release.py` re-runs the catalog
+  policy, checks the linked BIN identity, stages the manifest/checksums, and
+  creates the release.
+- **Requires an app change before any OTA works again.** The iOS app hard-codes
+  `https://firmware.italic.com/ring/s05/manifest.json` and trusts only that host
+  and `/ring/` path (`RingFirmwareRelease.isTrustedURL`). It must instead trust
+  `raw.githubusercontent.com/ShopItalic/sudo/`, `github.com/ShopItalic/sudo/releases/`
+  and the GitHub asset redirect hosts (`objects.githubusercontent.com`,
+  `release-assets.githubusercontent.com`) before the retired domain is removed
+  from production. Tracked in `ShopItalic/app`, not this repository.
+- Withdrawal is a manual, documented operation: set `withdrawn: true` with a
+  null `binary.url` in the committed catalog, then
+  `gh release delete <tag> --cleanup-tag --yes` and confirm the asset URL is 404.
+  Enabling GitHub immutable releases locks published tags/assets and adds
+  attestations while still allowing whole-release deletion.
+
+## S05 download hosting — 2026-09-09 (retired)
+
+- **Retired 2026-09-11.** Firmware moved to GitHub Releases (above). The
+  Cloudflare Worker, custom domain and Super Bot Fight Mode exception are no
+  longer part of the distribution path.
+- The hosted GNU 15.2.rel1 binary (`e99d68e9…`, 464,220 bytes) was the exact
+  artifact whose interrupt-context MCU reset routes were confirmed in the S05
+  failure audit. It is unsafe to flash. `tools/firmware-hosting/s05-manifest.json`
+  sets `withdrawn: true`, a null `binary.url` and `binary.flashable: false`, and
+  no GitHub Release was created for it. Do not restore any download until the
+  replacement passes the audit and physical qualification.
 - Obtain supplier-signed S05 DFU package and validate it for the target Ring.
   ShopItalic/app commit `6e9ceb3` implements HTTPS release checking and verified
   package preparation; keep OTA unavailable until the signed ZIP is published.

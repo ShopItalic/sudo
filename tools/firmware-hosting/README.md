@@ -1,57 +1,125 @@
 # Ring firmware hosting
 
-Cloudflare Worker `italic-ring-firmware`, Italic account
-`1ea14927bf3044670c4c530a38be7b5a`, custom domain `firmware.italic.com`.
-The Worker serves only static assets from ignored `build/firmware-hosting/public`.
-No app/backend deployment or Ring flashing is involved.
+GitHub Releases are the only firmware distribution channel. There is no
+Cloudflare Worker, custom domain, R2 bucket or other third-party asset host in
+the path. The earlier `italic-ring-firmware` Worker and the
+`firmware.italic.com/ring/` catalog were retired on 2026-09-11.
 
-**WITHDRAWN 2026-09-11 — do not distribute or flash.** The S05 GNU build
-(`8632de604b2bd79c103e43292e91eab4ba13aed1`, CI run 34237323221, artifact
-`sudo-voice-gnu-34237323221`, BIN SHA-256
+## Where each object lives
+
+| Object | Location | Public URL |
+| --- | --- | --- |
+| Canonical catalog (committed source) | `tools/firmware-hosting/s05-manifest.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json` |
+| OTA package / application image | GitHub Release asset | `https://github.com/ShopItalic/sudo/releases/download/<tag>/<asset>` |
+| Release evidence | GitHub Release assets | `manifest.json`, `SHA256SUMS`, `provenance.json`, `ci-build-summary.json`, `toolchain-version.txt`, notices |
+
+`ShopItalic/sudo` is public, so `raw.githubusercontent.com` and release assets
+are anonymously readable; this supersedes the earlier private-repository
+assumption. Keep the catalog as the single supported entry point: the app
+discovers the package from `otaPackageURL`, never from a guessed file name.
+
+Every release also attaches `manifest.json`, a byte-for-byte copy of the
+committed catalog at that tag. That copy exists for provenance and offline
+consumption; the committed file remains authoritative and is what clients
+fetch.
+
+## Trusted origins for the app
+
+`ShopItalic/app` must allow downloads only from:
+
+- `raw.githubusercontent.com` under `/ShopItalic/sudo/` (catalog);
+- `github.com` under `/ShopItalic/sudo/releases/` (release page and asset URL);
+- `objects.githubusercontent.com` and `release-assets.githubusercontent.com`,
+  the signed redirect targets GitHub uses for release assets.
+
+The catalog host is fixed at
+`https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
+Every other host, and any redirect that leaves this allowlist, must be refused.
+
+## Withdrawn S05 (2026-09-11)
+
+The S05 GNU build (`8632de604b2bd79c103e43292e91eab4ba13aed1`, CI run
+34237323221, artifact `sudo-voice-gnu-34237323221`, BIN SHA-256
 `e99d68e970476da98034e47c6f6a4872766f490be2fe7ea3ea55bf0c4eae3f3d`) uses the
 GNU Newlib lock backend that calls `NVIC_SystemReset()` when a lock is taken in
 interrupt context. The [S05 failure audit](../../docs/reference/ring-s05-failure-audit.html)
 reproduced those reset routes and this is the exact binary that failed physical
-acceptance on a 603V1.23.2 Ring. `s05-manifest.json` now has `withdrawn: true`,
-`otaAvailable: false`, a null `binary.url` and `binary.flashable: false`.
+acceptance on a 603V1.23.2 Ring. It is **not** uploaded to any GitHub Release.
+`s05-manifest.json` has `withdrawn: true`, `otaAvailable: false`, a null
+`binary.url` and `binary.flashable: false`.
 
-To complete the withdrawal, an operator must redeploy and remove the live
-asset. Wrangler uploads the current directory and does not delete files that are
-no longer present, so delete the remote path explicitly before/after redeploy:
+No GitHub Release ever carried the S05 GNU binary, so there is nothing to
+delete for it; the committed catalog is the only artifact and it advertises no
+download. Do not create an S05 release for this build.
 
-```sh
-wrangler r2 object delete ...        # only if the Worker used R2
-wrangler deploy --config tools/firmware-hosting/wrangler.jsonc
-curl -sSI https://firmware.italic.com/ring/s05/8632de6/italic-ring-6.0.3.3S05-unsigned.bin
-```
+## Publish a release
 
-The last request must return 404. Also purge the Cloudflare cache for the path
-and re-check `/ring/s05/manifest.json`. Until the 404 is confirmed, treat the
-public URL as a live unsafe artifact.
+1. Build with the authorized Arm Compiler 5 toolchain and run the identity and
+   host checks (see [qualify firmware](../../docs/how-to/qualify-firmware.md)).
+2. Update `s05-manifest.json` with the exact `sourceCommit`, `ciRunURL`,
+   `toolchain`, `binary.sha256`, `binary.bytes` and, once supplier-signed, the
+   `otaPackage` fields. A public downloadable image must be Arm Compiler 5
+   built and marked `flashable: true`.
+3. Verify:
 
-A replacement may only be hosted after it is built with the authorized Arm
-Compiler 5 toolchain, inspected for interrupt-context safety, embeds the
-expected version, and references a manifest with a non-null `toolchain` and
-`binary.flashable: true` plus `otaAvailable` still false until supplier signing.
+   ```sh
+   python3 tests/firmware/test_release_manifest.py
+   sh tools/firmware/test.sh
+   ```
 
-Assets include build summary, compiler version, SHA256SUMS, the license notices
-from the published S04 supplier package plus libopus 1.6.1 COPYING, and a
-small download page. No supplier source archive, unit dump, signing key or
-credentials are uploaded. Generated binary output stays untracked.
+4. Commit the catalog change.
+5. Create the release with the helper (it re-runs the manifest policy, verifies
+   the linked BIN identity when present, writes `SHA256SUMS` and attaches
+   `manifest.json`):
 
-Deploy from the repository root using Wrangler 4:
+   ```sh
+   python3 tools/firmware-hosting/publish_release.py \
+     --tag v6.0.3.3S05 \
+     --assets-dir build/release
+   ```
 
-```sh
-wrangler deploy --dry-run --config tools/firmware-hosting/wrangler.jsonc
-wrangler deploy --config tools/firmware-hosting/wrangler.jsonc
-```
+   The equivalent manual form is:
 
-Verify the public manifest and download the binary, checking its SHA-256
-against `s05-manifest.json`. A successful deployment alone is insufficient:
-zone-level Cloudflare challenges may prevent native clients from downloading.
+   ```sh
+   gh release create v6.0.3.3S05 --repo ShopItalic/sudo \
+     --title 'Italic Ring 6.0.3.3S05' --prerelease \
+     build/release/*
+   ```
 
-Deployment verified 2026-09-09: `e6dfa457-cc26-4cea-b807-6e758db5bae5`.
-Public HTTPS BIN readback: 464,220 bytes, exact SHA-256 match.
-Cloudflare rule `2b2c1081a1714735a75f22c155287cea` skips only Super Bot
-Fight Mode for GET/HEAD on firmware.italic.com at `/` and `/ring/s05/`.
-Matching requests remain logged; managed WAF and rate limiting are unchanged.
+6. Optionally enable [immutable releases](https://docs.github.com/code-security/concepts/supply-chain-security/immutable-releases)
+   for the repository so tags and assets are locked and attested after
+   publication. Withdrawing a bad release is still possible by deleting the
+   whole release (see below).
+
+## Withdraw a release
+
+1. In `s05-manifest.json`, set `withdrawn: true`, a null `binary.url` and
+   `otaAvailable: false`, clear `otaPackageURL`/`otaPackage`, and record the
+   reason. Commit and push; the raw catalog updates within minutes.
+2. Delete the release and its tag so the asset URLs return 404:
+
+   ```sh
+   gh release delete v6.0.3.3S05 --repo ShopItalic/sudo --cleanup-tag --yes
+   ```
+
+3. Confirm the dead URL and do not reuse the tag:
+
+   ```sh
+   curl -sSI https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3S05/<asset>
+   ```
+
+   The request must return 404. `raw.githubusercontent.com` caches the catalog
+   for a few minutes; pushing the updated commit is enough to refresh it, so no
+   manual cache purge is required.
+
+## Assets, licenses and provenance
+
+Release assets include the build summary, compiler version, `SHA256SUMS`, and
+the license notices from the published S04 supplier package plus libopus 1.6.1
+COPYING. No supplier source archive, unit dump,
+signing key or credentials are uploaded, and generated binary output stays
+untracked (`build/` is ignored). A replacement package may only be published
+after it is built with the authorized Arm Compiler 5 toolchain, inspected for
+interrupt-context safety, embeds the expected version, and is referenced by a
+manifest whose `binary.flashable` is `true`. Keep `otaAvailable` false until a
+supplier-signed Nordic DFU package exists.

@@ -183,7 +183,13 @@ sh tools/firmware/test.sh
 
 The identity check reads the linked version bytes so a build that lost
 `SUDO_VOICE_ONLY` (and silently identifies as factory `6.0.3.3Z62`) fails before
-the image is packaged, signed or hosted.
+the image is packaged, signed or hosted. Distribution is GitHub Releases only;
+see the [hosting README](../../tools/firmware-hosting/README.md). After a build
+passes these checks, update `tools/firmware-hosting/s05-manifest.json` and
+publish with
+`python3 tools/firmware-hosting/publish_release.py --tag v6.0.3.3S05 --assets-dir build/release`,
+which re-runs the catalog policy and the BIN identity check. It refuses a
+`withdrawn` catalog, so there is no path to republish the S05 GNU build.
 
 For the baseline, use the prepared build-only project, target `1.23.2`, its
 prepared `firmware` source root, `Objects/app` output stem and `Listings/app.map`.
