@@ -12,9 +12,11 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = ROOT / "tools/firmware-hosting/s05-manifest.json"
+CATALOG = ROOT / "tools/firmware-hosting/releases.json"
 
 AUTHORIZED_TOOLCHAIN_PREFIX = "Arm Compiler"
 TRUSTED_ASSET_PREFIX = "https://github.com/ShopItalic/sudo/releases/download/"
@@ -32,6 +34,10 @@ def check_trusted_url(label, url):
         fail(f"{label}: {url!r} is not a trusted GitHub Release asset URL")
     if RETIRED_HOST in url:
         fail(f"{label}: {url!r} still points at the retired {RETIRED_HOST} host")
+    parsed = urlparse(url)
+    parts = parsed.path.split("/")
+    if parsed.query or parsed.fragment or len(parts) != 7 or any(p in (".", "..") for p in parts):
+        fail(f"{label}: malformed release asset URL")
 
 
 def check_manifest(path):
@@ -39,6 +45,20 @@ def check_manifest(path):
     if RETIRED_HOST in text:
         fail(f"{path}: retired host {RETIRED_HOST} must not appear in the catalog")
     manifest = json.loads(text)
+    if "releases" in manifest:
+        releases = manifest["releases"]
+        if manifest.get("schemaVersion") != 1 or not isinstance(releases, list) or len(releases) > 100:
+            fail(f"{path}: invalid release inventory")
+        if any(not isinstance(r, dict) or not isinstance(r.get("version"), str) for r in releases):
+            fail(f"{path}: invalid release entry")
+        versions = [r["version"] for r in releases]
+        if len(set(versions)) != len(versions):
+            fail(f"{path}: duplicate firmware versions")
+        return ", ".join(check_entry(r, path) for r in releases) or "empty"
+    return check_entry(manifest, path)
+
+
+def check_entry(manifest, path):
     label = manifest.get("version", str(path))
 
     if manifest.get("sourceCommit") and not COMMIT.match(manifest["sourceCommit"]):
@@ -61,12 +81,16 @@ def check_manifest(path):
         return "withdrawn"
 
     if manifest.get("otaAvailable"):
+        if manifest.get("schemaVersion") != 1 or manifest.get("hardware") != "603V1.23.2":
+            fail(f"{label}: unsupported OTA schema or hardware")
         if manifest.get("status") != "supplier-signed-ota":
             fail(f"{label}: otaAvailable requires status supplier-signed-ota")
         if not manifest.get("toolchain", "").startswith(AUTHORIZED_TOOLCHAIN_PREFIX):
             fail(f"{label}: OTA package was not built with {AUTHORIZED_TOOLCHAIN_PREFIX} 5")
         package = manifest.get("otaPackage") or {}
         check_trusted_url(f"{label}.otaPackage.url", package.get("url"))
+        if urlparse(package["url"]).path.rsplit("/", 1)[-1] != f"BCL603S2P_{label}.zip":
+            fail(f"{label}: OTA filename does not match version")
         if manifest.get("otaPackageURL") != package.get("url"):
             fail(f"{label}: otaPackageURL and otaPackage.url disagree")
         if not SHA256.match(str(package.get("sha256", ""))):
@@ -76,7 +100,7 @@ def check_manifest(path):
 
     url = binary.get("url")
     if not url:
-        return "no-download"
+        return "ota-downloadable" if manifest.get("otaAvailable") else "no-download"
 
     if not manifest.get("toolchain", "").startswith(AUTHORIZED_TOOLCHAIN_PREFIX):
         fail(f"{label}: downloadable binary was not built with {AUTHORIZED_TOOLCHAIN_PREFIX} 5")
@@ -91,7 +115,7 @@ def check_manifest(path):
 
 
 def main(argv):
-    manifests = argv[1:] or [str(DEFAULT_MANIFEST)]
+    manifests = argv[1:] or [str(DEFAULT_MANIFEST), str(CATALOG)]
     results = [f"{Path(m).name}: {check_manifest(m)}" for m in manifests]
     print("release manifest policy: " + "; ".join(results))
     return 0

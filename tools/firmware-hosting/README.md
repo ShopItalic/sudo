@@ -10,7 +10,7 @@ catalog were deleted on 2026-09-11, so the retired S05 URL no longer serves.
 
 | Object | Location | Public URL |
 | --- | --- | --- |
-| Canonical catalog (committed source) | `tools/firmware-hosting/s05-manifest.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json` |
+| Canonical catalog (committed source) | `tools/firmware-hosting/releases.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json` |
 | OTA package / application image | GitHub Release asset | `https://github.com/ShopItalic/sudo/releases/download/<tag>/<asset>` |
 | Release evidence | GitHub Release assets | `manifest.json`, `SHA256SUMS`, `provenance.json`, `ci-build-summary.json`, `toolchain-version.txt`, notices |
 
@@ -34,7 +34,7 @@ fetch.
   the signed redirect targets GitHub uses for release assets.
 
 The catalog host is fixed at
-`https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/s05-manifest.json`.
+`https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json`.
 Every other host, and any redirect that leaves this allowlist, must be refused.
 
 ## Withdrawn S05 (2026-09-11)
@@ -124,3 +124,35 @@ after it is built with the authorized Arm Compiler 5 toolchain, inspected for
 interrupt-context safety, embeds the expected version, and is referenced by a
 manifest whose `binary.flashable` is `true`. Keep `otaAvailable` false until a
 supplier-signed Nordic DFU package exists.
+
+## Testing version selector (2026-09-14)
+
+The iOS selector reads the curated `releases.json` inventory. Each entry uses
+schema 1 release fields and its own exact OTA URL, SHA-256 and byte count.
+Only entries with a valid signed OTA package and no withdrawal are offered.
+The GitHub release list itself is not the catalog: S01/S03/S04 are known-bad
+engineering artifacts and are excluded, as is withdrawn S05.
+
+`factory-z62-manifest.json` and the initial inventory reference the untouched
+supplier `BCL603S2P_6.0.3.3Z62.zip` (SHA-256
+`3e928afdfcb402450aea7a527093dba102d08650cc9ffed52cf41cd9f8d1a38f`).
+The original supplier OTA is published as prerelease `v6.0.3.3Z62`; its
+public GitHub download was verified against the preserved ZIP hash before
+publishing this catalog. Future entries must follow the same order: publish
+the release asset and verify downloaded bytes before adding it to the catalog. The installed
+6.0.0.7Z62-to-6.0.3.3Z62 upgrade and recovery on the sealed Ring remain
+physically unverified. Download availability is not physical qualification.
+
+For publication, stage only the preserved supplier OTA ZIP and reviewed
+provenance/notices, then use `publish_release.py --tag v6.0.3.3Z62
+--manifest tools/firmware-hosting/factory-z62-manifest.json --assets-dir <stage>`.
+Verify the public asset hash before committing/pushing `releases.json`.
+Do not upload a supplier source archive, signing keys, a rebuilt bootloader,
+or a combined flash image. The client app must be rebuilt and installed
+before the version selector and GitHub origin policy are available on iPhone.
+
+For later test versions, add an independently reviewed manifest entry to
+`releases.json` after publishing its exact signed application-only package.
+Selecting or downloading a version does not flash a Ring. The UI names the
+prepared package separately and installation retains its explicit confirmation
+and existing maintenance/reconnect protections.

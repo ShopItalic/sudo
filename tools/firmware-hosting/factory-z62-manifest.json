@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "hardware": "603V1.23.2",
+  "version": "6.0.3.3Z62",
+  "status": "supplier-signed-ota",
+  "otaAvailable": true,
+  "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3Z62/BCL603S2P_6.0.3.3Z62.zip",
+  "otaPackage": {
+    "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3Z62/BCL603S2P_6.0.3.3Z62.zip",
+    "sha256": "3e928afdfcb402450aea7a527093dba102d08650cc9ffed52cf41cd9f8d1a38f",
+    "bytes": 184715
+  },
+  "withdrawn": false,
+  "toolchain": "Arm Compiler 5 (preserved supplier distribution)",
+  "notice": "Original supplier application. The upgrade from 6.0.0.7Z62 and recovery on sealed Rings have not been physically verified. This package does not update the bootloader."
+}
