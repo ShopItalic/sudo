@@ -89,6 +89,10 @@ def check_entry(manifest, path):
             fail(f"{label}: OTA package was not built with {AUTHORIZED_TOOLCHAIN_PREFIX} 5")
         package = manifest.get("otaPackage") or {}
         check_trusted_url(f"{label}.otaPackage.url", package.get("url"))
+        if package.get("apiURL") is not None and not re.fullmatch(
+            r"https://api\.github\.com/repos/ShopItalic/sudo/releases/assets/[0-9]+", package["apiURL"]
+        ):
+            fail(f"{label}: apiURL must identify an asset in ShopItalic/sudo")
         if urlparse(package["url"]).path.rsplit("/", 1)[-1] != f"BCL603S2P_{label}.zip":
             fail(f"{label}: OTA filename does not match version")
         if manifest.get("otaPackageURL") != package.get("url"):

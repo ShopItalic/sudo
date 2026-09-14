@@ -163,3 +163,13 @@ For later test versions, add an independently reviewed manifest entry to
 Selecting or downloading a version does not flash a Ring. The UI names the
 prepared package separately and installation retains its explicit confirmation
 and existing maintenance/reconnect protections.
+
+
+The optional `otaPackage.apiURL` is a numeric release-asset endpoint under
+`https://api.github.com/repos/ShopItalic/sudo/releases/assets/`. When present,
+the app requests it with `Accept: application/octet-stream`; the canonical
+browser URL, exact byte count, SHA-256 and ZIP validation still apply. The
+factory package uses asset 562566936. Its API response was independently
+verified against the same published ZIP. After uploading a future package,
+resolve its asset ID, verify the API download, then add this optional field
+before publishing the catalog. It is not a general URL or repository bypass.

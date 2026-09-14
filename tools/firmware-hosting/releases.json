@@ -11,7 +11,8 @@
       "otaPackage": {
         "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3Z62/BCL603S2P_6.0.3.3Z62.zip",
         "sha256": "3e928afdfcb402450aea7a527093dba102d08650cc9ffed52cf41cd9f8d1a38f",
-        "bytes": 184715
+        "bytes": 184715,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/562566936"
       },
       "withdrawn": false,
       "toolchain": "Arm Compiler 5 (preserved supplier distribution)",
