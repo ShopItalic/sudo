@@ -28,14 +28,21 @@ fetch.
 
 `ShopItalic/app` must allow downloads only from:
 
-- `raw.githubusercontent.com` under `/ShopItalic/sudo/` (catalog);
+- `api.github.com` at the exact Contents API URL below (catalog);
+- `raw.githubusercontent.com` at the exact raw catalog URL (network fallback);
 - `github.com` under `/ShopItalic/sudo/releases/` (release page and asset URL);
 - `objects.githubusercontent.com` and `release-assets.githubusercontent.com`,
   the signed redirect targets GitHub uses for release assets.
 
-The catalog host is fixed at
+The primary catalog URL is
+`https://api.github.com/repos/ShopItalic/sudo/contents/tools/firmware-hosting/releases.json?ref=main`,
+requested with `Accept: application/vnd.github.raw+json`. On network errors
+only, the app can fall back to
 `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json`.
-Every other host, and any redirect that leaves this allowlist, must be refused.
+The API route was added after the raw host timed out on the test iPhone.
+Both URLs identify the same committed file. Catalog redirects are refused;
+GitHub asset CDN redirects are accepted only for package requests. Every other
+host or repository must be refused.
 
 ## Withdrawn S05 (2026-09-11)
 
