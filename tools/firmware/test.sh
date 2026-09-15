@@ -371,3 +371,6 @@ python3 tests/firmware/test_factory_short_v9.py
 python3 tests/firmware/test_factory_scroll_v9.py
 python3 tests/firmware/test_factory_storage_v9.py
 python3 tests/firmware/test_factory_capture_v9.py
+
+# P10: persistent receipts, exclusive storage ownership, wire retries and power cuts.
+python3 tests/firmware/test_factory_cleanup_v10.py

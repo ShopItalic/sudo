@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P10 cleanup — risks before hardware</title>
+<style>
+  :root{color-scheme:light;--ink:#182320;--muted:#56645f;--line:#dbe1da;--paper:#f6f7f2;--red:#922c31;--green:#285a42}
+  *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 system-ui,-apple-system,sans-serif}
+  main{max-width:1080px;margin:auto;padding:52px 24px 72px}h1{font-size:clamp(30px,5vw,49px);line-height:1.12;letter-spacing:-1.4px;max-width:850px}
+  h2{font-size:25px;margin:40px 0 16px}h3{font-size:18px;margin:0 0 9px}p{margin:10px 0}a{color:var(--green);text-underline-offset:3px}
+  .eyebrow{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}.lead{font-size:20px;max-width:850px}
+  .notice{border-left:4px solid var(--red);padding:15px 20px;background:#fff0ea;margin:28px 0}.muted,small{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:white;border:1px solid var(--line);border-radius:12px;padding:22px}
+  .tag{font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--red);font-weight:700}.facts{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;margin-top:16px}
+  li{margin:8px 0}code{font-size:.87em;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;border-bottom:1px solid var(--line);padding:12px;vertical-align:top}th{width:26%}
+  footer{margin-top:40px;border-top:1px solid var(--line);padding-top:18px;font-size:13px;color:var(--muted)}
+  @media(max-width:720px){main{padding:32px 18px}.grid{grid-template-columns:1fr}h1{letter-spacing:-.6px}}
+  @media print{body{background:white}main{padding:0}.card{break-inside:avoid}a{color:inherit}}
+</style>
+<main>
+  <div class="eyebrow">Ring firmware · MBP-M5 · September 15, 2026</div>
+  <h1>P10 cleanup: risks before hardware</h1>
+  <p class="lead">The release gates are recovery, runtime stability and recording custody. A successful build cannot establish any of those on a physical Ring.</p>
+  <div class="notice"><strong>P10 test candidate.</strong> Write-ahead retry accounting, storage handoffs and iPhone receipt integration are implemented. Software verification and packaging are recorded below. Physical recovery and qualification remain separate; no P10 Ring flash has been performed.</div>
+
+  <h2>What the earlier incident tells us</h2>
+  <p>The saved S05 audit reproduced interrupt-triggered resets in the GNU C-library lock backend and a motor task using 664 bytes against a 512-byte stack. The first fault on the physical Ring was not captured, so this does not establish that deletion itself caused the brick. The supplied bootloader configuration lacked an independently demonstrated recovery entry if the application kept crashing.</p>
+  <p>P10 keeps the supplier ArmCC5 toolchain and leaves the bootloader, SoftDevice and board selection outside its change set. This avoids repeating the specific toolchain switch; it does not prove that new scheduling, storage or memory behavior is safe. See the <a href="ring-firmware-audit-handoff.md">firmware incident audit, F1 and F5</a> and <a href="../how-to/qualify-firmware.md">qualification workflow</a>.</p>
+
+  <h2>Prioritized risks</h2>
+  <p class="muted">Priority reflects consequences and unresolved evidence. Physical failure probabilities are unmeasured; they are not inferred from host test counts. Owners below describe the responsible workstream.</p>
+  <div class="grid">
+    <section class="card"><span class="tag">Critical · hardware gate</span><h3>1. A crash prevents its own repair</h3>
+      <p>A valid application that resets before Bluetooth recovery can leave the Ring unreachable. A firmware rollback button in the app is ineffective if the app cannot connect.</p>
+      <p><strong>Required:</strong> demonstrate restoration of the exact factory image on the identified spare using a verified recovery route. Preserve that image, configuration and recovery procedure. Do not infer recovery from a charging case or generic debug-pad guidance.</p>
+      <div class="facts">Impact: high · Likelihood: unmeasured; historical incident<br>Owner: firmware / hardware · Status: open</div></section>
+    <section class="card"><span class="tag">Critical · runtime gate</span><h3>2. Stack, heap or interrupt failures</h3>
+      <p>Hashing, filesystem calls and logging can exhaust task stacks, delay critical work or call an API from the wrong execution context. Enlarging one task stack also consumes the shared runtime heap.</p>
+      <p><strong>Required:</strong> keep cleanup in task context; check linked call paths and allocation failures; measure stack and heap headroom while recording, transferring, hashing and reconnecting. P10 allocates 4,096 bytes to the BLE worker, 2,048 more than P09. The factory stack-overflow checking option is disabled.</p>
+      <div class="facts">Impact: high · Likelihood: unmeasured on P10<br>Owner: firmware runtime · Status: static checks and hardware measurements required</div></section>
+    <section class="card"><span class="tag">Critical · storage gate</span><h3>3. Cleanup overlaps recording or transfer</h3>
+      <p>Two users of the same filesystem, or one task powering down flash during another task's work, can corrupt state or stop a recording. The draft audit found an early-idle reservation race and a close-before-power-down ordering gap.</p>
+      <p><strong>Implemented locally:</strong> reservations identify their owning task; close keeps ownership until completion; cleanup observes capture ownership through rollover and finalization. Error closes retain a busy state. The linked recording, transfer, enumeration and status paths were audited. Counted task notifications prevent lost wakeups. Worker faults retain BUSY without returning from an RTOS task, reads/seeks/closes are checked, and directory copies are bounded. Recording-start latency still needs measurement on the spare.</p>
+      <div class="facts">Impact: high · Likelihood: defects observed in the first draft<br>Owner: firmware storage · Status: source audit and host integration checks complete; physical qualification open</div></section>
+    <section class="card"><span class="tag">Critical · custody gate</span><h3>4. A stale receipt deletes another recording</h3>
+      <p>A timestamp or filename can be reused. A queued deletion must refer to the exact object copied to the phone, including after reboot, reconnect, account change or switching Rings.</p>
+      <p><strong>Required:</strong> capture a persistent random recording ID before transfer, bind it to exact raw byte count and SHA-256, durably save and verify the phone copy, then persist the Ring receipt before acknowledging it. Recheck identity and content before removal. A queued receipt is not a delete acknowledgement.</p>
+      <div class="facts">Impact: high · Likelihood: unmeasured<br>Owner: iOS sync / firmware protocol · Status: firmware and iOS receipt integration implemented and tested</div></section>
+    <section class="card"><span class="tag">Critical · power-loss gate</span><h3>5. Power fails while metadata changes</h3>
+      <p>Receipt creation and file deletion both write filesystem metadata. LittleFS is designed for power-loss resilience, but the exact driver, flash behavior and surrounding code must preserve its assumptions.</p>
+      <p><strong>Implemented locally:</strong> checked I/O, receipt readback before ACK, no format on mount failure, no low-space reclamation of older unacknowledged files. A RAM NOR fixture exercises 30 interrupted mutations and repeated power cuts before failure bookkeeping. Fragmented storage above 93% occupancy, repeated attribute commits, remounts and neighboring recordings are also tested. Actual flash power interruption remains a physical test.</p>
+      <div class="facts">Impact: high · Likelihood: unmeasured on fitted flash<br>Owner: firmware storage / hardware · Status: host coverage only<br><a href="https://github.com/littlefs-project/littlefs/blob/master/DESIGN.md">LittleFS design: power loss, wear and bounded memory</a></div></section>
+    <section class="card"><span class="tag">High · performance gate</span><h3>6. Retry work drains power or delays recording</h3>
+      <p>A stuck file can cause repeated scans, full hashes and flash writes. A 512-byte hash slice is not a wall-clock guarantee: metadata operations can take longer, and large recordings need many slices.</p>
+      <p><strong>Implemented locally:</strong> idle-only slices, backoff and a five-attempt cap. Every attempt is committed and read back before hashing or removal begins. A reset can consume an unused attempt, but cannot restore the budget. Only an explicit app Retry resets an exhausted receipt. Measure capture latency, dropped audio, BLE responsiveness, battery use and backlog recovery.</p>
+      <div class="facts">Impact: high · Likelihood: unmeasured<br>Owner: firmware runtime / iOS sync · Status: interrupted-attempt accounting fixed and tested; physical timing and power open</div></section>
+    <section class="card"><span class="tag">High · compatibility gate</span><h3>7. App and firmware disagree about cleanup</h3>
+      <p>The prototype disables legacy filename deletion and formatting. An old app cannot use the new receipt protocol. Existing recordings and partially transferred files need a conservative migration path.</p>
+      <p><strong>Required:</strong> explicit capability negotiation, correct handling of busy/pending/failed/absent states, idempotent retries and cancellation, and tests for old app/new firmware, new app/old firmware, upgrades and downgrades. Carry the latest P09 capture-busy and battery fixes into the exact P10 snapshot.</p>
+      <div class="facts">Impact: high · Likelihood: incompatibility known without matching app<br>Owner: iOS sync / release · Status: matching app integration complete; physical compatibility qualification open</div></section>
+    <section class="card"><span class="tag">High · evidence gate</span><h3>8. Passing tests qualify a different artifact</h3>
+      <p>The first host run printed success despite a sanitizer warning. The first firmware build also predates the subsequent concurrency fixes. Neither result can be used to approve a later image.</p>
+      <p><strong>Implemented locally:</strong> fatal sanitizer findings, negative controls that deliberately reintroduce the race and unsafe SHA byte shift, immutable build directories, and a verifier that compares generated code to the current recipe. Bind every result to source and artifact hashes.</p>
+      <div class="facts">Impact: high · Likelihood: evidence gaps observed during development<br>Owner: firmware validation / release · Status: safeguards added; physical proof separate</div></section>
+  </div>
+
+  <h2>Evidence from this task</h2>
+  <table>
+    <tr><th>Host fixture</th><td>Actual supplier LittleFS plus the P10 core and generated protocol adapter, with AddressSanitizer and UndefinedBehaviorSanitizer. Covers object replacement, changed content, corrupt metadata, receipt persistence, reboot, retry caps, neighbor preservation, malformed frames, lost ACKs, and controlled task interleavings. Two negative controls verify that the harness rejects known bad code.</td></tr>
+    <tr><th>Firmware build</th><td id="build-status">Fresh r3 licensed ArmCC5 rebuild and exact source/load/stack verification in progress. The release checkout is pinned to published P09 plus the capture-busy correction and P10 changes. Concurrent motor work in the shared checkout is excluded. r1 and r2 are superseded.</td></tr>
+    <tr><th>Evidence files</th><td><a href="../../build/diagnostics/factory-cleanup-p10-20260915/">Local diagnostics</a> · <a href="../../tools/firmware/factory_cleanup_v10.py">P10 adapter recipe</a> · <a href="../../firmware/factory_ptt_v10/app_factory_cleanup.c">Receipt core</a> · <a href="../../tests/firmware/test_factory_cleanup_v10.py">Host tests</a></td></tr>
+    <tr><th>Not established</th><td>Recovery on the actual sample, boot stability, dynamic memory headroom, recording quality/latency, physical power-loss behavior, battery impact, production readiness.</td></tr>
+  </table>
+
+  <h2>Recommended sequence</h2>
+  <ol>
+    <li><strong>Complete the test release checks.</strong> Freeze the source, verify the licensed image and independently verify the application-only signed ZIP. Keep the matching iPhone app with this candidate.</li>
+    <li><strong>Demonstrate spare-device recovery.</strong> This precedes any P10 hardware test. Flashing still requires an explicit request and verified target.</li>
+    <li><strong>Begin physical checks without cleanup authority.</strong> Verify boot, reconnect, recording, transfer and descriptor hashing before issuing any receiver receipt. Unconfirmed descriptors cannot authorize removal. Measure memory and recording responsiveness.</li>
+    <li><strong>Test actual cleanup on the recoverable spare.</strong> Use known recordings with verified external copies; interrupt power, transfer and reconnect at controlled boundaries. Verify every surviving recording byte-for-byte.</li>
+    <li><strong>Release the exact qualified image.</strong> Preserve artifacts and their evidence. Do not treat host tests, compilation, signing or installation as physical qualification.</li>
+  </ol>
+  <footer>Risk review prepared during P10 development. Saved incident findings describe software evidence; the original device's first physical fault remains unmeasured. No destructive device action was performed.</footer>
+</main>
+</html>
