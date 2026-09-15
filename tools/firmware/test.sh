@@ -350,3 +350,7 @@ python3 tests/firmware/test_runtime_callbacks.py
 # lifecycle, and independent application-only signature corruption controls.
 PYTHONPATH=tests/firmware:tools/firmware python3 -m unittest \
   test_factory_ptt_v5 test_factory_controls_v5 test_signed_application_package
+
+python3 tests/firmware/test_factory_controls_v6.py
+
+python3 tests/firmware/test_factory_ptt_v6.py

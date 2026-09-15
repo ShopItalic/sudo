@@ -385,3 +385,8 @@ candidate; the source-level and release safeguards below still apply.
   RAM/ROM regions extend beyond the usable application boundaries, although
   both actual linked images fit. Keep the original failing GNU reproducer as
   evidence; do not replace its artifact or remove its interrupt guard.
+
+
+## Factory P06 sample release — September 15, 2026
+
+P06 adds saved recording-light and 0.5–5 second hold activation controls to the factory-based P05 path. See [the release review](reference/factory-p06-release.html). The matching app must reject settings-incompatible downgrades from P06 using a fresh version read. Physical timing, settings persistence, audio tails, runtime memory and recovery qualification remain distinct from software checks. Bluetooth performance work is deferred until the authorized P06 sample installation is verified.
