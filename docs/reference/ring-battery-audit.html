@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sudo Ring battery audit, reproduced factory defects, and a staged proposal for calibrated battery percentages on 603V1.23.2.">
+  <title>Ring battery percentage — findings and proposed calculation</title>
+  <style>
+    :root{color-scheme:light;--ink:#172c31;--muted:#53676b;--line:#dce4df;--paper:#fffefa;--green:#245f4b;--pale:#edf4ee;--amber:#82520b;--warm:#fff4dc;--red:#873e30}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f1f2ec;color:var(--ink);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{max-width:1120px;margin:32px auto;background:var(--paper);border:1px solid var(--line);padding:44px 48px;border-radius:14px}a{color:var(--green);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid var(--amber);outline-offset:4px}
+    h1{font-size:clamp(32px,5vw,52px);line-height:1.12;letter-spacing:-.04em;max-width:900px;margin:14px 0 20px}h2{font-size:27px;line-height:1.25;letter-spacing:-.02em;margin:42px 0 16px}h3{font-size:19px;margin:25px 0 10px}p{margin:12px 0}.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}.lead{font-size:20px;max-width:900px}.small,footer{font-size:13px;color:var(--muted)}
+    nav{display:flex;flex-wrap:wrap;gap:10px 22px;padding:18px 0;border-block:1px solid var(--line);margin:28px 0}nav a{font-size:14px;font-weight:650}section{scroll-margin-top:24px}
+    .callout{padding:18px 22px;border-left:4px solid var(--green);background:var(--pale);margin:24px 0}.caution{border-color:var(--amber);background:var(--warm)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0}.card{border:1px solid var(--line);border-radius:8px;padding:18px}.card strong{display:block;font-size:25px;line-height:1.2;margin-bottom:9px}.card p{font-size:14px;margin:0;color:var(--muted)}
+    .flow{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0;margin:20px 0}.flow li{padding:14px;background:var(--pale);border-radius:7px;font-size:14px}.flow b{display:block;font-size:12px;color:var(--green);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+    .table{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin:18px 0}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.55}th,td{text-align:left;vertical-align:top;padding:13px 15px;border-bottom:1px solid var(--line)}th{background:var(--pale);font-weight:650}tr:last-child td{border-bottom:0}.curve td,.curve th{white-space:nowrap}.tag{font-size:12px;font-weight:700;display:inline-block;color:var(--green)}.tag.open{color:var(--amber)}.tag.bug{color:var(--red)}
+    code{font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:20px;background:#edf0ed;border-radius:8px;font:13px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}.formula{font-size:16px}li{margin:7px 0}details{border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin:20px 0}summary{cursor:pointer;font-weight:650}footer{border-top:1px solid var(--line);padding-top:20px;margin-top:36px}.steps{counter-reset:stage}.stage{border-top:1px solid var(--line);padding-top:12px;margin-top:24px}.stage h3:before{counter-increment:stage;content:counter(stage) ". ";color:var(--green)}
+    @media(max-width:760px){main{margin:0;padding:28px 18px;border:0;border-radius:0}.cards{grid-template-columns:1fr}.flow{grid-template-columns:repeat(2,1fr)}th,td{padding:11px}h2{font-size:24px}.lead{font-size:18px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{body,main{background:white}main{margin:0;border:0;padding:0;max-width:none}nav{display:none}h2,h3{break-after:avoid}.card,.callout,tr{break-inside:avoid}.table{overflow:visible}details{break-inside:auto}a{color:inherit}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <div class="eyebrow">Engineering audit &amp; proposal · 15 September 2026 · MBP-M5 · 603V1.23.2</div>
+    <h1>A battery percentage we can explain and verify.</h1>
+    <p class="lead">P08 repairs two reproduced factory calculation defects and rejects invalid battery measurements. The next step is to calibrate voltage and the discharge curve against the cells actually fitted to the Ring.</p>
+    <div class="callout"><strong>Recommended direction:</strong> keep the existing hardware and battery byte for the first repair. Build a measured, recoverable voltage estimator for the calibrated release. Show a whole-number estimate when it is fresh, and explicit charging or unavailable states when it is not.</div>
+    <p class="small"><strong>Status:</strong> the first software repair is implemented in the P08 source. The calibrated voltage/profile and app display design below remain proposals. No physical calibration, signing, firmware installation or discharge test is claimed. This document does not identify which firmware is currently running on a particular Ring.</p>
+    <div class="cards">
+      <div class="card"><strong>50% → 56%</strong><p>Factory filter inflates a steady 50% input after a full window.</p></div>
+      <div class="card"><strong>20% stays 20%</strong><p>A nonzero low reading can remain stuck after sustained recovery.</p></div>
+      <div class="card"><strong>1,454 checks</strong><p>P08 battery assertions pass, including the actual patched factory paths. Physical accuracy remains unmeasured.</p></div>
+    </div>
+  </header>
+  <nav aria-label="Document sections">
+    <a href="#current">Factory calculation</a><a href="#findings">Findings</a><a href="#p08">P08 implementation</a><a href="#compact">Smaller battery reporting</a><a href="#proposal">Proposed calculation</a><a href="#display">Display rules</a><a href="#qualification">Qualification</a><a href="#evidence">Evidence</a>
+  </nav>
+
+  <section id="current">
+    <h2>1. How the Z62–P07 factory battery path works</h2>
+    <ol class="flow">
+      <li><b>1 · Measure</b>Power the divider; wait 10 ms; average three 12-bit ADC conversions.</li>
+      <li><b>2 · Convert</b>Use the nominal 2 MΩ / 1 MΩ divider and add 200 mV.</li>
+      <li><b>3 · Estimate</b>Interpolate a fixed voltage table; filter up to ten percentages.</li>
+      <li><b>4 · Report</b>Send the battery byte over BLE; the app presents the result.</li>
+    </ol>
+    <pre class="formula">V_corrected = (average_ADC / 4096) × 3.6 V × 3 + 0.2 V
+percentage = piecewise_linear_lookup(V_corrected)</pre>
+    <p>The factor of three restores the nominal divider ratio. The 200 mV term is a supplier correction in the shared <code>HARDWARE_1231_ENABLED</code> branch used by standard 1.23.2. Neither that correction nor a cell-specific curve has measured qualification in the inspected records. <a href="../../firmware/bc_ros/bc_module/pmic/bc_power.c">Source: bc_power.c</a>.</p>
+    <div class="table curve"><table><thead><tr><th scope="col">Corrected voltage</th><th scope="col">4.20 V</th><th scope="col">4.13 V</th><th scope="col">4.06 V</th><th scope="col">4.00 V</th><th scope="col">3.94 V</th><th scope="col">3.88 V</th><th scope="col">3.81 V</th><th scope="col">3.74 V</th><th scope="col">3.67 V</th><th scope="col">3.60 V</th></tr></thead><tbody><tr><th scope="row">Table percentage</th><td>100</td><td>90</td><td>78</td><td>65</td><td>52</td><td>40</td><td>28</td><td>16</td><td>7</td><td>0</td></tr></tbody></table></div>
+    <p>Between table points, firmware uses integer linear interpolation. Values above or below the table clamp to 100 or 0. These voltages are the <em>corrected software inputs</em>; they are not independently measured cell voltages.</p>
+    <p>Off-charger, the PMIC task normally samples and sends a percentage every 30 seconds. Active charging changes that timer to two seconds. Connection and explicit battery reads can add samples, so a ten-sample window has no fixed duration. A full window at the 30-second cadence spans about five minutes. Charge-complete sends a separate charger-state transition; it does not keep producing a percentage in that branch.</p>
+    <p>Legacy battery command <code>0x12 / subcommand 0</code> returns <code>0…100</code> when off-charger, <code>101</code> while charging, and <code>102</code> when charge-complete. Charger state is also available through subcommand 1 and the connect response. Percentage notifications and charger-state notifications are separate. Invalid <code>255</code> is supported by the experimental error path. The app normalizes these values; it does not calculate capacity independently.</p>
+    <div class="callout caution"><strong>Percentage also affects shutdown today.</strong> The factory PMIC task enters ship mode after four consecutive handler samples at or below 10%. Fixing the filter can change when that condition occurs even if its threshold is unchanged. Low-power behavior needs qualification alongside any battery repair.</div>
+  </section>
+
+  <section id="findings">
+    <h2>2. Findings and their evidence</h2>
+    <div class="table"><table><thead><tr><th scope="col">Finding</th><th scope="col">What is established</th><th scope="col">Consequence / next step</th></tr></thead><tbody>
+      <tr><td><span class="tag bug">Confirmed · arithmetic</span><br><strong>Broken trimmed average</strong></td><td>In <code>getvpct_()</code>, the loop declares another <code>imax</code>. The outer maximum remains zero, so it is not subtracted. The minimum scan can also miss the last or a flat-tail minimum. Ten identical 50% samples produce 56%.</td><td>Replace the extrema scan and division with the already-tested filter algorithm. Remove exactly one minimum and one maximum when there are at least three valid samples.</td></tr>
+      <tr><td><span class="tag bug">Confirmed · recovery</span><br><strong>Off-charger value cannot rise</strong></td><td><code>getvpct()</code> holds the lowest nonzero estimate during discharge. With an initial 20% input, twenty subsequent 80% samples still return 20%.</td><td>Permit recovery in both directions. Reset history across charging transitions and reject invalid/interrupted samples.</td></tr>
+      <tr><td><span class="tag open">Unqualified · measurement</span><br><strong>Acquisition time may be too short</strong></td><td>Factory SAADC acquisition is 10 µs. An unbuffered 2 MΩ / 1 MΩ divider implies approximately 667 kΩ source resistance. Nordic lists 10 µs for up to 100 kΩ and 40 µs for up to 800 kΩ. <a href="https://docs-be.nordicsemi.com/bundle/nRF52840_PS_v1.8/raw/resource/enus/nRF52840_PS_v1.8.pdf">nRF52840 specification §6.23.1.1</a>.</td><td>The source-resistance comparison is an inference from nominal resistor values. Verify fitted resistors, any capacitor/buffer, and acquisition error. The experimental branch selects 40 µs.</td></tr>
+      <tr><td><span class="tag open">Unqualified · calibration</span><br><strong>Fixed correction and generic curve</strong></td><td>There is no validated evidence connecting the +200 mV correction and table to the exact fitted Grepow cells. The current path has no current integration, temperature compensation, or capacity-aging model.</td><td>Measure voltage accuracy first; then derive the percentage curve from charge removed during real discharge tests. Do not remove the offset blindly or assume a generic LiPo table is an improvement.</td></tr>
+      <tr><td><span class="tag">Confirmed · app semantics</span><br><strong>Sentinels are handled correctly</strong></td><td>App normalization keeps 101, 102 and invalid readings out of numeric percentages. The legacy detail text calls both charging and charge-complete “Charging.” The newer device accessibility description distinguishes “Fully charged.”</td><td>Use one display policy across the legacy session and native adapter. Add freshness and distinct visible charge-complete text.</td></tr>
+    </tbody></table></div>
+    <p><strong>Build applicability:</strong> the three battery source files in prepared Z62, P05-r1, P06-r3 and P07-r1 match factory baseline <code>102bfd2</code> byte for byte. The separate <code>SUDO_VOICE_ONLY</code> path contains the corrected recoverable filter, checked ADC transactions, motor exclusion and 40 µs acquisition. Those improvements are absent from these factory-derived preparations. Source inspection does not prove what is installed on a Ring.</p>
+    <p>Voltage under load can differ from relaxed voltage. Discharge rate, temperature and age also affect available capacity; TI describes these limits and the role of current integration and impedance models. This supports the need for measured validation, not a claim that a particular gauge is fitted here. <a href="https://www.ti.com/document-viewer/lit/html/SSZT520A/GUID-A25EA54D-72AF-4B4F-B578-4D3BAAAA54DD">TI battery-gauging overview</a>.</p>
+  </section>
+
+  <section id="p08">
+    <h2>P08: the first software repair</h2>
+    <p>P08 combines the existing controls and recording-deletion work with an isolated battery module. It prepares a fresh manifest-verified factory tree; the working vendor source and previous P05–P07 preparations are preserved.</p>
+    <ul>
+      <li><strong>Correct, recoverable averaging:</strong> the ten-entry filter subtracts exactly one minimum and maximum and permits recovery upward. Constant 0–100 inputs and the original 50→56 / stuck-20 reproductions are covered.</li>
+      <li><strong>Checked acquisition:</strong> failed Nordic conversions propagate through the ADC driver; open/read/close failures and out-of-range conversions produce unknown (255). Both battery sensing and hardware self-check share a nonblocking ADC ownership guard.</li>
+      <li><strong>Motor exclusion:</strong> a task-safe generation snapshot covers pre-PWM settling, active motor supply and completed motor events. Battery batches during activity, within the provisional 250 ms settling window, or interrupted by a motor event are discarded.</li>
+      <li><strong>Charge transitions:</strong> the complete filter transaction is serialized, charger state is checked before and after sampling, and incompatible history is reset. The PMIC observer also invalidates history on transitions without a percentage read, including charge-complete; an observed attach/detach cycle interrupts an in-flight batch. Failed reads and charging intervals break the consecutive-low-reading shutdown count.</li>
+      <li><strong>Calibration preserved:</strong> the supplier voltage table, +200 mV correction, 10 µs acquisition, legacy battery bytes and existing 10% shutdown threshold remain. Their physical qualification is still required.</li>
+    </ul>
+    <p>Implementation: <a href="../../firmware/factory_ptt_v8/app_factory_battery.c">battery owner</a>, <a href="../../firmware/factory_ptt_v8/app_factory_battery_power.h">checked ADC path</a>, <a href="../../tools/firmware/factory_battery_v8.py">factory patches</a>, and <a href="../../tests/firmware/test_factory_battery_v8.py">integration tests</a>. The tests compile the actual patched factory power/PMIC/ADC/motor code with address and undefined-behavior sanitizers. <code>python3 tests/firmware/test_factory_battery_v8.py</code> is the focused entry point.</p>
+    <p><strong>Host verification:</strong> all five focused tests pass: 1,140 filter/PMIC integration assertions, 269 power/acquisition assertions, 24 Nordic ADC assertions and 21 factory motor assertions (1,454 total). A deliberately broken maximum subtraction is rejected. The full <code>sh tools/firmware/test.sh</code> suite passed at the battery-r2 snapshot, including P08 controls, PTT and recording deletion. These results establish software behavior under the tested inputs; they do not measure battery capacity or prove physical shutdown behavior.</p>
+    <p class="small"><strong>Concurrent source changes:</strong> a separate local-recording-only P08 edit arrived after the battery-r2 build started. The battery module, three battery patches and motor overlay match that build snapshot; the newer command/recorder/PTT edits are outside its compiled evidence. The normal P08 verifier remains strict. The battery snapshot has a separate verifier that records this difference and explicitly leaves the latest combined working tree unqualified.</p>
+    <div class="table"><table><thead><tr><th scope="col">Battery-r2 verification</th><th scope="col">Result</th></tr></thead><tbody>
+      <tr><td>Licensed compiler</td><td>ArmCC5 5.06 update 7 build 960; target 1.23.2; 344 objects; 0 errors and 542 inherited warnings. No new compiler warning identities versus P07.</td></tr>
+      <tr><td>Unsigned application</td><td>Version <code>6.0.3.3P08</code>; 187,892 bytes; SHA-256 <code>c657f0b0319dc3ef888fde32c5a0021a7cc6d27af91cc89f56e93f23ce7a880f</code>.</td></tr>
+      <tr><td>Frozen source and image</td><td>7,056 factory files checked; exactly 15 original files changed and 12 overlays added. ELF load bytes match the BIN; version, application flash/RAM bounds and the selected touch/BLE/LED linked-stack checks pass.</td></tr>
+      <tr><td>Latest shared-checkout rerun</td><td>The focused battery tests still pass. A subsequent full-suite rerun encountered 11 failures in the 209-check <code>test_voice_service</code> harness after separate recording-service edits appeared. This result does not qualify the latest combined checkout.</td></tr>
+      <tr><td>Local evidence</td><td><code>build/diagnostics/factory-battery-p08-r2-20260915/</code>: compiler result, readiness, source reproduction, battery stack review, passing snapshot suite and later working-tree failure log. Earlier battery-r1 artifacts are retained.</td></tr>
+    </tbody></table></div>
+    <p class="small">P08 has not implemented calibrated cell curves, time-based smoothing, new telemetry fields, display freshness or new app text. Those are separate measured/product changes below.</p>
+    <p class="small"><strong>Historical battery-r2 memory limit:</strong> its PMIC callback reports 744 bytes, unchanged from P07. The inherited 1,024-byte timer daemon can add 88 bytes of dispatch frames: 832 bytes before interrupt reserve, leaving 192 bytes. That missed the provisional 256-byte allowance by 64 bytes; it was not an observed overflow. The compact P08 result below reduces this reported path. Indirect driver calls, recursive error logging and runtime interrupt/context use still require qualification.</p>
+  </section>
+
+  <section id="compact">
+    <h2>Smaller P08 battery reporting, with the same calculation</h2>
+    <p>The large temporary workspace belongs to the two notification functions. Each initializes two full packet structures to send only five or six bytes. The P08 reporting patch builds those bytes directly in a small buffer owned by that call. It preserves both guards, the direct radio callback, the timer restart, every payload byte and the little-endian charger-state encoding.</p>
+    <p><strong>Calculation and protections are unchanged.</strong> Ten battery/ADC/filter/motor source files match the battery-r2 build byte for byte. The curve, correction, valid-sample filtering, charger transitions, error handling, motor exclusion, sampling schedule and four-low-reading shutdown rule are retained. This optimization adds no heap allocation, shared scratch buffer, task, timer or sample.</p>
+    <p><strong>Behavior evidence:</strong> ASan/UBSan tests compare all 256 percentage-byte values and all 65,536 status-word values against the exact factory functions. Both <code>FACTORY_USE</code> configurations, connection/notification guards, a disconnect after the guards and nested sends pass: <strong>1,052,672 comparison pairs</strong>. A deliberately changed command byte fails the comparison. The full firmware host suite also passes for this run, including the current P08 local-recording and P09 regression suites.</p>
+    <div class="table"><table><thead><tr><th scope="col">Measured quantity</th><th scope="col">Previous P08</th><th scope="col">Compact P08</th></tr></thead><tbody>
+      <tr><td>Each notification’s own stack frame</td><td>520 bytes</td><td>24 bytes</td></tr>
+      <tr><td>Reported PMIC callback chain</td><td>744 bytes</td><td>408 bytes</td></tr>
+      <tr><td>Reported chain + known timer dispatch</td><td>832 bytes</td><td>496 bytes</td></tr>
+      <tr><td>Space left in the same 1,024-byte task stack</td><td>192 bytes</td><td>528 bytes; 272 remain after the provisional 256-byte allowance</td></tr>
+      <tr><td>Instructions to prepare an allowed percentage / status report</td><td>1,574 / 1,575</td><td>21 / 23</td></tr>
+      <tr><td>Unsigned application size</td><td>186,704 bytes</td><td>186,652 bytes (52 smaller); static RAM allocation unchanged</td></tr>
+    </tbody></table></div>
+    <p><strong>Compiler and image evidence:</strong> the isolated ArmCC5 5.06u7 build 960 link uses the newly compiled <code>app_package.o</code> and 343 unchanged objects from the completed local-recording P08 build. Every original source file except <code>app_package.c</code>, every overlay and the project settings match that baseline; the sole generated-header difference is a comment. The link passes with zero errors and one license-expiry notice. The changed compilation unit has no warnings. The strict P08 source/image verifier passes all 7,056 factory-file checks, the 17-file allowed delta, 12 added overlays, ELF/BIN equality, version/load bounds, selected task stacks and the new battery-timer budget. The actual battery-r2 report fails the new budget gate, as expected.</p>
+    <p><strong>Linked-code comparison:</strong> 804 ARM CPU-model comparison pairs execute the actual notification machine code after its real C startup. They produce the same bytes, guard calls and timer calls. The counts above exclude the unchanged radio, permission and timer services, which are intercepted; they are instructions, not CPU cycles, elapsed time or battery-life measurements. Host tests provide the exhaustive values and nested-call coverage. No battery calculation instruction was changed.</p>
+    <p class="small"><strong>Build boundary:</strong> the fresh full uVision rebuild stopped progressing after 243 objects while another build used the shared compiler environment. Only this task’s stalled compiler process and waiting wrapper were stopped; partial outputs and other builds were preserved. The successful artifact is the separately linked incremental comparison described above, not a completed clean rebuild. Its BIN SHA-256 is <code>ca8bd157e4fd3800501dfc38847b7cad18768c1fb8cdbe18cffa995ecf110b38</code>.</p>
+    <p><strong>Scope:</strong> this patch is wired into the P08 recipe only. P09 keeps its existing reporting implementation and needs its own adoption and evidence if this optimization is carried forward. The previous battery-r2 figures above remain historical. Runtime interrupt/driver stack use, real voltage/capacity accuracy, power consumption and recoverable-device qualification still require hardware. No device was flashed.</p>
+    <p class="small">Sources: <a href="../../tools/firmware/factory_battery_reporting_v8.py">two-function reporting patch</a>, <a href="../../tests/firmware/test_factory_battery_reporting_v8.py">exhaustive equivalence test</a>, <a href="../../tools/firmware/compare_factory_battery_reporting_v8.py">linked ARM comparison</a>, <a href="../../tools/firmware/verify_factory_ptt_v8.py">P08 verifier</a>. Local evidence: <code>build/diagnostics/factory-battery-p08-compact-r1-20260915/</code>.</p>
+  </section>
+
+  <section id="proposal" class="steps">
+    <h2>3. Proposed calculation and implementation order</h2>
+    <p><strong>Target meaning:</strong> estimate the fraction of usable charge remaining before the qualified recording-stop reserve, under a documented reference workload. Battery percentage must not be presented as a promise of remaining recording minutes.</p>
+    <div class="stage">
+      <h3>Repair the factory estimator — implemented in P08</h3>
+      <p>The P08 module reuses the small tested filter and error-handling concepts from the experimental path on the manifest-verified factory baseline. Its factory motor/RTOS integration is covered by the focused tests above. The requirements below describe the repair and the remaining physical checks.</p>
+      <ul>
+        <li>Correct the ten-entry trimmed average. Keep only valid <code>0…100</code> samples; return unknown on failed acquisition. A failed read must never become 0%, 100%, or a valid low-battery vote.</li>
+        <li>Allow filtered estimates to increase after sustained recovery. Start new filter history on charger-state changes and recheck charger state after measurement; discard a batch that straddles a transition.</li>
+        <li>Guard one ADC transaction at a time. Exclude motor activity and batches interrupted by it. A 250 ms motor settling period and 40 µs acquisition are <em>bench candidates</em>, informed by existing source and Nordic guidance.</li>
+        <li>For the software-only baseline, retain the current correction/table and existing protection configuration. Test acquisition changes together with calibration before shipping them: fixing sampling may invalidate a correction that happened to compensate for sampling error.</li>
+        <li>Keep existing battery bytes and charger meanings. Test the changed filtered values against the current four-low-sample shutdown behavior on a recoverable sample.</li>
+      </ul>
+      <p class="small">Result: a reproducible arithmetic and recovery repair. It improves correctness but does not establish absolute state-of-charge accuracy.</p>
+    </div>
+    <div class="stage">
+      <h3>Calibrate voltage and build a measured cell profile</h3>
+      <ol>
+        <li><strong>Identify the fitted cell and input circuit.</strong> CAD lists GRE170722_10, GRE170724 and GRE170726 for sizes 10–12; those names do not establish every sample’s fitted cell or electrical limits. Obtain the released cell specifications and verify the divider. <a href="sudo-ring-hardware.md#open-specifications">Open hardware specifications</a>.</li>
+        <li><strong>Calibrate the ADC against an external meter.</strong> Collect raw ADC values and cell-terminal voltage at several permitted voltages, with the final acquisition configuration. Fit gain and offset, then validate at voltages/units not used to fit them. Prefer one calibration per board revision only if unit spread meets the error target; otherwise store per-unit coefficients with a schema/version and integrity check.</li>
+        <li><strong>Measure charge removed.</strong> Use an external current logger during controlled full-to-reserve discharges. Integrate current to get usable mAh. Pair voltage, workload state and elapsed charge; derive monotonic lookup points. Keep a held-out unit or cycle for validation.</li>
+        <li><strong>Match the curve to the operating condition.</strong> Start with a measured steady-idle curve. Characterize continuous recording and transfer separately; use validated load-specific curves if they materially improve error. Do not label a 250 ms motor pause as fully relaxed open-circuit voltage. Unvalidated conditions carry lower confidence or become unavailable once the previous estimate expires.</li>
+        <li><strong>Version and select the profile explicitly.</strong> Tie the curve to confirmed cell/board identity. Use the supplier table as an explicitly uncalibrated compatibility fallback during development; never silently select a “calibrated” profile from a ring-size guess. Temperature adjustment requires a fitted, representative sensor and test data.</li>
+      </ol>
+      <pre class="formula">V_mV = gain_mV_per_count × median(valid_ADC_batch) + offset_mV
+
+Q_used_mAh = ∫ I_mA(t) dt / 3600              [external reference measurement]
+SOC_reference = 100 × (1 − Q_used / Q_usable)
+
+SOC_target = interpolate(profile[cell, qualified_load], V_mV)</pre>
+      <p><code>Q_usable</code> is the measured charge from the specified full state to the qualified reserve endpoint in the same test. It is not a guessed nameplate capacity. Both calibration coefficients and the replacement curve remain unset until measurement.</p>
+      <div class="callout caution"><strong>Zero and shutdown must be designed together.</strong> The present table reaches 0% at 3.60 V, while the task shuts down at a reported 10%. The calibrated release must define a recording-stop reserve from approved cell limits, voltage sag and measured time/energy to finish a file. Do not remap the display to “0% at reserve” while leaving a shutdown rule tied to the newly remapped percentage.</div>
+    </div>
+    <div class="stage">
+      <h3>Publish one stable estimate with explicit freshness</h3>
+      <p>Use one firmware worker to own sampling, filtering and publication. Timer/interrupt code should request work; ADC waits and shared state updates belong outside interrupts and long critical sections. BLE reads and notifications consume the same published snapshot.</p>
+      <div class="table"><table><thead><tr><th scope="col">Engineering starting point</th><th scope="col">Proposed behavior</th></tr></thead><tbody>
+        <tr><td>Sampling</td><td>Every 30 seconds off-charger; request a new measurement after a charger transition. Take a median of five valid conversions within each batch. Confirm divider settling, ADC offset calibration and power cost on the real board.</td></tr>
+        <tr><td>Smoothing</td><td>Apply a time-based filter to the calibrated target: <code>α = Δt / (τ + Δt)</code>, then <code>estimate += α × (target − estimate)</code>. Start with <code>τ = 30 seconds</code>; keep fractional precision internally. Update once per new qualified sample, independent of phone polling frequency.</td></tr>
+        <tr><td>Recovery and transitions</td><td>No permanent monotonic clamp. First valid sample initializes the filter. Reset incompatible history on charger/profile changes; after unplugging, wait for a qualified off-charger sample instead of forcing 100%. Brief invalid reads preserve the last good value internally and advance its age.</td></tr>
+        <tr><td>Rounding</td><td>Round once to an integer at publication. A one-percentage-point hysteresis band may suppress flicker; it must not create a permanent low latch. Apply no second smoothing filter in the app.</td></tr>
+        <tr><td>Freshness</td><td>Initial expiry target: 90 seconds, equivalent to three normal sample periods. Stale values remain available for diagnostics but are not emitted as fresh percentages. A cached command response does not refresh the sample timestamp.</td></tr>
+        <tr><td>Low power</td><td>Separate the calibrated reserve/protection decision from the cosmetic filter. Validated low voltage must bypass display smoothing and trigger graceful recording completion early enough to preserve audio. Existing PMIC/cell protection remains a final boundary.</td></tr>
+      </tbody></table></div>
+      <p class="small">These timing and filter parameters are proposed tuning values, not measured constants. Under a sustained step from 20% to 80%, the unsaturated filter above reaches about 79% after six 30-second samples. That mathematical example demonstrates recovery; it is not physical battery evidence.</p>
+      <p><strong>Protocol rollout:</strong> stage one preserves <code>0…100 / 101 / 102 / 255</code>. If published cached snapshots replace live reads later, add a capability-gated, versioned telemetry response with sample sequence, age, voltage, charger state, validity and calibration/profile version; choose an unused command only after a protocol allocation review. Old clients continue to receive the legacy byte, with 255 for expired/invalid estimates.</p>
+      <p><strong>Firmware-update preflight needs stronger evidence.</strong> A cached response must not satisfy the app’s fresh-power requirement. Preserve a fresh-measurement operation, or require a new qualified sample sequence and a confirmed off-charger state before update admission. Normal display freshness is not the preflight freshness guarantee.</p>
+    </div>
+  </section>
+
+  <section id="display">
+    <h2>4. What the app should show</h2>
+    <p>Keep implementation details in diagnostics. Use the same visible text, icon and accessibility semantics in Home, Devices, Ring detail and firmware preflight. Both the legacy SDK adapter and native Ring adapter must follow this policy.</p>
+    <div class="table"><table><thead><tr><th scope="col">State</th><th scope="col">Visible UI</th><th scope="col">Rule</th></tr></thead><tbody>
+      <tr><td>Connected, valid and fresh, off-charger</td><td><strong>67%</strong> and a proportional battery icon</td><td>One whole-number estimate. No fake decimal precision, additional app correction, or rounding up to 100 when the estimator is below full.</td></tr>
+      <tr><td>Charging (101)</td><td><strong>Charging</strong> and a bolt</td><td>No invented percentage; the legacy byte contains charger status only.</td></tr>
+      <tr><td>Charge-complete (102)</td><td><strong>Fully charged</strong> and a full battery/bolt</td><td>A charger-reported state, not a measured 100% reading. Off-charger percentage resumes after measurement.</td></tr>
+      <tr><td>Connected, no valid sample or sample expired</td><td><strong>—</strong>; detail says <strong>Battery unavailable</strong></td><td>Keep the last-good number and its actual time in diagnostics. Do not convert failure to 0% or treat a read of stale cache as a new observation.</td></tr>
+      <tr><td>Disconnected or switching Rings</td><td>No live battery number</td><td>Reset the live projection; scope samples to the physical Ring and connection generation so a late callback cannot populate another Ring.</td></tr>
+      <tr><td>Qualified critical-low state</td><td><strong>Low battery</strong>, with a valid percentage when available</td><td>Protection and recording completion take priority over visual smoothing. Unknown battery is not evidence of a low-voltage condition.</td></tr>
+    </tbody></table></div>
+    <p>For old firmware without producer age, record the time of a successful percentage observation and expire it conservatively. Keep that receipt time distinct from a device sample timestamp. Charger-only notifications must not refresh the age of an old percentage. Foreground reads should recover stale charger state after unplugging; do not let a late percentage notification erase confirmed charging.</p>
+    <p>A whole-number percentage is still an estimate. Add a short explanation in battery detail: <q>Battery level is estimated and may adjust after charging or heavy use.</q> Do not show remaining minutes until workload-specific runtime prediction has separate validation.</p>
+  </section>
+
+  <section id="qualification">
+    <h2>5. How we prove the replacement is better</h2>
+    <p><strong>Proposed engineering acceptance targets, not achieved accuracy claims.</strong> Use the results to accept, tune or reject this voltage-based design. Do not change charge limits or lower the reserve to make the percentage appear better.</p>
+    <div class="table"><table><thead><tr><th scope="col">Gate</th><th scope="col">Required evidence</th></tr></thead><tbody>
+      <tr><td>Arithmetic / state</td><td>Constant inputs preserved; exactly one min/max removed; duplicate extrema and last-element minima; 0 and 100 endpoints; invalid samples; repeated failures; charging/charged/unplug transitions; interrupted motor/ADC batches; late callbacks and Ring switching. Regression includes both factory reproductions.</td></tr>
+      <tr><td>Filter behavior</td><td>No permanent off-charger latch. A sustained qualified 20→80 step converges to within two points within 180 seconds under the proposed cadence. Stable-input display noise stays within two points. Polling faster does not change the filter time constant.</td></tr>
+      <tr><td>Voltage</td><td>Target maximum absolute error ≤20 mV against the external meter across the qualified operating range, on held-out voltages and units. Validate idle, recording, transfer and post-haptic conditions, including ADC calibration and temperature effects.</td></tr>
+      <tr><td>Percentage</td><td>Initial target: 90% of qualified samples within ±5 percentage points of externally measured usable-charge reference; every qualified sample within ±10 points. Report each cell/load/temperature group separately and include the low-charge region; no pooled average hiding a failing group.</td></tr>
+      <tr><td>Coverage / availability</td><td>Target fresh numeric availability ≥95% during supported normal operation, including sustained recording and transfer. Score missing/low-confidence periods separately; meeting accuracy by suppressing most readings is a failure.</td></tr>
+      <tr><td>Reserve / recording custody</td><td>Graceful completion and readable saved audio before the qualified low-voltage boundary under worst supported load. Include low battery during recording, sync, haptics, charger insertion/removal and invalid sensing. Verify existing protection remains effective.</td></tr>
+      <tr><td>App / update</td><td>101/102 never shown as percentages; “Fully charged” visible and accessible; stale readings expire; reconnect cannot cross-populate Rings; no charger-only timestamp refresh; cached samples cannot pass firmware-update preflight.</td></tr>
+      <tr><td>Build / physical release</td><td>Manifest-verified factory preparation, focused and existing required tests, licensed ArmCC5 build, deterministic image/provenance, and unchanged unrelated source. Physical trials require an explicitly authorized, verified target with recovery, followed by boot/version/BLE/audio readback.</td></tr>
+    </tbody></table></div>
+    <h3>Smallest useful measurement campaign</h3>
+    <p>Start with at least three units for each confirmed fitted cell variant and two full-to-reserve cycles per unit at a specified room temperature/reference workload. Reserve at least one unit per variant for validation rather than fitting. Expand to continuous recording, sustained transfer, repeated haptics, partial charges, cold/warm conditions inside approved limits, and aged cells before claiming support for those conditions. This pilot estimates variability; it is not a fleet-wide reliability certification.</p>
+    <p>Log raw ADC, reference cell mV, reference current, integrated mAh, PMIC state, workload/motor state, device-reported percentage, sample sequence/age, app display/time, firmware hash, calibration/profile version and confirmed cell identity. Store test artifacts and plots with the qualification record. Omit provisioning secrets and unrelated personal data.</p>
+    <h3>When hardware becomes the better answer</h3>
+    <p>If the calibrated voltage approach cannot meet the accuracy and availability targets under realistic loads, evaluate a dedicated fuel gauge for a future board revision. Compare current measurement or impedance-based estimation, quiescent draw, voltage/current range, cell characterization needs, board area and BOM impact. No particular IC or fitted current sensor is assumed by this proposal.</p>
+  </section>
+
+  <section id="evidence">
+    <h2>6. Evidence, reproduction and ownership</h2>
+    <p>The audit used the dirty working trees on MBP-M5 without replacing existing changes. Firmware HEAD was <code>d75a37df11672c882afbbf3b0162c1684ae72aea</code>; app HEAD was <code>8b1492c987a15b3b4114792b9a3b6981d05de9a7</code>. Uncommitted app work was inspected, so those commits alone do not represent the full app snapshot. Factory reproductions use the immutable supplier baseline <code>102bfd2</code>.</p>
+    <div class="table"><table><thead><tr><th scope="col">Source / owner</th><th scope="col">Review location</th></tr></thead><tbody>
+      <tr><td>Firmware voltage and lookup</td><td><a href="../../firmware/bc_ros/bc_module/pmic/bc_power.c">bc_power.c</a>: table near line 95; divider/correction near 250.</td></tr>
+      <tr><td>Factory filter, cadence and shutdown</td><td><a href="../../firmware/bc_ros/bc_application/app_pmic_handler.c">app_pmic_handler.c</a>: timer changes near 151; factory filter near 289; monotonic latch near 336; low-power decision near 444.</td></tr>
+      <tr><td>Acquisition and repaired filter</td><td><a href="../../firmware/bc_ros/bc_driver/bsp/src/bsp_adc.c">bsp_adc.c</a> near 540; <a href="../../firmware/bc_ros/bc_module/pmic/bc_battery_filter.c">bc_battery_filter.c</a>.</td></tr>
+      <tr><td>BLE wire behavior</td><td><a href="../../firmware/bc_ros/bc_application/app_cmd_handler.c">app_cmd_handler.c</a>: connect fields near 580; battery command near 1643. <a href="../../firmware/bc_ros/bc_application/app_package.c">app_package.c</a>: battery notifications near 449 and 511.</td></tr>
+      <tr><td>App adapter and display · ShopItalic/app</td><td><code>apps/ios/Sudo/Services/RingSession.swift</code> (normalization, observation times, preflight); <code>NativeRingService.swift</code> (native polling); <code>Models/DeviceStatus.swift</code> and <code>Views/DevicesStatusButton.swift</code> (display). Implement app changes in that repository.</td></tr>
+      <tr><td>Follow-ups and prior work</td><td><a href="../backlog.md#battery-calculation-and-reporting-audit--september-15-2026">Battery backlog</a>; <a href="ring-s03-reliability.md">earlier experimental battery work</a>; <a href="sudo-ring-hardware.md">hardware evidence</a>.</td></tr>
+    </tbody></table></div>
+    <details><summary>Factory source identity and reproduced outputs</summary>
+      <p>Each file below is identical between baseline <code>102bfd2</code> and prepared Z62, P05-r1, P06-r3 and P07-r1 sources inspected on September 15. Hashes cover the full original file bytes.</p>
+      <pre>app_pmic_handler.c  7ed9ad5f64c66d3140cc25b649431cf50bb0dc2e56bddbd2e64a750712cfb5ff
+bc_power.c          10687b46357237ccfc5d298d44cff30efcc378e66471be512f9c6af03445c50c
+bsp_adc.c           6f476f58047098000afe259b0b17888cd7867f7b5ce3dff076a638e9f681cf7a
+
+Raw filter: ten 50% inputs                         → 56%
+Reported: ten 100%, followed by ten 50% inputs     → 56%
+Initial 20%, followed by twenty 80% inputs         → 20%
+Ten 50% inputs while charging, then unplug         → 56%</pre>
+      <p>Clang <code>-Wshadow</code> identifies the inner <code>imax</code>. The extracted factory functions were compiled and run with address/undefined-behavior sanitizers. This confirms algorithm behavior for synthetic inputs, not real state of charge.</p>
+    </details>
+    <details><summary>Reproduce the two principal defects without changing firmware</summary>
+      <p>Run from the repository root with Python 3 and Clang. The command extracts the exact two factory functions, stubs the percentage input, and builds in a temporary directory. It checks for the currently observed defects; it is an audit reproducer, not a passing correctness test for repaired firmware.</p>
+      <pre><code>python3 - &lt;&lt;'PY'
+from pathlib import Path
+import subprocess, tempfile
+
+original = subprocess.check_output([
+    'git', 'show', '102bfd2:firmware/bc_ros/bc_application/app_pmic_handler.c'
+]).decode('utf-8', 'replace')
+start = original.index('uint8_t getvpct_(void)')
+end = original.index('/*******************************************************************************', start)
+prefix = '''
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#define LEN_PRECENT_ARRY 10
+#define BC_LOG_HEX(...) ((void)0)
+#define PMIC_CHARGED_NOT 0
+#define PMIC_CHARGED_ING 1
+static struct { uint8_t aprecent[10], allprecent, cntprecent; } precentval;
+static uint8_t pre_percent, pmic_state, input;
+uint8_t bc_pmic_get_vbat_percen(void) { return input; }
+'''
+suffix = r'''
+int main(void) {
+    unsigned result = 0;
+    input = 100;
+    for (int i = 0; i &lt; 10; ++i) getvpct();
+    input = 50;
+    for (int i = 0; i &lt; 10; ++i) result = getvpct();
+    printf("Factory reports %u for settled 50 input\n", result);
+    if (result != 56) return 1;
+    memset(&amp;precentval, 0, sizeof(precentval));
+    pre_percent = 0;
+    input = 20; getvpct();
+    input = 80;
+    for (int i = 0; i &lt; 20; ++i) result = getvpct();
+    printf("Factory reports %u after recovery to 80\n", result);
+    return result == 20 ? 0 : 1;
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ring-battery-audit-') as folder:
+    source = Path(folder) / 'repro.c'
+    binary = Path(folder) / 'repro'
+    source.write_text(prefix + original[start:end] + suffix)
+    subprocess.run(['clang', '-std=c99', '-Wshadow',
+                    '-fsanitize=address,undefined', str(source),
+                    '-o', str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)
+PY</code></pre>
+    </details>
+    <p><strong>Existing software checks:</strong> battery filter 47, battery power 269, BSP ADC 24 and battery app 65 checks passed (405 total) in the preceding audit. These suites select the experimental path. Extracted app normalization also passed inputs 0, 50, 100, 101, 102 and 255, and preserved an on-charger state when a percentage notification arrived. Full app build and live BLE behavior were not tested by this battery audit.</p>
+    <p><strong>Next concrete work:</strong> qualify the P08 software repair on a recoverable sample; make charge-complete and freshness consistent in ShopItalic/app; obtain the cell/input-network specifications and run the calibration pilot. Review the resulting measurements before choosing coefficients, curves or a release accuracy claim.</p>
+  </section>
+  <footer>Maintained in ShopItalic/sudo · <a href="../README.md">Documentation index</a> · Audit, P08 software repair and remaining proposal. Numeric tuning values and acceptance targets are engineering proposals; qualified battery limits and measured calibration data remain outstanding.</footer>
+</main></body>
+</html>

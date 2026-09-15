@@ -361,3 +361,6 @@ PYTHONPATH=tools/firmware:tests/firmware python3 -m unittest test_factory_contro
 # P08: local audio, explicit deletion safety and factory battery reporting.
 PYTHONPATH=tools/firmware:tests/firmware python3 -m unittest test_factory_delete_v8 test_factory_ptt_v8 test_factory_local_recording_v8
 python3 tests/firmware/test_factory_battery_v8.py
+
+# P08 compact battery packets: exhaustive wire and reentry equivalence.
+python3 tests/firmware/test_factory_battery_reporting_v8.py

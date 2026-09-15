@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import prepare_factory_ptt_v3 as base
 import factory_battery_v8 as battery
+import factory_battery_reporting_v8 as battery_reporting
 import factory_local_recording_v8 as local_recording
 from prepare_vendor_baseline import prepare, ROOT
 
@@ -198,6 +199,7 @@ def patch_recording_light(s):
 
 PATCHES = dict(base.PATCHES)
 PATCHES.update(battery.PATCHES)
+PATCHES[battery_reporting.PACKAGE] = battery_reporting.patch_package
 PATCHES.update({APP+'app_touch_button_handler.c': patch_touch,
                 APP+'app_ble_handler.c': patch_ble, APP+'app_linear_motor_handler.c': patch_vibrate,
                 BLE: patch_init, MOTOR: patch_motor, LED: patch_recording_light,
@@ -247,7 +249,8 @@ def apply_overlay(destination, baseline):
                            'filter': 'ten-valid-sample-trimmed-mean-with-recovery',
                            'invalidPercent': 255, 'motorSettlingMs': 250,
                            'factoryAcquisitionUs': 10, 'factoryCorrectionMv': 200,
-                           'factoryCurveUnchanged': True, 'physicallyCalibrated': False},
+                           'factoryCurveUnchanged': True, 'physicallyCalibrated': False,
+                           'reporting': 'private-five-and-six-byte-packets; unchanged-wire-and-guards'},
                   deletion={'stage': 'bounded-command-hardening', 'command': '0x36/0x12',
                             'receiverReceiptProtocol': False, 'automaticCleanup': False,
                             'alreadyAbsentIsSuccess': True, 'postDeleteAbsenceCheck': True,

@@ -1325,3 +1325,44 @@ When a later release lands, add a new entry or a short status amendment that
 points to the immutable tag and checksums. Never call an S03 planned item
 released until the release owner verifies the source commit, matching app adapter, green CI,
 image/HEX/address checks, and package provenance.
+
+
+## P08 battery reporting memory reduction — 2026-09-15
+
+The P08 recipe now constructs battery notifications in private five- and
+six-byte buffers. Only the two reporting functions change. Their payloads,
+guards, direct radio calls and idle-timer effects are preserved, including
+factory-mode notifications and little-endian status words. The ten battery,
+ADC, filter and motor source files remain byte-identical to battery-r2.
+
+The notification stack frame drops from 520 to 24 bytes. The reported PMIC
+callback plus known timer dispatch drops from 832 to 496 bytes in the same
+1,024-byte allocation, leaving 528 bytes. A new verifier gate requires the
+provisional 256-byte reserve; this candidate passes with 272 bytes remaining,
+and the old tight report fails. Indirect driver/error/interrupt paths still
+need physical stack qualification.
+
+The full host suite passes, including 1,052,672 exhaustive notification
+comparisons with ASan/UBSan and a changed-command negative control. Another
+804 comparisons execute the actual linked ARM notification code. Allowed
+percentage/status packet preparation falls from 1,574/1,575 to 21/23
+instructions, excluding intercepted radio, permission and timer services.
+These are instruction counts, not timing, power or battery-life measurements.
+
+Licensed ArmCC5 compile/link evidence uses the newly compiled packet object
+and 343 unchanged objects from the source-identical local-recording P08 build.
+The link has zero errors and one license-expiry notice; the changed source
+has no warnings. Strict source isolation, ELF/BIN equality, version/load and
+selected stack checks pass. The 186,652-byte unsigned BIN is 52 bytes smaller;
+static RAM allocation is unchanged. SHA-256:
+`ca8bd157e4fd3800501dfc38847b7cad18768c1fb8cdbe18cffa995ecf110b38`.
+
+The separate clean uVision rebuild stalled after 243 objects while another
+build used the shared compiler environment. Only this task's stalled process
+and waiting wrapper were stopped; partial outputs and other builds remain.
+The successful evidence is the isolated incremental link, not a completed
+clean rebuild. Evidence: `build/diagnostics/factory-battery-p08-compact-r1-20260915/`.
+[Design, comparison and proof limits](ring-battery-audit.html#compact).
+This optimization is P08-only and was not signed, published or flashed by
+this change. P09 adoption,
+calibration and recoverable-device qualification remain separate work.

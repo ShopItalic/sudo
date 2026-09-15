@@ -10,6 +10,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 ALLOWED = {
+    'bc_ros/bc_application/app_package.c',
     'bc_ros/bc_application/app_pdm_handler.c',
     'bc_ros/bc_application/app_cmd_handler.c',
     'bc_ros/bc_application/app_ppg_file_data_handler.c',
@@ -31,6 +32,46 @@ ALLOWED = {
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def battery_timer_budget(report):
+    """Join the reviewed timer dispatch paths to the indirect PMIC callback.
+
+    This guards the reported paths only. Untraceable ADC/radio calls, error-log
+    recursion and runtime interrupt/context use still need qualification.
+    The manifest check keeps the reviewed FreeRTOS source/config unchanged.
+    """
+    def entry(name):
+        match = re.search(r'</a>' + name + r'</STRONG>(.*?)(?=<P><STRONG>|\Z)', report, re.S)
+        if not match:
+            raise ValueError('Missing battery/timer stack entry: ' + name)
+        frame = re.search(r'Stack size (\d+) bytes', match[1])
+        chain = re.search(r'Max Depth = (\d+)', match[1])
+        if not frame or not chain:
+            raise ValueError('Unknown battery/timer stack entry: ' + name)
+        return int(frame[1]), int(chain[1])
+
+    frames = {name: entry(name)[0] for name in
+              ('prvTimerTask', 'prvProcessTimerOrBlockTask', 'prvProcessReceivedCommands',
+               'prvSampleTimeNow', 'prvSwitchTimerLists')}
+    # Expired-timer handling is inlined by this compiler; account for a
+    # separate frame as well if it appears in a later build.
+    expired = entry('prvProcessExpiredTimer')[0] if '</a>prvProcessExpiredTimer</STRONG>' in report else 0
+    dispatch = frames['prvTimerTask'] + max(
+        frames['prvProcessTimerOrBlockTask'] + expired,
+        frames['prvProcessReceivedCommands'],
+        max(frames['prvProcessTimerOrBlockTask'], frames['prvProcessReceivedCommands']) +
+        frames['prvSampleTimeNow'] + frames['prvSwitchTimerLists'])
+    callback = entry('app_pmic_handler_timer_callback')[1]
+    joined = dispatch + callback
+    result = {'allocatedBytes': 1024, 'dispatchFrames': frames,
+              'knownDispatchBytes': dispatch, 'callbackReportedBytes': callback,
+              'joinedKnownBytes': joined, 'provisionalReserveBytes': 256,
+              'remainingAfterReserveBytes': 1024 - joined - 256,
+              'scope': 'Reported paths only; not complete runtime stack bounds'}
+    if result['remainingAfterReserveBytes'] < 0:
+        raise ValueError('Battery timer exceeds reviewed budget: ' + str(result))
+    return result
 
 
 def verify(source, elf_path, binary_path):
@@ -124,6 +165,7 @@ def verify(source, elf_path, binary_path):
             'elfSha256': sha(elf_path.read_bytes()), 'flashEnd': hex(0x27000 + len(binary)),
             'ramEnd': hex(ram_end), 'initialSP': hex(initial_sp),
             'taskStacks': stacks,
+            'batteryTimerStack': battery_timer_budget(stack_report),
             'stackLimit': 'Static linker analysis; dynamic stack and heap high-water require hardware',
             'bootloaderAndSensorConfigurationUnchanged': True,
             'signed': False, 'flashed': False, 'physicallyQualified': False, 'flashable': False}

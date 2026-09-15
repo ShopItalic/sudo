@@ -48,6 +48,7 @@ class FactoryDeleteV8(unittest.TestCase):
             else:
                 self.assertEqual(path.read_bytes(), (recipe.OVERLAY / path.name).read_bytes())
         self.assertEqual(set(recipe.PATCHES) - set(prior.PATCHES), {
+            recipe.APP + 'app_package.c',
             recipe.APP + 'app_cmd_handler.c', recipe.APP + 'app_ppg_file_data_handler.c',
             recipe.APP + 'app_pdm_handler.c',
             'firmware/bc_ros/bc_module/pmic/bc_power.c',
