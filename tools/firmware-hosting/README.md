@@ -19,10 +19,11 @@ are anonymously readable; this supersedes the earlier private-repository
 assumption. Keep the catalog as the single supported entry point: the app
 discovers the package from `otaPackageURL`, never from a guessed file name.
 
-Every release also attaches `manifest.json`, a byte-for-byte copy of the
-committed catalog at that tag. That copy exists for provenance and offline
-consumption; the committed file remains authoritative and is what clients
-fetch.
+Every release also attaches `manifest.json` for provenance and offline use.
+Factory Z62 and P05 releases attach their single release entry; older releases
+may contain a catalog snapshot. The committed `releases.json` inventory on main
+is authoritative for app discovery. Its release entry must agree with the
+published package URL, digest and byte count.
 
 ## Trusted origins for the app
 
@@ -64,7 +65,7 @@ download. Do not create an S05 release for this build.
 
 1. Build with the authorized Arm Compiler 5 toolchain and run the identity and
    host checks (see [qualify firmware](../../docs/how-to/qualify-firmware.md)).
-2. Update `s05-manifest.json` with the exact `sourceCommit`, `ciRunURL`,
+2. Prepare the candidate's manifest with the exact `sourceCommit`, `ciRunURL`,
    `toolchain`, `binary.sha256`, `binary.bytes` and, once supplier-signed, the
    `otaPackage` fields. A public downloadable image must be Arm Compiler 5
    built and marked `flashable: true`.
@@ -75,7 +76,7 @@ download. Do not create an S05 release for this build.
    sh tools/firmware/test.sh
    ```
 
-4. Commit the catalog change.
+4. Preserve the exact candidate source in Git and verify its required checks.
 5. Create the release with the helper (it re-runs the manifest policy, verifies
    the linked BIN identity when present, writes `SHA256SUMS` and attaches
    `manifest.json`):
@@ -94,7 +95,10 @@ download. Do not create an S05 release for this build.
      build/release/*
    ```
 
-6. Optionally enable [immutable releases](https://docs.github.com/code-security/concepts/supply-chain-security/immutable-releases)
+6. Verify the anonymous public package and optional asset API download against
+   the qualified ZIP's digest, length and signature. Only then add its entry to
+   `releases.json`, commit, push and verify CI and the live catalog readback.
+7. Optionally enable [immutable releases](https://docs.github.com/code-security/concepts/supply-chain-security/immutable-releases)
    for the repository so tags and assets are locked and attested after
    publication. Withdrawing a bad release is still possible by deleting the
    whole release (see below).
@@ -173,3 +177,19 @@ factory package uses asset 562566936. Its API response was independently
 verified against the same published ZIP. After uploading a future package,
 resolve its asset ID, verify the API download, then add this optional field
 before publishing the catalog. It is not a general URL or repository bypass.
+
+## Factory P05 sample-test prerelease (2026-09-15)
+
+`factory-p05-manifest.json` identifies the exact locally built and signed
+`6.0.3.3P05` application. The release and curated catalog retain the untouched
+Z62 option alongside P05. Both P05 anonymous download routes were checked
+against the qualified 187,140-byte ZIP with SHA-256
+`cc7f9c2f24c13ab15dc99d16ba5215db11d650f38892ed6ef8703837a8650a45`
+before adding it to the inventory.
+
+The existing app wire status `supplier-signed-ota` denotes compatibility with
+the supplier DFU signature policy. For P05, `signing.locallyPackaged` is true
+and `signing.supplierAcceptance` is false. This status is not supplier approval
+or a physical qualification result. The app-visible notice and release report
+identify the sample-test boundary. Installation remains a separate explicit
+app action with hardware, recording and fresh power checks.

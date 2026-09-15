@@ -2,8 +2,10 @@
 
 ## Factory P05 cloud sample test — 2026-09-15
 
-Publish the unchanged licensed ArmCC5 P05 application through the GitHub cloud
-catalog, with signature/hash verification and a separate installation step.
+The unchanged licensed ArmCC5 P05 application is published as a GitHub sample-test
+prerelease. Both anonymous package download routes passed exact byte-count,
+SHA-256 and application-only signature verification before catalog activation.
+Phone cloud download and sample installation are separate verification steps.
 Physical boot, sustained hold, settings persistence, haptics, recording transfer,
 power and dynamic stack/heap measurements remain open. The preserved factory
 distribution is not a per-device backup; recovery is not demonstrated. See the

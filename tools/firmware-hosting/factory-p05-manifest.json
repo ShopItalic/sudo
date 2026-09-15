@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "hardware": "603V1.23.2",
+  "version": "6.0.3.3P05",
+  "status": "supplier-signed-ota",
+  "otaAvailable": true,
+  "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P05/BCL603S2P_6.0.3.3P05.zip",
+  "otaPackage": {
+    "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P05/BCL603S2P_6.0.3.3P05.zip",
+    "sha256": "cc7f9c2f24c13ab15dc99d16ba5215db11d650f38892ed6ef8703837a8650a45",
+    "bytes": 187140,
+    "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/564797375"
+  },
+  "withdrawn": false,
+  "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+  "sourceCommit": "82abe9e228df3daae0bb43e80f0d70506b3ffe58",
+  "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34925304323",
+  "releaseChannel": "sample-test-prerelease",
+  "physicallyQualified": false,
+  "signing": {
+    "locallyPackaged": true,
+    "keyProvenance": "supplier-dfu-key",
+    "supplierAcceptance": false
+  },
+  "notice": "P05 sample-test prerelease for 603V1.23.2 on factory 6.0.3.3Z62. Hold/release PTT; programmable double/triple tap recording off by default; haptics on. Locally packaged with the supplier DFU signing key, not supplier approval. Software checks passed; physical boot, sustained hold, settings persistence and audio transfer remain unqualified. Recovery is not demonstrated. Application only; bootloader unchanged."
+}
