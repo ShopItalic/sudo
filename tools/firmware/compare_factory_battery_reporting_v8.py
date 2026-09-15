@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare linked P08 notification code on a CPU model, never physical I/O.
+"""Compare linked P08/P09 notification code on a CPU model, never physical I/O.
 
 Requires the same unicorn==2.1.4 / pyelftools==0.33 environment as
 qualify_armcc5_runtime.py. Radio, notification permission and idle-timer calls
@@ -29,12 +29,15 @@ def require(condition, message):
 
 
 class Image:
-    def __init__(self, stem):
+    def __init__(self, stem, expected_version='6.0.3.3P08'):
         binary = stem.with_suffix('.bin').read_bytes()
         elf_path = stem.with_suffix('.axf')
         self.identity = {'binSha256': hashlib.sha256(binary).hexdigest(),
                          'elfSha256': hashlib.sha256(elf_path.read_bytes()).hexdigest()}
-        require(binary.count(b'6.0.3.3P08\0') == 2, 'Expected P08 identity')
+        require(expected_version in ('6.0.3.3P08', '6.0.3.3P09'), 'Unsupported image version')
+        require(binary.count(expected_version.encode() + b'\0') == 2,
+                'Expected ' + expected_version + ' identity')
+        self.identity['version'] = expected_version
         with elf_path.open('rb') as stream:
             elf = ELFFile(stream)
             require(elf['e_machine'] == 'EM_ARM' and elf.little_endian,
@@ -130,8 +133,8 @@ class Image:
         return result
 
 
-def compare(before, after):
-    original, compact = Image(before), Image(after)
+def compare(before, after, after_version='6.0.3.3P08'):
+    original, compact = Image(before), Image(after, after_version)
     rows = []
     count = 0
     for kind, function in enumerate(FUNCTIONS):
@@ -164,9 +167,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--before', type=Path, required=True, help='Prior linked image stem (without extension)')
     parser.add_argument('--after', type=Path, required=True, help='Compact linked image stem')
+    parser.add_argument('--after-version', choices=('6.0.3.3P08', '6.0.3.3P09'),
+                        default='6.0.3.3P08', help='Require this exact candidate image identity')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     require(not args.output.exists(), 'Preserve existing evidence; choose a new output')
-    result = compare(args.before, args.after)
+    result = compare(args.before, args.after, args.after_version)
     args.output.write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))

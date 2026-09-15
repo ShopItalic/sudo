@@ -364,3 +364,10 @@ python3 tests/firmware/test_factory_battery_v8.py
 
 # P08 compact battery packets: exhaustive wire and reentry equivalence.
 python3 tests/firmware/test_factory_battery_reporting_v8.py
+
+# P09: persisted short-recording policy, real file finalization and checked I/O.
+python3 tests/firmware/test_factory_battery_v9.py
+python3 tests/firmware/test_factory_short_v9.py
+python3 tests/firmware/test_factory_scroll_v9.py
+python3 tests/firmware/test_factory_storage_v9.py
+python3 tests/firmware/test_factory_capture_v9.py

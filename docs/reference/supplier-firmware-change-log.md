@@ -1366,3 +1366,13 @@ clean rebuild. Evidence: `build/diagnostics/factory-battery-p08-compact-r1-20260
 This optimization is P08-only and was not signed, published or flashed by
 this change. P09 adoption,
 calibration and recoverable-device qualification remain separate work.
+
+## P09 sample candidate — September 15, 2026
+
+P09 adds persisted short-recording filtering (off or 0.5–5 seconds, default 2)
+and encrypted BLE HID scrolling, disabled until explicitly enabled. Existing
+P08 battery calculation, checked sampling, compact reporting, local recording
+and saved-file sync are preserved. Checked file lifecycle and flash errors
+prevent silent overwrite, automatic formatting and low-space reclamation.
+The current combined source is documented in the P09 short-recording and
+scrolling handoffs and the battery audit. Physical qualification is pending.

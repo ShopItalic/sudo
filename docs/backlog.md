@@ -407,3 +407,14 @@ P06 adds saved recording-light and 0.5–5 second hold activation controls to th
 - Signed application-only P07 package prepared; independent signature/source/load checks passed.
 - Before broad rollout, verify each swipe on/off, settings persistence, hold/release, recording light, haptics and completed audio transfer on hardware.
 - Verify update completion and reconnect without restarting the app; software checks do not establish recovery or physical qualification.
+
+## P09 sample release qualification — September 15, 2026
+
+The current P09 recipe combines short-recording filtering, encrypted HID
+scrolling and the final P08 battery fixes. Use the updated recipe, not the
+older r3/r5 unsigned artifacts. Before hardware qualification, verify the exact
+package on the authorized 603V1.23.2 sample: recording thresholds/off/rollover,
+settings persistence, interrupted file operations, saved-audio transfer, all
+scroll direction switches and iPhone pairing/reconnect. Runtime memory,
+battery accuracy/endurance and recovery remain unqualified. See the P09
+handoffs and docs/reference/ring-battery-audit.html#p09 for software evidence.

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P09 · Short recordings</title>
+<style>
+:root{color-scheme:light;--ink:#172a32;--muted:#53666b;--line:#cddbd9;--accent:#1b695c}
+*{box-sizing:border-box}body{margin:0;background:#f4f7f4;color:var(--ink);font:16px/1.65 system-ui,-apple-system,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:54px 28px 80px}header{border-bottom:2px solid var(--ink);padding-bottom:28px}
+.eyebrow{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:clamp(36px,6vw,60px);letter-spacing:-.045em;line-height:1.1;margin:14px 0}h2{font-size:25px;margin:36px 0 12px}h3{font-size:18px;margin:0 0 8px}
+p{margin:10px 0}.lead{max-width:760px;font-size:20px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.card{background:white;border:1px solid var(--line);border-radius:12px;padding:22px}.pill{display:inline-block;padding:4px 10px;border-radius:6px;background:#e1eee7;margin:3px;font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--accent)}
+code{font-size:.9em;overflow-wrap:anywhere}pre{white-space:pre-wrap;padding:18px;background:#172a32;color:#edf6ee;border-radius:10px;font-size:13px}a{color:var(--accent)}li{margin:7px 0}
+.status{border-left:4px solid #ba8740;padding:14px 18px;background:#fff4e3;margin:24px 0}footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}main{padding:30px 18px}table{font-size:13px}}
+</style></head><body><main>
+<header><div class="eyebrow">Sudo Ring · 603V1.23.2 · 15 September 2026</div><h1>P09 short recordings</h1>
+<p class="lead">A minimum saved-audio duration, owned by each Ring and controlled from its settings in the app.</p>
+<p class="muted">Implementation host: MBP-M5 · Firmware <code>6.0.3.3P09</code> · P08 preserved</p></header>
+<div class="status"><strong>Development candidate.</strong> Software checks do not establish physical safety, recording custody on a real Ring, or a recoverable update. This work does not sign, publish, install, or flash P09.</div>
+<h2>The setting</h2><div class="card"><h3>Short recordings</h3>
+<span class="pill">Don’t delete</span><span class="pill">0.5 s</span><span class="pill">1 s</span><span class="pill">1.5 s</span><span class="pill"><strong>2 s · Default</strong></span><span class="pill">2.5 s</span><span class="pill">3 s</span><span class="pill">3.5 s</span><span class="pill">4 s</span><span class="pill">4.5 s</span><span class="pill">5 s</span>
+<p>Applies to newly completed Clips and Memos. A recording exactly at the selected duration is kept. Zero disables only duration filtering. The app enables the dropdown after a valid live P09 response and saves through the existing <strong>Save changes</strong> button.</p></div>
+<div class="grid"><section class="card"><h3>Recording ownership</h3><p>Snapshot the threshold at capture start. Count only successfully written audio, stop accepting new buffers, drain accepted packets, and close the owned file before checking deletion. The file remains unavailable to sync until finalization finishes.</p><p>Deletion uses the initial capture path and verifies absence. No older-file scan or deferred filename retry runs.</p></section>
+<section class="card"><h3>Conservative failure handling</h3><p>Interrupted captures, missed buffers, failed queueing/writes, unexpected ownership, failed close, and uncertain stops cannot qualify for short-recording deletion.</p><p>A 500 ms drain timeout keeps ownership. A later stop can finish safely; microphone shutdown is idempotent. A storage failure leaves storage unavailable until recovery or restart.</p></section></div>
+<h2>Duration and storage</h2><p>Duration uses the factory mono ADPCM format interpreted at 8 kHz: two PCM-equivalent samples per successfully written byte. Each half-second step is 4,000 samples. The counter saturates at five seconds and spans file rollover, so a long Memo keeps its short final segment. This measures saved audio, not time holding the sensor; hardware timing and buffer boundaries still require measurement.</p>
+<p>New recordings use exclusive creation, so a timestamp collision cannot overwrite an existing file. Uploads open existing files read-only. Failed opens do not report success or close an unopened handle. Low space rejects new recording instead of reclaiming older files. SPI and SFUD failures reach LittleFS, and mount failure never triggers automatic formatting.</p>
+<h2>Protocol and persistence</h2><table><thead><tr><th>Field</th><th>Contract</th></tr></thead><tbody>
+<tr><td>Commands</td><td><code>0x84/0x13</code> GET, 9 bytes; <code>0x84/0x14</code> SET, 14 bytes. Schema 1.</td></tr>
+<tr><td>Request</td><td>Type, frame ID, command, subcommand, schema, nonce LE32; SET appends expected revision LE32 and half-second steps 0–10.</td></tr>
+<tr><td>Reply</td><td>17 bytes: echoed 9-byte header, status, revision LE32, steps, threshold milliseconds LE16. Status: 0 OK, 1 invalid, 2 busy, 3 storage, 4 conflict, 5 not ready.</td></tr>
+<tr><td>FDS</td><td>File <code>0x1001</code>, key <code>0x0002</code>, four words: schema magic <code>0x01524353</code>, revision, steps, CRC32. Separate from existing controls at key 1.</td></tr>
+<tr><td>Initialization</td><td>Register with the existing FDS initialization owner. No boot-time preference writes. Missing record uses 2 seconds; corrupt/unreadable records disable filtering and report failure.</td></tr>
+<tr><td>Save</td><td>Compare expected revision, serialize with recording/settings ownership, wait for FDS completion, and verify the stored record before ACK. The app independently GETs the value again. No automatic resend after an uncertain result.</td></tr>
+<tr><td>Scope</td><td>Account, Ring identity, and connection generation. Old replies cannot update a different Ring. Existing firmware gets no short-recording command.</td></tr>
+</tbody></table>
+<h2>Verification</h2><p>The full firmware host suite passed for the P09 r3 snapshot, including short-recording, storage, recorder and scrolling tests.</p><ul>
+<li>600 policy/persistence assertions: every setting and boundary, CRC/length errors, revisions, failed durable writes, stale packets and queued ownership.</li>
+<li>Real factory LittleFS: all thresholds, both file kinds, exclusive creation, existing upload opens, long Memo rollover, wrong-owner protection, write failure, and 18 before/partial/after cuts during close/delete. Older file bytes remain intact.</li>
+<li>Actual patched recorder entry points and sender: queued draining, timeout/retry, interruption, and queue/create/microphone-driver failures.</li>
+<li>Actual LittleFS/SPI adapters: range checks, failure propagation, transfer chunking, power balance, and no formatting after mount failure.</li>
+<li>App protocol/service tests: all options, durable ACK plus readback, mismatches, failed saves, older firmware, switching Rings, and preserving independently confirmed controls.</li>
+</ul>
+<p id="build-result"><strong>Final r3 compiler result:</strong> licensed ArmCC 5.06u7 build 960, zero errors; 40 warnings in the incremental build. The 189,172-byte unsigned BIN passes source isolation across 7,056 factory files, exact ELF/BIN matching, flash/RAM bounds and five selected task-stack checks. SHA-256: <code>c47cbf7abd78b4bbbc24e1c26081e4f2e8e8e997071366562e7e93cfe154d0d6</code>.</p><p>Final iOS unit run: 911 tests passed. The complete simulator run also passed 9 UI tests. Cloud test, lint, typecheck and build gates passed. P09 remains physically unqualified. Static stack margins after the 256-byte exception reserve are only 56 bytes for touch and 64 bytes for the BLE command worker; measure runtime high-water before qualification.</p>
+<p>The shared P09 checkout also includes separate Bluetooth scrolling work. Its controls schema is independent of the short-recording commands. The combined source snapshot, including that work, must be the one qualified before any release.</p>
+<h2>Remaining physical checks</h2><ol>
+<li>Verify the exact board, recovery method, existing audio backup and application-only update path before any authorized flash.</li>
+<li>Measure Clips and Memos around each threshold, including equal-duration files, zero/off, rapid start/stop, disconnected recording and long Memo rollover.</li>
+<li>Verify settings survive restart; interrupt settings writes, audio writes, close and deletion on a recoverable sample. Confirm older recordings remain transferable.</li>
+<li>Measure task/heap high-water, flash latency and power under recording, transfer and scrolling load. Static linker bounds are only one part of memory verification.</li>
+<li>Complete the broader filesystem ownership audit and receiver-receipt design for transfer cleanup. This feature does not add a new transfer-completion deletion trigger.</li>
+</ol>
+<h2>Source and reproducibility</h2><p><a href="../../firmware/factory_ptt_v9/app_factory_short.c">Capture policy</a> · <a href="../../firmware/factory_ptt_v9/app_factory_short_settings.c">Persistent settings</a> · <a href="../../tools/firmware/factory_short_v9.py">Factory adapters</a> · <a href="../../tests/firmware/test_factory_short_v9.py">Tests</a> · <a href="../backlog.md">Backlog</a></p>
+<pre>python3 tools/firmware/prepare_factory_ptt_v9.py --output &lt;new-build-directory&gt;
+PYTHONPATH=tools/firmware:tests/firmware python3 -m unittest \
+  test_factory_short_v9 test_factory_storage_v9 test_factory_capture_v9
+bash tools/firmware/test.sh</pre>
+<p>Local evidence: <code>build/diagnostics/factory-short-recordings-p09-20260915/</code>. App source and tests live in <code>ShopItalic/app/apps/ios</code>. Compiler outputs remain ignored build artifacts.</p>
+<p class="muted">Preservation readback: all 12 P08 overlay source files match the start of the short-recording task. The frozen r3 evidence predates compact battery reporting.</p>
+<p><strong>Later P09 battery carryover:</strong> the current P09 recipe includes the final P08 battery calculation, sampling guards, compact reports and battery-timer stack check. The combined scrolling/short-recording source was rebuilt with that reporting change; see the <a href="ring-battery-audit.html#p09">current P09 battery evidence and image hash</a>. The earlier r3 artifact remains historical.</p><footer>Source/build evidence and physical-device behavior are separate qualification states. P09 has not been flashed by this task.</footer>
+</main></body></html>

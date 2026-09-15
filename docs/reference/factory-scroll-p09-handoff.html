@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P09 — Bluetooth scrolling</title>
+<style>
+:root{color-scheme:light;--ink:#202a27;--muted:#637169;--line:#dbe3dc;--accent:#236548}
+*{box-sizing:border-box}body{margin:0;background:#f6f8f4;color:var(--ink);font:16px/1.6 system-ui,-apple-system,sans-serif}
+main{max-width:960px;margin:auto;padding:56px 24px 80px}header{padding-bottom:24px;border-bottom:1px solid var(--line)}
+.eyebrow{color:var(--accent);text-transform:uppercase;font-size:12px;letter-spacing:.12em;font-weight:700}
+h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.04em;line-height:1.1;margin:16px 0}h2{font-size:22px;margin:0 0 14px}
+p{margin:10px 0}section{background:white;border:1px solid var(--line);border-radius:12px;padding:26px;margin-top:22px}
+.status{background:#eaf3eb;border-left:4px solid var(--accent);padding:14px 18px;margin-top:24px}
+.muted,small{color:var(--muted)}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}code{font:13px ui-monospace,monospace;overflow-wrap:anywhere}a{color:var(--accent)}li{margin:7px 0}.hash{display:block;margin:12px 0;padding:12px;background:#f6f8f4;border-radius:6px}
+</style>
+<main>
+<header><div class="eyebrow">Italic Ring · 603V1.23.2 · September 15, 2026</div>
+<h1>P09: scroll from the Ring.</h1>
+<p>Four touch directions now produce standard Bluetooth HID mouse scrolling. Ring Controls chooses which directions are enabled and confirms the settings saved on the Ring.</p>
+<div class="status"><strong>Implementation and software verification.</strong> This task does not sign, publish, install, or flash P09. Scrolling in specific iPhone apps remains a physical acceptance step.</div></header>
+
+<section><h2>What the user controls</h2>
+<p><strong>Swipe gestures starts Off.</strong> Turning it on reveals the four direction switches. The app uses a revision-checked save, waits for the durable response, and reads back the Ring’s settings. Scrolling pauses during clips and memos.</p>
+<p>The enabled P09 controls also reveal <strong>Set up scrolling on iPhone</strong>: a reminder to save unsaved changes, the AssistiveTouch settings path, Bluetooth pairing steps, a browser swipe trial and Apple’s setup guide. Detailed setup is hidden while swipes are Off. This subsequent UI change passed 916 simulator tests; its receipts are in the app repository at <code>build/diagnostics/p09-scroll-setup-ui-20260915/result.json</code>. That run’s cloud test/build preflight was blocked by a separate Dex preview hash mismatch. Firmware is unchanged.</p>
+<table><tr><th>Ring input</th><th>HID output</th><th>Intended document movement</th></tr>
+<tr><td>Swipe up</td><td>Wheel −4</td><td>Move down through the document</td></tr>
+<tr><td>Swipe down</td><td>Wheel +4</td><td>Move up through the document</td></tr>
+<tr><td>Swipe left</td><td>AC Pan +4</td><td>Move right across wide content</td></tr>
+<tr><td>Swipe right</td><td>AC Pan −4</td><td>Move left across wide content</td></tr></table>
+<p class="muted">The phone’s natural-scrolling setting can reverse the visual direction. Horizontal input only applies where the app supports horizontal scrolling; it does not promise Back, Like, or tab switching. Step size and video paging need sample testing.</p>
+<p>On iPhone: <strong>Settings → Accessibility → Touch → AssistiveTouch → Devices</strong>. Enable AssistiveTouch and connect the Ring. See <a href="https://support.apple.com/en-us/111775">Apple’s pointer-device setup</a>. The Ring sends input directly to iOS; the design does not require Italic to remain onscreen.</p></section>
+
+<section><h2>Firmware behavior</h2>
+<ul><li>A dedicated five-byte relative mouse report contains buttons, X, Y, Wheel and AC Pan. Buttons and X/Y remain zero; no drag or keyboard key is held.</li>
+<li>The factory composite HID implementation remains untouched and uninitialized. Its report-length mismatch and incorrect pan field are not used.</li>
+<li>The existing Peer Manager handles pairing and FDS initialization. HID is a P09 runtime capability; device provisioning records are not rewritten. Pairing no longer falls through into a system-attribute reset.</li>
+<li>Touch input queues at most four intents and wakes the existing command worker. Intents expire after 250 ms and are invalidated by connection, security, suspend, protocol-mode or settings changes.</li>
+<li>Sending requires encryption and the host’s actual notification subscription. Boot protocol, recording, disabled directions and BLE errors drop input. Sending is bounded and has no automatic retry or reconnect replay.</li>
+<li>The factory links interrupt-driven BLE dispatch. Each send briefly pauses task switching and uses Nordic’s NVIC critical region to defer application callbacks while preserving SoftDevice interrupts and SVC. FreeRTOS’s BASEPRI critical section only protects queue access; it never surrounds a SoftDevice API call.</li>
+<li>Existing P09 recording, battery and deletion work is included in the combined candidate. Bootloader, SoftDevice and sensor configuration stay unchanged.</li></ul>
+<p>The report follows <a href="https://usb.org/sites/default/files/hut1_5.pdf">USB HID usage definitions</a>: Generic Desktop Wheel <code>0x38</code> and Consumer AC Pan <code>0x0238</code>.</p></section>
+
+<section><h2>Settings compatibility</h2>
+<p>P09 uses controls <strong>schema 5</strong> on <code>0x84 / GET 0x10 / SET 0x11</code>. The 20-byte response and packed hold-delay/direction byte retain their layout. FDS file <code>0x1001</code>, key <code>0x0001</code> uses magic <code>0x05435446</code>.</p>
+<p>Older recording and feedback preferences are preserved. Every pre-P09 swipe record is interpreted as scrolling Off in RAM; boot does not write a migration record. A schema-5 save explicitly enables phone input. Schema-4 clients may read the current mask and preserve it while changing other controls, but cannot change it.</p>
+<p>The companion app selects schema 5 only for the exact supported P09 hardware/version. The updater permits the supported forward settings migration and blocks P09 downgrades to firmware that cannot read its record. Signed-package publication remains a separate release gate.</p></section>
+
+<section><h2>Verification evidence</h2>
+<p id="verification-status"><strong>Software verification passed.</strong> The final factory-derived P09 rebuild, source/load checks, complete firmware host suite, all 916 iOS simulator tests, unsigned iPhone build and four cloud quality gates pass. This is implementation evidence, not physical qualification or a signed release.</p>
+<table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>Final candidate</td><td><code>factory-p09-scroll-r5-20260915</code> · target <code>1.23.2</code> · <code>6.0.3.3P09</code></td></tr>
+<tr><td>Compiler</td><td>ArmCC 5.06 update 7, build 960; zero errors, 546 warnings in the full factory tree. No warnings from the added factory overlay files.</td></tr>
+<tr><td>Image and provenance</td><td>189,352 bytes; ELF load bytes exactly match BIN. All 7,056 factory files checked, 19 approved vendor modifications; current recipes regenerate the compiled source exactly.</td></tr>
+<tr><td>Memory bounds</td><td>Flash ends at <code>0x553a8</code>; RAM/initial SP at <code>0x2003c2e8</code>. Static task stack checks pass. The smallest margins after a 256-byte exception reserve are 56 bytes for touch and 64 bytes for the command worker; dynamic high-water measurements remain a sample check.</td></tr>
+<tr><td>Scroll tests</td><td>259 transport checks, 624 settings checks, five intentionally broken transport variants, independent descriptor decoding and SDK interrupt-contract checks; AddressSanitizer and UndefinedBehaviorSanitizer enabled.</td></tr>
+<tr><td>App</td><td>916 simulator tests, zero failures; unsigned iPhone build; cloud test, lint, typecheck and build pass. All six app files still match the tested snapshot.</td></tr></table>
+<code class="hash">BIN SHA-256: 74a2106896a92e03d8bb96cf701be3bdce248380dd4024f9ce1f8260c0b1c8f1</code>
+<p><a href="../../build/diagnostics/factory-p09-scroll-r5-20260915/scroll-result.json">Combined result</a> · <a href="../../build/diagnostics/factory-p09-scroll-r5-20260915/load-verification.json">Source, load and stack checks</a> · <a href="../../build/diagnostics/factory-p09-scroll-r5-20260915/linked-scroll-evidence.json">Linked HID and interrupt evidence</a> · <a href="../../build/diagnostics/factory-p09-scroll-r5-20260915/test-evidence.json">Test receipts</a></p>
+<ul><li>Sanitizer-backed transport and persistence tests cover all direction masks, encrypted/subscribed input, lifecycle changes, queue limits, expiry and tick wrap, recording suppression, asynchronous FDS acknowledgement, legacy migration and failed writes.</li>
+<li>Intentional broken variants prove the tests detect a missing worker wake-up, horizontal input sent on the vertical axis, reconnect replay, a SoftDevice API called with BASEPRI masking SVC, and an unguarded Bluetooth callback race.</li>
+<li>The HID descriptor is decoded independently to check one 40-bit input report, relative X/Y/Wheel fields and AC Pan.</li></ul>
+<p>The interrupt boundary follows the actual factory SDK implementation and <a href="https://devzone.nordicsemi.com/cfs-file/__key/support-attachments/beef5d1b77644c448dabff31668f3a47-27893fd63c424bf38fdd8d272a0e46bf/8524.S140_5F00_SDS_5F00_v2.1.pdf">S140’s interrupt-priority contract</a>. The final linked map must confirm the dispatch source; the presence of an unused FreeRTOS SDK file is not evidence of task-based dispatch.</p>
+<p><a href="../../firmware/factory_ptt_v9/app_factory_scroll.c">Scroll transport source</a> · <a href="../../tools/firmware/factory_scroll_v9.py">Factory integration recipe</a> · <a href="../../tests/firmware/test_factory_scroll_v9.py">Host tests</a> · <a href="../backlog.md">Sample acceptance work</a></p></section>
+
+<section><h2>Later battery carryover</h2>
+<p>The current P09 recipe now includes the final P08 compact battery reports and battery-timer stack check, alongside the calculation and sampling fixes already present. The incremental build preserves all scrolling and short-recording code. Its unsigned BIN is 189,300 bytes; the r5 hash above identifies the earlier artifact. See the <a href="ring-battery-audit.html#p09">current P09 battery evidence, image hash and qualification limits</a>.</p></section>
+
+<section><h2>Sample acceptance before release</h2>
+<p>Test the exact signed artifact on the identified sample: iPhone pairing, vertical browser scrolling, horizontal wide content, TikTok/Instagram paging, direction and step size, all toggles after reboot, foreground/background app behavior, bond restoration, and recording/sync/update coexistence. Confirm disabled and stale gestures never move the phone.</p>
+<p class="muted">Compiler, simulator and host tests do not prove physical radio behavior, sensor recognition, power consumption or scrolling compatibility in a particular app.</p></section>
+</main></html>
