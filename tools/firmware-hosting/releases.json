@@ -4,6 +4,33 @@
     {
       "schemaVersion": 1,
       "hardware": "603V1.23.2",
+      "version": "6.0.3.3P08",
+      "packageRevision": 2,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P08-r2/BCL603S2P_6.0.3.3P08.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P08-r2/BCL603S2P_6.0.3.3P08.zip",
+        "sha256": "eac2612bb2080713c5e46ce9c3ed2bbe4aeab8c5aeba4dad68dd74811e9e1473",
+        "bytes": 187228,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565398410"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "6f6a398363df727b62d9e230aefe6b3d547bde7c",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P08 revision 2 sample-test prerelease for 603V1.23.2. Adds compact battery notifications with unchanged calculation, payloads and guards. Clean licensed rebuild and software/package checks passed. Keeps local recording, recording-state updates and saved-file sync. Application only; bootloader unchanged. Locally signed with the supplier DFU key, not supplier approval. Physical qualification and recovery remain unproven. Requires the matching P08-capable iPhone app. Firmware still reports 6.0.3.3P08; use this revision's package digest.",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34953397927"
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
       "version": "6.0.3.3P07",
       "status": "supplier-signed-ota",
       "otaAvailable": true,
