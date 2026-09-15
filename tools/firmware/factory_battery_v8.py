@@ -53,4 +53,13 @@ def patch_adc(source):
                 '\t\t\tif (result != RESULT_OK) return result;')
 
 
+def patch_vibrate_flags(source):
+    # Zero means playback without STOP, not PWM_FLAG_STOP (1). Without the
+    # STOPPED event the motor owner stays active and battery reads stay 255.
+    source = once(source, 'flags = 0;  /* PWM_FLAG_STOP */',
+                  'flags = PWM_FLAG_STOP;  /* Request STOPPED, then worker-owned power-off. */')
+    return once(source, 'flags = 2;  /* PWM_FLAG_LOOP */',
+                'flags = PWM_FLAG_LOOP;  /* Explicit stop still required. */')
+
+
 PATCHES = {POWER: patch_power, PMIC_APP: patch_pmic, ADC: patch_adc}

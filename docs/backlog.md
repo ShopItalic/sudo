@@ -1,5 +1,24 @@
 # Open work
 
+## P08–P10 battery availability repair — September 15, 2026
+
+The shared recipe now requests `PWM_FLAG_STOP` for finite vibration cues.
+The previous zero flag could leave the motor owner active after a cue, causing
+the guarded battery acquisition to return ADC 65535 / percentage 255 forever.
+The integration regression exercises the real prepared cue, PWM BSP, motor owner
+and battery guard; the old flag is a negative control. Percentage arithmetic,
+sampling cadence, charger guards and memory allocations are retained.
+
+Publish revised P08/P09 packages and the P10 sample package only after binding
+licensed builds, source/load/stack checks and independent signature checks to
+their exact digests. The app must allow a revised package despite an identical
+base version and must not claim it can read back the installed package revision.
+Physical motor supply shutdown, battery recovery after cues, actual runtime
+memory margins, discharge calibration and recovery remain unverified. P10 also
+requires physical recording custody, cleanup and power-loss qualification.
+See [the battery investigation](reference/ring-battery-audit.html#finite-cue)
+and [the P10 review](reference/factory-cleanup-p10-risk-review.html).
+
 ## P08 sample update preparation — 2026-09-15
 
 The signed application-only P08 package and matching app are prepared for the

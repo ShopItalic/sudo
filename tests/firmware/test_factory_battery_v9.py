@@ -21,11 +21,18 @@ class FactoryBatteryV9(unittest.TestCase):
     def test_generated_battery_sampling_and_notifications_match_p08(self):
         # Compare the production recipe entries, so forgetting to register a
         # shared patch cannot silently restore the factory implementation.
-        for path in (*battery.PATCHES, reporting.PACKAGE, p08.MOTOR):
+        for path in (*battery.PATCHES, reporting.PACKAGE, p08.MOTOR,
+                     p08.APP + 'app_linear_motor_handler.c'):
             with self.subTest(path=path):
                 self.assertIn(path, p09.PATCHES)
                 original = vendor(path)
                 self.assertEqual(p09.PATCHES[path](original), p08.PATCHES[path](original))
+
+    def test_p10_inherits_finite_cue_stop_fix(self):
+        import prepare_factory_ptt_v10 as p10
+        path = p08.APP + 'app_linear_motor_handler.c'
+        original = vendor(path)
+        self.assertEqual(p10.PATCHES[path](original), p08.PATCHES[path](original))
 
     def test_battery_and_motor_sources_match_the_exercised_p08_code(self):
         # These exact P08 sources run through the sanitizer-backed battery

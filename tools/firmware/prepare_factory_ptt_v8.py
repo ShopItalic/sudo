@@ -184,6 +184,7 @@ def patch_vibrate(s):
     body = s[start:end]
     body = body.replace(signature + '\n{', signature + '\n{\n    uint16_t s_vibrate_pwm_seq[4] = {0};\n    struct pwm_config s_vibrate_pwm_config = {0};', 1)
     body = once(body, '    bc_ldo_motor_power_on();\n    bc_delay_ms(20);', '    /* Settling and cancellation belong to bc_linear_motor_pwm_out. */')
+    body = battery.patch_vibrate_flags(body)
     return s[:start] + body + s[end:]
 
 LED = 'firmware/bc_ros/bc_module/led/bc_ic_led.c'

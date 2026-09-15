@@ -28,6 +28,11 @@ class FactoryDeleteV8(unittest.TestCase):
         for path, patch in prior.PATCHES.items():
             if path == prior.base.CONFIG:
                 self.assertEqual(recipe.PATCHES[path](vendor(path)).replace('P08', 'P07'), patch(vendor(path)))
+            elif path == recipe.APP + 'app_linear_motor_handler.c':
+                # The only P08 cue delta is the stop/loop flag correction;
+                # the battery integration suite exercises its lifecycle.
+                self.assertEqual(recipe.PATCHES[path](vendor(path)),
+                                 recipe.battery.patch_vibrate_flags(patch(vendor(path))))
             else:
                 self.assertEqual(recipe.PATCHES[path](vendor(path)), patch(vendor(path)), path)
         for path in prior.OVERLAY.glob('*.[ch]'):
