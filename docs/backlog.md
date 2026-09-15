@@ -390,3 +390,9 @@ candidate; the source-level and release safeguards below still apply.
 ## Factory P06 sample release — September 15, 2026
 
 P06 adds saved recording-light and 0.5–5 second hold activation controls to the factory-based P05 path. See [the release review](reference/factory-p06-release.html). The matching app must reject settings-incompatible downgrades from P06 using a fresh version read. Physical timing, settings persistence, audio tails, runtime memory and recovery qualification remain distinct from software checks. Bluetooth performance work is deferred until the authorized P06 sample installation is verified.
+
+## P07 sample qualification (2026-09-15)
+
+- Signed application-only P07 package prepared; independent signature/source/load checks passed.
+- Before broad rollout, verify each swipe on/off, settings persistence, hold/release, recording light, haptics and completed audio transfer on hardware.
+- Verify update completion and reconnect without restarting the app; software checks do not establish recovery or physical qualification.

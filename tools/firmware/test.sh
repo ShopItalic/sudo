@@ -354,3 +354,6 @@ PYTHONPATH=tests/firmware:tools/firmware python3 -m unittest \
 python3 tests/firmware/test_factory_controls_v6.py
 
 python3 tests/firmware/test_factory_ptt_v6.py
+
+# P07 directional swipe controls and legacy settings migration.
+PYTHONPATH=tools/firmware:tests/firmware python3 -m unittest test_factory_controls_v7 test_factory_ptt_v7
