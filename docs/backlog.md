@@ -1,5 +1,18 @@
 # Open work
 
+## P10 battery display refresh — September 15, 2026
+
+After the user's update, the phone's P10 handshake reported 100% / off charger
+at 20:17:48 Shanghai time. At 20:19:48 the app expired that reading without a
+fresh power notification or response. Added a bounded foreground-only read
+fallback in `ShopItalic/app`; it gives other Ring operations priority and
+preserves unknown values, expiry and independent firmware power checks.
+
+The signed app build and cloud gates passed. Install and verify repeated fresh
+readings when the iPhone reconnects to the Mac. Determine why periodic battery
+notifications were absent; the captured app log alone does not locate the
+sender or SDK failure. See [P10 battery evidence](reference/ring-battery-audit.html#p10-refresh).
+
 ## P08–P10 battery availability repair — September 15, 2026
 
 The shared recipe now requests `PWM_FLAG_STOP` for finite vibration cues.
@@ -9,10 +22,14 @@ The integration regression exercises the real prepared cue, PWM BSP, motor owner
 and battery guard; the old flag is a negative control. Percentage arithmetic,
 sampling cadence, charger guards and memory allocations are retained.
 
-Publish revised P08/P09 packages and the P10 sample package only after binding
-licensed builds, source/load/stack checks and independent signature checks to
-their exact digests. The app must allow a revised package despite an identical
-base version and must not claim it can read back the installed package revision.
+Published P08 revision 3, P09 revision 2 and P10 revision 2 after binding licensed
+builds, source/load/stack checks and independent signatures to their exact
+digests. The public catalog and both download routes were verified; the app's
+production download client validated all three, and the iPhone selector showed
+all three revisions. The release catalog's CI passed at `37b33e9b4f71`.
+The app allows revised packages despite an identical base version and does not
+claim it can read back the installed package revision. P10's existing build was
+reused. See [the release report](reference/factory-battery-p08-p10-release.html).
 Physical motor supply shutdown, battery recovery after cues, actual runtime
 memory margins, discharge calibration and recovery remain unverified. P10 also
 requires physical recording custody, cleanup and power-loss qualification.
