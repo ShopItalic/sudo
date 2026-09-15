@@ -437,3 +437,52 @@ settings persistence, interrupted file operations, saved-audio transfer, all
 scroll direction switches and iPhone pairing/reconnect. Runtime memory,
 battery accuracy/endurance and recovery remain unqualified. See the P09
 handoffs and docs/reference/ring-battery-audit.html#p09 for software evidence.
+
+## P10 receipt cleanup — sample preparation, 2026-09-15
+
+The cleanup implementation and matching iPhone integration are complete. Every
+attempt is committed and read back before hashing or removal, so repeated power
+loss cannot bypass the five-attempt limit. Only an explicit Retry resets an
+exhausted receipt. The app durably binds a random recording identity, byte count
+and SHA-256 before transfer, verifies its phone copy, and treats a queued receipt
+as pending until a later complete manifest confirms absence.
+
+Storage ownership is task-scoped through capture, rollover, finalization and
+power-down. Counted task notifications prevent lost upload wakeups. All linked
+recording, transfer, list/status and cleanup paths were audited; failed I/O keeps
+storage busy. Legacy deletion, formatting and low-space reclamation cannot
+bypass exact receiver receipts.
+
+Validation: full firmware host suite and source CI pass at `e984042`, including
+3,582,316 P10 checks, 30 cold cuts, repeated interrupted-attempt tests, fragmented
+storage above 93% occupancy, neighboring-recording readback, actual generated
+upload workers and recording-finalization paths, and two fatal negative controls.
+The matching app passed 978 unit tests after the package-revision UI update
+and was installed on Jeremy iPhone. The licensed r4 firmware build passed with
+349 objects, zero errors and 542 warnings, followed by exact source/load/stack
+and independent signed-package verification. r4 includes
+the finite-cue motor STOP repair, which restores battery acquisition after cues.
+
+P10 revision 1 was returned to draft before being offered in the app catalog.
+[Revision 2](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P10-r2) binds
+the battery repair and all cleanup safeguards to verified package SHA-256
+`030e5597bb03a417abb99e0900f48a5676e09c22c3ea7eb3f0099f1b4c8d0248` (193,540 bytes).
+The matching app is installed. Authenticated download of the uploaded ZIP was
+independently signature-checked and matches the local artifact. The repository
+is currently private: anonymous GitHub catalog/asset requests return 404, so
+phone delivery requires local import or a release-only public hosting decision.
+No Ring flash is authorized or performed by this task.
+
+Remaining physical qualification:
+
+- [ ] Demonstrate recovery on the identified spare before hardware testing.
+- [ ] Measure runtime stack/heap, recording latency, sustained capture/rollover,
+  BLE responsiveness, battery acquisition after cues and battery impact.
+- [ ] Begin with boot, reconnect, recording, transfer and descriptor checks before
+  authorizing cleanup; then use known recordings with verified external copies.
+- [ ] Test physical power cuts, nearly full/fragmented flash, metadata compaction,
+  repeated reboot and byte-for-byte preservation of all surviving recordings.
+
+See the [P10 risk review](reference/factory-cleanup-p10-risk-review.html) and
+`build/diagnostics/factory-cleanup-p10-20260915/`. Compilation, signatures and
+host fault injection do not establish physical safety or production readiness.

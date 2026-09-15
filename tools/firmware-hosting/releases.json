@@ -4,6 +4,33 @@
     {
       "schemaVersion": 1,
       "hardware": "603V1.23.2",
+      "version": "6.0.3.3P10",
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r2/BCL603S2P_6.0.3.3P10.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r2/BCL603S2P_6.0.3.3P10.zip",
+        "sha256": "030e5597bb03a417abb99e0900f48a5676e09c22c3ea7eb3f0099f1b4c8d0248",
+        "bytes": 193540,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565619713"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "e9840428b22502f762d5cc596f7c469a2ef71c1e",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P10 revision 2 sample-test prerelease for 603V1.23.2. Includes P09 controls, short recordings and scrolling; adds exact receiver-receipt cleanup, a durable five-attempt retry limit and audited storage handoffs. Includes the finite-vibration STOP fix so battery acquisition can resume after cues. Requires the matching P10-capable iPhone app. Direct upgrade from P08 is supported; downgrades from P10 are blocked. Software and signed-package checks passed. Physical qualification and recovery remain unproven. Application only; locally signed with the supplier DFU key, without supplier acceptance. The Ring reports the base version; installed package revision cannot be read back.",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34964669787",
+      "packageRevision": 2
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
       "version": "6.0.3.3P09",
       "status": "supplier-signed-ota",
       "otaAvailable": true,
