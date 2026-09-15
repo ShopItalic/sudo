@@ -101,9 +101,7 @@ typedef struct {
     uint32_t token_counter, live_token, live_ack;
     uint32_t live_ends[4];
     uint8_t live_count;
-    /* Raw local-accepted frames remain here until READY and the normal four
-     * message ACK window can drain them. The service worker is the sole owner. */
-    bc_voice_live_frame live_prefix[BC_VOICE_LIVE_PREFIX_SLOTS];
+    /* Legacy bookkeeping remains inert; live audio buffers/sending are removed. */
     uint8_t live_prefix_read, live_prefix_count;
     uint32_t live_sequence;
     bool live_disabled;

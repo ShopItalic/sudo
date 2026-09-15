@@ -1,5 +1,16 @@
 # Open work
 
+## P08 sample update preparation — 2026-09-15
+
+The signed application-only P08 package and matching app are prepared for the
+existing GitHub sample-test channel. Source, build, package-signature and host
+checks passed; release/download readback remains the publication gate. Verify
+boot/version, hold/release, optional memo gestures, state events, file custody,
+battery behavior and settings on the explicitly selected sample. Recovery and
+inherited timer/ADC stack and low-space deletion concerns remain.
+See [P08 release notes](reference/factory-local-recording-p08-release.html).
+
+
 ## Factory P05 cloud sample test — 2026-09-15
 
 The unchanged licensed ArmCC5 P05 application is published as a GitHub sample-test

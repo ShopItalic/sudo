@@ -1023,16 +1023,6 @@ static unsigned count_kind(const worker_fixture *fixture, uint8_t kind)
     return count;
 }
 
-static const bc_voice_message *first_kind(const worker_fixture *fixture,
-                                          uint8_t kind)
-{
-    unsigned i;
-    for (i = 0U; i < fixture->sink.message_count; ++i)
-        if (fixture->sink.messages[i].kind == kind)
-            return &fixture->sink.messages[i];
-    return NULL;
-}
-
 static const bc_voice_message *find_response(const worker_fixture *fixture,
                                              uint8_t kind, uint32_t request)
 {
@@ -1060,29 +1050,7 @@ static unsigned count_response(const worker_fixture *fixture, uint8_t kind,
     return count;
 }
 
-static bool motor_pulse_index(const worker_fixture *fixture, unsigned first,
-                              uint16_t duration, unsigned occurrence,
-                              unsigned *index)
-{
-    unsigned i;
-    unsigned seen = 0U;
-    unsigned limit;
 
-    if (fixture == NULL || index == NULL || first >= MOTOR_PULSE_HISTORY)
-        return false;
-    limit = fixture->hardware.motor_pulse_calls < MOTOR_PULSE_HISTORY ?
-        fixture->hardware.motor_pulse_calls : MOTOR_PULSE_HISTORY;
-    for (i = first; i < limit; ++i) {
-        if (fixture->hardware.motor_pulse_durations[i] != duration)
-            continue;
-        if (seen == occurrence) {
-            *index = i;
-            return true;
-        }
-        ++seen;
-    }
-    return false;
-}
 
 static const sent_packet *find_legacy_reply(const worker_fixture *fixture,
                                             const uint8_t *prefix,
@@ -1599,7 +1567,7 @@ static void worker_script(worker_fixture *fixture)
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->length == 20U);
             CHECK((bc_voice_get32(response->payload + 5U) &
-                   BC_VOICE_CAP_PHONE_OUTCOME) != 0U);
+                   (BC_VOICE_CAP_PHONE_OUTCOME | BC_VOICE_CAP_LIVE)) == 0U);
             CHECK(enqueue_native(BC_VOICE_READY, 101U, &enabled, 1U,
                                  fixture->epoch));
             fixture->script_stage = 4U;
@@ -1613,7 +1581,7 @@ static void worker_script(worker_fixture *fixture)
              * change. READY cannot promise a contiguous live prefix from the
              * old connection, so the service disables that preview until a
              * new recording establishes a fresh token. */
-            CHECK(response->payload[4] == BC_REC_INTERRUPTED);
+            CHECK(response->payload[4] == BC_REC_UNSUPPORTED);
             CHECK(response->length == 5U);
             CHECK(count_kind(fixture, BC_VOICE_LIVE) == 0U);
             CHECK(fixture->hardware.conn_audio_set_calls != 0U);
@@ -1692,10 +1660,9 @@ static void worker_script(worker_fixture *fixture)
                 find_response(fixture, BC_VOICE_READY, 139U);
             if (response == NULL || ready == NULL)
                 break;
-            CHECK(ready->payload[4] == BC_REC_OK);
-            CHECK(ready->length == 17U);
-            fixture->outcome_token = bc_voice_get32(ready->payload + 5U);
-            CHECK(fixture->outcome_token != 0U);
+            CHECK(ready->payload[4] == BC_REC_UNSUPPORTED);
+            CHECK(ready->length == 5U);
+            fixture->outcome_token = 0U;
             CHECK(response->payload[4] == BC_REC_INVALID);
             CHECK(fixture->capture.start_calls == 2U);
             encode_id(extra, fixture->app_id);
@@ -1785,9 +1752,8 @@ static void worker_script(worker_fixture *fixture)
             CHECK(bc_voice_get32(response->payload + 37U) ==
                   6U * BC_REC_FRAME_MAX);
             CHECK(find_response(fixture, BC_VOICE_STOP, 105U) != NULL);
-            /* The phone outcome is accepted only after this exact saved
-             * recording has completed. Its response is ordinary five-byte
-             * control traffic; feedback is queued for the owner loop. */
+            /* Retired phone outcomes are rejected after saving, too, without
+             * changing the local recording or its custody workflow. */
             encode_outcome(extra, fixture->app_id, fixture->outcome_token,
                            BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
             CHECK(enqueue_native(BC_VOICE_PHONE_OUTCOME, 140U, extra, 13U,
@@ -1798,33 +1764,9 @@ static void worker_script(worker_fixture *fixture)
     case 53:
         response = find_response(fixture, BC_VOICE_PHONE_OUTCOME, 140U);
         if (response != NULL) {
-            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(response->payload[4] == BC_REC_UNSUPPORTED);
             CHECK(response->length == 5U);
-            fixture->outcome_first_pulse = 0U;
-            fixture->outcome_second_pulse = 0U;
-            fixture->script_stage = 54U;
-        }
-        break;
-    case 54:
-        if (motor_pulse_index(fixture, fixture->outcome_before_pulses, 80U,
-                              0U, &fixture->outcome_first_pulse)) {
-            unsigned first = fixture->outcome_first_pulse;
-            CHECK(fixture->hardware.motor_pulse_durations[first] == 80U);
-            CHECK((uint32_t)(fixture->hardware.motor_pulse_ticks[first] -
-                             fixture->stop_feedback_tick) >=
-                  pdMS_TO_TICKS(300U));
-            fixture->script_stage = 55U;
-        }
-        break;
-    case 55:
-        if (motor_pulse_index(fixture, fixture->outcome_first_pulse + 1U, 80U,
-                              0U, &fixture->outcome_second_pulse)) {
-            unsigned first = fixture->outcome_first_pulse;
-            unsigned second = fixture->outcome_second_pulse;
-            CHECK(fixture->hardware.motor_pulse_durations[second] == 80U);
-            CHECK((uint32_t)(fixture->hardware.motor_pulse_ticks[second] -
-                             fixture->hardware.motor_pulse_ticks[first]) >=
-                  pdMS_TO_TICKS(160U));
+            /* No live keyboard confirmation; saved-file custody still works. */
             /* Exact custody is committed before the owner snapshot changes. */
             response = find_response(fixture, BC_VOICE_QUERY, 106U);
             CHECK(response != NULL);
@@ -1857,7 +1799,7 @@ static void worker_script(worker_fixture *fixture)
             CHECK((response->payload[16] & 4U) != 0U);
             /* A receipt is metadata custody, not a second completion edge. */
             CHECK(fixture->hardware.motor_pulse_calls ==
-                  fixture->haptic_after_save + 2U);
+                  fixture->haptic_after_save);
             encode_id(extra, fixture->app_id);
             bc_voice_put32(extra + 8U, 0U);
             bc_voice_put32(extra + 12U, 1U);
@@ -1871,13 +1813,7 @@ static void worker_script(worker_fixture *fixture)
         if (response != NULL) {
             CHECK(response->payload[4] == BC_REC_OK);
             CHECK(response->length == 29U);
-            CHECK(count_kind(fixture, BC_VOICE_LIVE) >= 1U);
-            {
-                const bc_voice_message *live = first_kind(fixture, BC_VOICE_LIVE);
-                CHECK(live != NULL && live->length == 8U + BC_REC_FRAME_MAX);
-                CHECK(live != NULL && bc_voice_get32(live->payload + 4U) == 1U);
-                CHECK(live != NULL && live->payload[8U] == 0x30U);
-            }
+            CHECK(count_kind(fixture, BC_VOICE_LIVE) == 0U);
             /* The reader remains open while file packets are in flight. A
              * new recording must cancel that archive before opening itself. */
             fixture->capture.frames_to_emit = 1U;
@@ -1905,9 +1841,9 @@ static void worker_script(worker_fixture *fixture)
     case 56:
         response = find_response(fixture, BC_VOICE_READY, 141U);
         if (response != NULL) {
-            CHECK(response->payload[4] == BC_REC_OK);
-            fixture->outcome_token = bc_voice_get32(response->payload + 5U);
-            CHECK(fixture->outcome_token != 0U);
+            CHECK(response->payload[4] == BC_REC_UNSUPPORTED);
+            fixture->outcome_token = 0U;
+            CHECK(response->length == 5U);
             encode_id(extra, fixture->second_id);
             CHECK(enqueue_native(BC_VOICE_STOP, 111U, extra, 8U,
                                  fixture->epoch));
@@ -1930,7 +1866,7 @@ static void worker_script(worker_fixture *fixture)
     case 57:
         response = find_response(fixture, BC_VOICE_PHONE_OUTCOME, 142U);
         if (response != NULL) {
-            CHECK(response->payload[4] == BC_REC_OK);
+            CHECK(response->payload[4] == BC_REC_UNSUPPORTED);
             fixture->outcome_pulses_before_mute =
                 fixture->hardware.motor_pulse_calls;
             /* Muting immediately after the callback must cancel any queued

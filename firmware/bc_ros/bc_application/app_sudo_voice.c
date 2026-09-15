@@ -266,9 +266,6 @@ static bc_rec_result capture_start(void *ctx, uint64_t id)
     return result;
 }
 
-static bool live(void *ctx, uint64_t id, uint32_t sequence, const uint8_t *data, uint16_t length)
-{ (void)ctx; return bc_voice_service_live(&service, id, sequence, data, length); }
-
 static bool get_audio(void *ctx, bc_audio_format *format, bc_voice_audio_stats *stats)
 { return app_sudo_capture_audio_stats(ctx, format, stats); }
 
@@ -664,7 +661,7 @@ static void run(void *ctx)
 {
     bc_rec_config config = {1000U, 4096U, 500U};
     bc_rec_port port = {NULL, storage_open, storage_append, storage_checkpoint, storage_finish,
-        capture_start, app_sudo_capture_stop, app_sudo_capture_abort, live, changed};
+        capture_start, app_sudo_capture_stop, app_sudo_capture_abort, NULL, changed};
     bc_voice_service_port service_port = {NULL, send_packet, save_settings};
     bc_voice_outcome_port outcome_port = {NULL, set_outcome};
     bc_voice_tuning_port tuning_port = {NULL, get_tuning, save_tuning};

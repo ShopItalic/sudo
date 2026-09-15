@@ -63,35 +63,6 @@ static void live_prefix_clear(bc_voice_service *s)
     s->live_prefix_count = 0U;
 }
 
-static bool live_prefix_push(bc_voice_service *s, uint32_t sequence,
-                             const uint8_t *data, uint16_t length)
-{
-    uint8_t index;
-    if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
-        return false;
-    index = (uint8_t)((s->live_prefix_read + s->live_prefix_count) %
-                      BC_VOICE_LIVE_PREFIX_SLOTS);
-    s->live_prefix[index].sequence = sequence;
-    s->live_prefix[index].length = length;
-    memcpy(s->live_prefix[index].data, data, length);
-    ++s->live_prefix_count;
-    return true;
-}
-
-static bool live_prefix_push_front(bc_voice_service *s, uint32_t sequence,
-                                   const uint8_t *data, uint16_t length)
-{
-    if (s->live_prefix_count >= BC_VOICE_LIVE_PREFIX_SLOTS)
-        return false;
-    s->live_prefix_read = (uint8_t)((s->live_prefix_read == 0U) ?
-        BC_VOICE_LIVE_PREFIX_SLOTS - 1U : s->live_prefix_read - 1U);
-    s->live_prefix[s->live_prefix_read].sequence = sequence;
-    s->live_prefix[s->live_prefix_read].length = length;
-    memcpy(s->live_prefix[s->live_prefix_read].data, data, length);
-    ++s->live_prefix_count;
-    return true;
-}
-
 static void live_transport_clear(bc_voice_service *s)
 {
     live_prefix_clear(s);
@@ -110,18 +81,6 @@ static void live_preview_disable(bc_voice_service *s)
     live_transport_clear(s);
 }
 
-static bool live_requeue_active_tx(bc_voice_service *s)
-{
-    if (!s->tx_active || s->tx.kind != BC_VOICE_LIVE)
-        return true;
-    if (s->tx.length < 9U || s->tx.length > 8U + BC_REC_FRAME_MAX ||
-        !live_prefix_push_front(s, bc_voice_get32(s->tx.payload + 4U),
-                                s->tx.payload + 8U, (uint16_t)(s->tx.length - 8U)))
-        return false;
-    s->tx_active = false;
-    s->tx_offset = 0U;
-    return true;
-}
 
 static void encode_snapshot(bc_voice_message *out, const bc_rec_snapshot *r,
                               uint32_t token)
@@ -423,13 +382,9 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
         s->token_recording = r->start.id;
         s->ready = false;
         s->ready_ms = s->now_ms;
-        /* Exhaustion disables live for this boot instead of aliasing tokens. */
-        if (s->token_counter < UINT32_MAX - 1U) s->live_token = ++s->token_counter;
-        else { s->live_token = 0; s->ready = false; s->live_disabled = true; }
+        s->live_token = 0U;
+        s->live_disabled = true;
         live_transport_clear(s);
-        s->live_disabled = s->live_token == 0U ? true : false;
-        s->live_sequence = 1U;
-        s->live_progress_ms = s->now_ms;
     }
     if (!s->outcome_terminal_ready && s->outcome_ready_accepted &&
         s->outcome_ready_recording_id == r->start.id &&
@@ -445,17 +400,9 @@ void bc_voice_service_changed(bc_voice_service *s, const bc_rec_snapshot *r)
 bool bc_voice_service_live(bc_voice_service *s, uint64_t id, uint32_t sequence,
                             const uint8_t *data, uint16_t length)
 {
-    if (!s || !s->connected || s->live_disabled || s->live_token == 0U ||
-        id != s->token_recording || !data || length == 0U || length > BC_REC_FRAME_MAX ||
-        sequence == 0U || sequence == UINT32_MAX)
-        return false;
-    if (s->live_sequence == 0U || sequence != s->live_sequence ||
-        !live_prefix_push(s, sequence, data, length)) {
-        live_preview_disable(s);
-        return false;
-    }
-    ++s->live_sequence;
-    return true;
+    /* Retained ABI rejection for old callers. No audio is queued or sent. */
+    (void)s; (void)id; (void)sequence; (void)data; (void)length;
+    return false;
 }
 
 static bc_rec_result acknowledge(uint32_t *ends, uint8_t *count,
@@ -514,12 +461,11 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         has_format = current_format(s, &format, NULL);
         reply_init(&response, m, BC_REC_OK);
         bc_voice_put32(response.payload + 5, BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT |
-            BC_VOICE_CAP_MEMO | BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME |
+            BC_VOICE_CAP_MEMO | BC_VOICE_CAP_RESUME |
             BC_VOICE_CAP_CUSTODY | BC_VOICE_CAP_SETTINGS |
             BC_VOICE_CAP_TRIPLE_TAP | BC_VOICE_CAP_PTT_UNTIL_RELEASE |
             (s->inputs_port.get && s->inputs_port.set ? BC_VOICE_CAP_INPUT_MAPPINGS : 0U) |
             (s->tuning_port.get && s->tuning_port.set ? BC_VOICE_CAP_TUNING : 0U) |
-            (s->outcome_port.set_outcome ? BC_VOICE_CAP_PHONE_OUTCOME : 0U) |
             (has_format ? BC_VOICE_CAP_AUDIO_FORMAT : 0U));
         bc_voice_put16(response.payload + 9, format.sample_rate_hz);
         bc_voice_put16(response.payload + 11, format.block_samples);
@@ -579,133 +525,11 @@ static void request(bc_voice_service *s, const bc_voice_message *m)
         }
         return;
     case BC_VOICE_READY:
-        if (m->length != 5 || p[4] > 1) break;
-        if (!p[4]) {
-            s->ready_ms = s->now_ms;
-            s->outcome_ready_accepted = false;
-            s->outcome_ready_recording_id = 0U;
-            s->outcome_live_token = 0U;
-            s->outcome_epoch = 0U;
-            if (s->token_recording != 0U)
-                s->live_disabled = true;
-            live_preview_disable(s);
-            if (s->token_recording == 0U)
-                s->live_disabled = false;
-            /* READY(false) only disables the preview lease. The recording
-             * owner remains linked to BLE and continues Flash capture. */
-            bc_recording_link(s->recording, s->connected);
-            reply_init(&response, m, BC_REC_OK);
-            bc_voice_put32(response.payload + 5, s->live_token);
-            bc_voice_put64(response.payload + 9, s->token_recording);
-            response.length = 17U; (void)queue(s, &response); return;
-        }
-        if (s->live_disabled) {
-            s->ready = false;
-            live_transport_clear(s);
-            bc_recording_link(s->recording, s->connected);
-            simple_reply(s, m, BC_REC_INTERRUPTED);
-            return;
-        }
-        if (!s->ready) {
-            /* A renewed READY must not discard a frame that was already
-             * accepted locally. If a previous token's message is mid-fragment,
-             * put its raw frame back before rotating the token. */
-            if (!live_requeue_active_tx(s)) {
-                live_preview_disable(s);
-                bc_recording_link(s->recording, s->connected);
-                simple_reply(s, m, BC_REC_INTERRUPTED);
-                return;
-            }
-            if (s->token_counter < UINT32_MAX - 1U) s->live_token = ++s->token_counter;
-            else s->live_token = 0;
-            s->live_count = 0U; s->live_ack = 0U;
-            s->live_progress_ms = s->now_ms;
-            s->state_pending = true; s->state_urgent = true;
-        }
-        s->ready = s->live_token != 0U;
-        s->ready_ms = s->now_ms;
-        if (!s->ready) {
-            live_preview_disable(s);
-            bc_recording_link(s->recording, s->connected);
-            simple_reply(s, m, BC_REC_INTERRUPTED);
-            return;
-        }
-        bc_recording_link(s->recording, s->connected);
-        if (s->outcome_ready_accepted &&
-            s->outcome_ready_recording_id == s->token_recording &&
-            s->outcome_epoch == s->epoch) {
-            /* Renewal retains the original READY admission for this link. */
-        } else if (bc_recording_active(s->recording) &&
-                   s->token_recording != 0U) {
-            s->outcome_ready_accepted = true;
-            s->outcome_ready_recording_id = s->token_recording;
-            s->outcome_live_token = s->live_token;
-            s->outcome_epoch = s->epoch;
-        } else {
-            /* READY after finalization can serve live metadata, but cannot
-             * authorize a keyboard outcome for an old terminal recording. */
-            s->outcome_ready_accepted = false;
-            s->outcome_ready_recording_id = 0U;
-            s->outcome_live_token = 0U;
-            s->outcome_epoch = 0U;
-        }
-        reply_init(&response, m, BC_REC_OK);
-        bc_voice_put32(response.payload + 5, s->live_token);
-        bc_voice_put64(response.payload + 9, s->token_recording);
-        response.length = 17; (void)queue(s, &response); return;
     case BC_VOICE_PHONE_OUTCOME:
-        if (m->length != 17U) break;
-        id = bc_voice_get64(p + 4U);
-        if (p[16] != BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED) break;
-        if (!s->outcome_port.set_outcome) {
-            result = BC_REC_UNSUPPORTED;
-            break;
-        }
-        if (bc_recording_active(s->recording) || s->stop_pending ||
-            s->verifying || s->transferring) {
-            result = BC_REC_BUSY;
-            break;
-        }
-        if (!s->connected || s->epoch != s->outcome_epoch ||
-            !s->outcome_ready_accepted || s->outcome_live_token == 0U ||
-            bc_voice_get32(p + 12U) != s->outcome_live_token ||
-            bc_voice_get32(p + 12U) != s->live_token ||
-            s->outcome_ready_recording_id != id ||
-            !s->outcome_terminal_ready ||
-            s->outcome_recording_id != id ||
-            s->latest.start.id != id ||
-            !outcome_terminal_valid(&s->latest) ||
-            bc_recording_snapshot(s->recording)->start.id != id) {
-            result = BC_REC_WRONG_SESSION;
-            break;
-        }
-        if ((uint32_t)(s->now_ms - s->outcome_terminal_ms) >=
-            BC_VOICE_PHONE_OUTCOME_WINDOW_MS) {
-            result = BC_REC_INVALID;
-            break;
-        }
-        /* A previously accepted outcome is idempotent for this link and
-         * recording. It never calls into the feedback worker twice. */
-        if (s->outcome_reported) {
-            result = BC_REC_OK;
-            break;
-        }
-        /* The request path reserved a response slot before entering this
-         * switch. Queue the ordinary result before changing confirmation
-         * state or invoking the application callback. */
-        reply_init(&response, m, BC_REC_OK);
-        if (!queue(s, &response)) return;
-        s->outcome_reported = true;
-        s->outcome_port.set_outcome(s->outcome_port.ctx, id, p[16]);
-        return;
     case BC_VOICE_LIVE_ACK:
-        if (m->length != 12 || !s->ready || s->live_disabled ||
-            bc_voice_get32(p + 4) != s->live_token) break;
-        id = s->live_ack;
-        result = acknowledge(s->live_ends, &s->live_count, &s->live_ack, bc_voice_get32(p + 8));
-        if (result == BC_REC_OK && s->live_ack != id) s->live_progress_ms = s->now_ms;
-        if (result == BC_REC_OK) s->ready_ms = s->now_ms;
-        break;
+        /* Removed live-audio protocol. Preserve the active local recording. */
+        simple_reply(s, m, BC_REC_UNSUPPORTED);
+        return;
     case BC_VOICE_SETTINGS_GET:
         if (m->length != 4) break;
         settings_reply(s, m, BC_REC_OK); return;
@@ -961,8 +785,7 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
             s->control_read = (uint8_t)((s->control_read + 1) % BC_VOICE_CONTROL_SLOTS);
             --s->control_count;
         } else if (s->state_pending && (s->state_urgent ||
-                       (s->live_prefix_count == 0U &&
-                        (uint32_t)(now_ms - s->state_sent_ms) >= 500U))) {
+                       (uint32_t)(now_ms - s->state_sent_ms) >= 500U)) {
             s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_STATE;
             s->tx.direction = BC_VOICE_EVENT;
             encode_snapshot(&s->tx, &s->latest, s->live_token);
@@ -977,17 +800,6 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
             s->input_tx_ms = event->at_ms;
             s->input_read = (uint8_t)((s->input_read + 1U) % BC_VOICE_INPUT_EVENT_SLOTS);
             --s->input_count;
-        } else if (s->ready && !s->live_disabled && s->live_count < 4U &&
-                   s->live_prefix_count != 0U) {
-            bc_voice_live_frame *frame = &s->live_prefix[s->live_prefix_read];
-            s->tx.message_id = message_id(s); s->tx.kind = BC_VOICE_LIVE;
-            s->tx.direction = BC_VOICE_EVENT; s->tx.length = (uint16_t)(8U + frame->length);
-            bc_voice_put32(s->tx.payload, s->live_token);
-            bc_voice_put32(s->tx.payload + 4U, frame->sequence);
-            memcpy(s->tx.payload + 8U, frame->data, frame->length);
-            s->live_prefix_read = (uint8_t)((s->live_prefix_read + 1U) %
-                                            BC_VOICE_LIVE_PREFIX_SLOTS);
-            --s->live_prefix_count;
         } else if (s->transferring && !bc_recording_active(s->recording) &&
                     (s->transfer_count < BC_VOICE_TRANSFER_WINDOW ||
                      s->transfer_next < s->transfer_ends[s->transfer_count - 1U]) &&
@@ -1016,11 +828,7 @@ bool bc_voice_service_poll(bc_voice_service *s, uint32_t now_ms, uint16_t att_li
         sent = true;
         s->tx_offset = next;
         if (next != s->tx.length + 4U) continue;
-        if (s->tx.kind == BC_VOICE_LIVE && s->ready && !s->live_disabled &&
-            bc_voice_get32(s->tx.payload) == s->live_token && s->live_count < 4U) {
-            if (s->live_count == 0) s->live_progress_ms = now_ms;
-            s->live_ends[s->live_count++] = bc_voice_get32(s->tx.payload + 4) + 1U;
-        } else if (s->tx.kind == BC_VOICE_FILE && s->transferring &&
+        if (s->tx.kind == BC_VOICE_FILE && s->transferring &&
             bc_voice_get32(s->tx.payload) == s->transfer_token) {
             uint32_t end = bc_voice_get32(s->tx.payload + 4) + s->tx.length - 8U;
             uint32_t high = s->transfer_count ?

@@ -305,13 +305,7 @@ static bc_rec_result settings_store(void *ctx,
     return f->settings_result;
 }
 
-static void outcome_set(void *ctx, uint64_t recording_id, uint8_t outcome)
-{
-    fixture *f = (fixture *)ctx;
-    ++f->outcome_calls;
-    f->outcome_recording_id = recording_id;
-    f->outcome_value = outcome;
-}
+
 
 static bc_rec_result next_id(void *ctx, uint64_t *id)
 {
@@ -605,13 +599,7 @@ static void encode_receipt(uint8_t extra[17], uint64_t id, uint32_t bytes,
     extra[16] = delete ? 1U : 0U;
 }
 
-static void encode_outcome(uint8_t extra[13], uint64_t id, uint32_t token,
-                           uint8_t outcome)
-{
-    bc_voice_put64(extra, id);
-    bc_voice_put32(extra + 8U, token);
-    extra[12] = outcome;
-}
+
 
 static bool record_complete(fixture *f, const bc_rec_start *start,
                             unsigned frame_count, uint8_t seed,
@@ -667,11 +655,11 @@ static void test_handshake_queue_and_wire_rejection(void)
     CHECK(response != NULL &&
           (bc_voice_get32(response->payload + 5) &
            (BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT | BC_VOICE_CAP_MEMO |
-            BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
+            BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
             BC_VOICE_CAP_SETTINGS | BC_VOICE_CAP_TRIPLE_TAP |
             BC_VOICE_CAP_PTT_UNTIL_RELEASE)) ==
               (BC_VOICE_CAP_LOCAL | BC_VOICE_CAP_PTT | BC_VOICE_CAP_MEMO |
-               BC_VOICE_CAP_LIVE | BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
+               BC_VOICE_CAP_RESUME | BC_VOICE_CAP_CUSTODY |
                BC_VOICE_CAP_SETTINGS | BC_VOICE_CAP_TRIPLE_TAP |
                BC_VOICE_CAP_PTT_UNTIL_RELEASE));
 
@@ -895,458 +883,11 @@ static void test_start_stop_idempotency_and_recovery(void)
     fixture_destroy(&f);
 }
 
-static void test_ready_live_ack_lease_and_disconnect(void)
-{
-    fixture f;
-    bc_rec_start start = start_value(0x2222U, BC_REC_PTT, 0U);
-    uint8_t extra[13];
-    uint8_t frame[BC_REC_FRAME_MAX];
-    uint32_t token;
-    unsigned before;
-    unsigned i;
-    const bc_voice_message *response;
 
-    CHECK(fixture_setup(&f));
-    encode_start(extra, &start);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_START, 200U, extra, sizeof(extra), 244U,
-                       10U, false));
-    CHECK(pump(&f, 10U, 244U) != 0U);
-    CHECK(find_response(&f, before, BC_VOICE_START, 200U) != NULL);
 
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 201U, (const uint8_t[]){1U}, 1U,
-                       20U, 20U, false));
-    CHECK(pump(&f, 20U, 20U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 201U);
-    CHECK(response != NULL && response->length == 17U &&
-          response->payload[4] == BC_REC_OK);
-    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5);
-    CHECK(token != 0U && f.service.ready && f.recording.link_ready);
 
-    fill_pattern(frame, sizeof(frame), 0x10U);
-    CHECK(!bc_voice_service_live(&f.service, start.id, 0U, frame, sizeof(frame)));
-    CHECK(f.service.live_count == 0U);
-    CHECK(bc_recording_frame(&f.recording, start.id, 1U, frame,
-                             sizeof(frame), 30U) == BC_REC_OK);
-    CHECK(pump(&f, 30U, 20U) != 0U);
-    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 1U);
-    CHECK(f.sink.message_count != 0U);
-    for (i = 0U; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind == BC_VOICE_LIVE) {
-            CHECK(message->length == 228U);
-            CHECK(bc_voice_get32(message->payload) == token);
-            CHECK(bc_voice_get32(message->payload + 4) == 1U);
-            CHECK(memcmp(message->payload + 8, frame, sizeof(frame)) == 0);
-        }
-    }
-    CHECK(f.recording.snapshot.live_sent_frames == 1U);
-    CHECK(f.live_count == 1U && call_order_has(&f, 'A', 'L'));
 
-    before = f.sink.message_count;
-    encode_ack(extra, token, 2U);
-    CHECK(send_request(&f, BC_VOICE_LIVE_ACK, 202U, extra, 8U, 244U, 40U,
-                       false));
-    CHECK(pump(&f, 40U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_LIVE_ACK, 202U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    /* Duplicate ACK is idempotent; an unadvertised future boundary is not. */
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_LIVE_ACK, 203U, extra, 8U, 20U, 50U,
-                       false));
-    CHECK(pump(&f, 50U, 20U) != 0U);
-    response = find_response(&f, before, BC_VOICE_LIVE_ACK, 203U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    encode_ack(extra, token, 4U);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_LIVE_ACK, 204U, extra, 8U, 244U, 60U,
-                       false));
-    CHECK(pump(&f, 60U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_LIVE_ACK, 204U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
 
-    /* BLE send loss does not roll back local storage. The service retries the
-     * complete logical LIVE message after the sink accepts it again. */
-    f.sink.fail_next = true;
-    fill_pattern(frame, sizeof(frame), 0x30U);
-    CHECK(bc_recording_frame(&f.recording, start.id, 2U, frame,
-                             sizeof(frame), 70U) == BC_REC_OK);
-    CHECK(f.recording.snapshot.live_sent_frames == 2U);
-    CHECK(pump(&f, 70U, 244U) == 0U);
-    CHECK(f.sink.invalid_packets == 0U);
-    CHECK(pump(&f, 71U, 244U) != 0U);
-    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 2U);
-
-    /* Four unacknowledged events fill the wire window. Storage and the bounded
-     * prefix FIFO keep accepting frames while the client catches up. */
-    for (i = 3U; i <= 7U; ++i) {
-        fill_pattern(frame, sizeof(frame), (uint8_t)(0x30U + i));
-        CHECK(bc_recording_frame(&f.recording, start.id, i, frame,
-                                 sizeof(frame), 80U + i) == BC_REC_OK);
-        CHECK(pump(&f, 80U + i, 244U) != 0U || i >= 6U);
-    }
-    CHECK(f.service.live_count == 4U);
-    CHECK(f.service.live_prefix_count == 2U);
-    CHECK(f.recording.snapshot.accepted_frames == 7U);
-    CHECK(f.recording.snapshot.live_dropped_frames == 0U);
-
-    /* A lease expiry disables live delivery while local append remains valid;
-     * link_ready still represents the physical BLE connection. */
-    (void)pump(&f, f.service.ready_ms + BC_VOICE_READY_MS, 244U);
-    CHECK(!f.service.ready && f.service.live_disabled && f.recording.link_ready);
-    fill_pattern(frame, sizeof(frame), 0xa0U);
-    CHECK(bc_recording_frame(&f.recording, start.id, 8U, frame,
-                             sizeof(frame), f.service.now_ms + 1U) == BC_REC_OK);
-    CHECK(f.recording.snapshot.live_dropped_frames > 0U);
-    bc_voice_service_link(&f.service, 2U, false);
-    fill_pattern(frame, sizeof(frame), 0xb0U);
-    CHECK(bc_recording_frame(&f.recording, start.id, 9U, frame,
-                             sizeof(frame), f.service.now_ms + 2U) == BC_REC_OK);
-    CHECK(!f.service.connected);
-    bc_voice_service_link(&f.service, 3U, true);
-    CHECK(f.service.connected && !f.service.ready);
-    CHECK(bc_recording_stop(&f.recording, start.id, f.service.now_ms + 3U) ==
-          BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
-    fixture_destroy(&f);
-}
-
-static void test_live_prefix_delayed_ready_and_backpressure(void)
-{
-    fixture f;
-    bc_rec_start start = start_value(0x7301U, BC_REC_PTT, 0U);
-    bc_rec_start replacement = start_value(0x7302U, BC_REC_PTT, 0U);
-    uint8_t frames[12U][BC_REC_FRAME_MAX];
-    uint8_t extra[8];
-    uint32_t old_token;
-    uint32_t token;
-    uint32_t replacement_old_token;
-    unsigned before;
-    unsigned i;
-    unsigned live_seen;
-    const bc_voice_message *response;
-
-    CHECK(fixture_setup(&f));
-    old_token = f.service.live_token;
-    CHECK(bc_recording_start(&f.recording, &start, 10U) == BC_REC_OK);
-    for (i = 0U; i < 5U; ++i) {
-        fill_pattern(frames[i], sizeof(frames[i]), (uint8_t)(0x90U + i));
-        CHECK(bc_recording_frame(&f.recording, start.id, i + 1U, frames[i],
-                                 sizeof(frames[i]), 20U + i) == BC_REC_OK);
-    }
-    CHECK(f.recording.link_ready && f.service.live_prefix_count == 5U &&
-          f.recording.snapshot.live_sent_frames == 5U &&
-          f.recording.snapshot.live_dropped_frames == 0U);
-
-    /* Local capture can precede the app's first READY, but no LIVE event may
-     * escape until the token/lease has been confirmed. */
-    clear_messages(&f);
-    (void)pump(&f, 30U, 244U);
-    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
-
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7302U, (const uint8_t[]){1U}, 1U,
-                       244U, 100U, false));
-    CHECK(pump(&f, 100U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7302U);
-    CHECK(response != NULL && response->length == 17U &&
-          response->payload[4] == BC_REC_OK);
-    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
-    CHECK(token != 0U && token != old_token && f.service.ready);
-
-    live_seen = 0U;
-    for (i = 0U; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind != BC_VOICE_LIVE)
-            continue;
-        CHECK(message->length == 8U + BC_REC_FRAME_MAX);
-        CHECK(bc_voice_get32(message->payload) == token);
-        CHECK(bc_voice_get32(message->payload + 4U) == live_seen + 1U);
-        CHECK(memcmp(message->payload + 8U, frames[live_seen],
-                     BC_REC_FRAME_MAX) == 0);
-        ++live_seen;
-    }
-    CHECK(live_seen == 4U && f.service.live_count == 4U &&
-          f.service.live_prefix_count == 1U);
-
-    /* ACKing the four-message window releases the fifth buffered frame. */
-    encode_ack(extra, token, 5U);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_LIVE_ACK, 7303U, extra, sizeof(extra),
-                       244U, 110U, false));
-    CHECK(pump(&f, 110U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_LIVE_ACK, 7303U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    live_seen = 0U;
-    for (i = before; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind == BC_VOICE_LIVE) {
-            CHECK(bc_voice_get32(message->payload) == token);
-            CHECK(bc_voice_get32(message->payload + 4U) == 5U);
-            CHECK(memcmp(message->payload + 8U, frames[4],
-                         BC_REC_FRAME_MAX) == 0);
-            ++live_seen;
-        }
-    }
-    CHECK(live_seen == 1U && f.service.live_count == 1U &&
-          f.service.live_prefix_count == 0U);
-
-    /* A small ATT limit fragments the same 228-byte logical LIVE message;
-     * the raw frame and token remain unchanged. */
-    fill_pattern(frames[5], sizeof(frames[5]), 0x95U);
-    CHECK(bc_recording_frame(&f.recording, start.id, 6U, frames[5],
-                             sizeof(frames[5]), 120U) == BC_REC_OK);
-    clear_messages(&f);
-    CHECK(pump(&f, 120U, 20U) != 0U);
-    CHECK(f.sink.packet_count > 4U && count_kind(&f, 0U, BC_VOICE_LIVE) == 1U);
-    for (i = 0U; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind == BC_VOICE_LIVE) {
-            CHECK(message->length == 8U + BC_REC_FRAME_MAX);
-            CHECK(bc_voice_get32(message->payload) == token);
-            CHECK(bc_voice_get32(message->payload + 4U) == 6U);
-            CHECK(memcmp(message->payload + 8U, frames[5],
-                         BC_REC_FRAME_MAX) == 0);
-        }
-    }
-
-    /* Backpressure is bounded at four unacknowledged wire messages, while
-     * later locally accepted frames remain in the 32-frame prefix FIFO. */
-    for (i = 6U; i < 12U; ++i) {
-        fill_pattern(frames[i], sizeof(frames[i]), (uint8_t)(0x95U + i - 5U));
-        CHECK(bc_recording_frame(&f.recording, start.id, i + 1U, frames[i],
-                                 sizeof(frames[i]), 130U + i) == BC_REC_OK);
-        (void)pump(&f, 130U + i, 244U);
-    }
-    CHECK(f.service.live_count == 4U && f.service.live_prefix_count == 4U &&
-          f.recording.snapshot.accepted_frames == 12U &&
-          f.recording.snapshot.live_dropped_frames == 0U);
-
-    CHECK(bc_recording_stop(&f.recording, start.id, 160U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
-
-    /* Starting a new recording invalidates the prior READY lease. Its first
-     * locally accepted frames wait for the new recording's READY response. */
-    replacement_old_token = token;
-    CHECK(bc_recording_start(&f.recording, &replacement, 170U) == BC_REC_OK);
-    CHECK(!f.service.ready && !f.service.live_disabled &&
-          f.service.live_prefix_count == 0U && f.service.live_sequence == 1U &&
-          f.service.live_token != replacement_old_token);
-    fill_pattern(frames[0], sizeof(frames[0]), 0xa6U);
-    CHECK(bc_recording_frame(&f.recording, replacement.id, 1U, frames[0],
-                             sizeof(frames[0]), 171U) == BC_REC_OK);
-    CHECK(f.service.live_prefix_count == 1U &&
-          f.recording.snapshot.live_sent_frames == 1U);
-    clear_messages(&f);
-    (void)pump(&f, 172U, 244U);
-    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7304U, (const uint8_t[]){1U}, 1U,
-                       244U, 180U, false));
-    CHECK(pump(&f, 180U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7304U);
-    CHECK(response != NULL && response->length == 17U &&
-          response->payload[4] == BC_REC_OK && f.service.ready);
-    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
-    CHECK(token != 0U && token != replacement_old_token);
-    live_seen = 0U;
-    for (i = before; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind != BC_VOICE_LIVE)
-            continue;
-        CHECK(message->length == 8U + BC_REC_FRAME_MAX);
-        CHECK(bc_voice_get32(message->payload) == token);
-        CHECK(bc_voice_get32(message->payload + 4U) == 1U);
-        CHECK(memcmp(message->payload + 8U, frames[0], BC_REC_FRAME_MAX) == 0);
-        ++live_seen;
-    }
-    CHECK(live_seen == 1U && f.service.live_count == 1U);
-    CHECK(bc_recording_stop(&f.recording, replacement.id, 190U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, replacement.id) == BC_REC_OK);
-    fixture_destroy(&f);
-}
-
-static void test_live_prefix_overflow_cancel_timeout_and_reconnect(void)
-{
-    fixture f;
-    bc_rec_start overflow = start_value(0x7401U, BC_REC_PTT, 0U);
-    bc_rec_start reset = start_value(0x7402U, BC_REC_PTT, 0U);
-    bc_rec_start timeout = start_value(0x7403U, BC_REC_PTT, 0U);
-    bc_rec_start reconnect = start_value(0x7404U, BC_REC_PTT, 0U);
-    bc_rec_start retry = start_value(0x7405U, BC_REC_PTT, 0U);
-    bc_rec_start offline = start_value(0x7406U, BC_REC_PTT, 0U);
-    uint8_t frame[BC_REC_FRAME_MAX];
-    unsigned before;
-    unsigned i;
-    const bc_voice_message *response;
-
-    CHECK(fixture_setup(&f));
-    CHECK(bc_recording_start(&f.recording, &overflow, 10U) == BC_REC_OK);
-    for (i = 1U; i <= BC_VOICE_LIVE_PREFIX_SLOTS; ++i) {
-        fill_pattern(frame, sizeof(frame), (uint8_t)(0x10U + i));
-        CHECK(bc_recording_frame(&f.recording, overflow.id, i, frame,
-                                 sizeof(frame), 10U + i) == BC_REC_OK);
-    }
-    CHECK(f.service.live_prefix_count == BC_VOICE_LIVE_PREFIX_SLOTS &&
-          !f.service.live_disabled &&
-          f.recording.snapshot.accepted_frames == BC_VOICE_LIVE_PREFIX_SLOTS &&
-          f.recording.snapshot.live_dropped_frames == 0U);
-
-    /* The 33rd local frame remains durable even though preview has no bounded
-     * space left. Overflow fails only the live callback and clears its FIFO. */
-    fill_pattern(frame, sizeof(frame), 0x40U);
-    CHECK(bc_recording_frame(&f.recording, overflow.id,
-                             BC_VOICE_LIVE_PREFIX_SLOTS + 1U, frame,
-                             sizeof(frame), 50U) == BC_REC_OK);
-    CHECK(f.service.live_prefix_count == 0U && f.service.live_disabled &&
-          !f.service.ready && f.recording.link_ready &&
-          f.recording.snapshot.accepted_frames == BC_VOICE_LIVE_PREFIX_SLOTS + 1U &&
-          f.recording.snapshot.accepted_bytes ==
-              (BC_VOICE_LIVE_PREFIX_SLOTS + 1U) * BC_REC_FRAME_MAX &&
-          f.recording.snapshot.live_dropped_frames == 1U);
-
-    clear_messages(&f);
-    (void)pump(&f, 51U, 244U);
-    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7402U, (const uint8_t[]){1U}, 1U,
-                       244U, 60U, false));
-    CHECK(pump(&f, 60U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7402U);
-    CHECK(response != NULL && response->length == 5U &&
-          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
-          f.recording.link_ready);
-    CHECK(bc_recording_stop(&f.recording, overflow.id, 70U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, overflow.id) == BC_REC_OK);
-    CHECK(f.recording.snapshot.file.bytes ==
-              (BC_VOICE_LIVE_PREFIX_SLOTS + 1U) * BC_REC_FRAME_MAX);
-
-    /* A new recording clears the failed preview generation and may establish
-     * a fresh READY lease. */
-    CHECK(bc_recording_start(&f.recording, &reset, 80U) == BC_REC_OK);
-    CHECK(!f.service.live_disabled && f.service.live_sequence == 1U &&
-          f.service.live_prefix_count == 0U);
-    fill_pattern(frame, sizeof(frame), 0x61U);
-    CHECK(bc_recording_frame(&f.recording, reset.id, 1U, frame,
-                             sizeof(frame), 81U) == BC_REC_OK);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7403U, (const uint8_t[]){1U}, 1U,
-                       244U, 82U, false));
-    CHECK(pump(&f, 82U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7403U);
-    CHECK(response != NULL && response->length == 17U &&
-          response->payload[4] == BC_REC_OK && f.service.ready);
-
-    /* Explicit READY(false) clears pending live state without unlinking local
-     * recording from a connected transport. */
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7404U, (const uint8_t[]){0U}, 1U,
-                       244U, 90U, false));
-    CHECK(pump(&f, 90U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7404U);
-    CHECK(response != NULL && response->length == 17U &&
-          response->payload[4] == BC_REC_OK && !f.service.ready &&
-          f.service.live_disabled && f.service.live_prefix_count == 0U &&
-          f.recording.link_ready);
-    fill_pattern(frame, sizeof(frame), 0x62U);
-    CHECK(bc_recording_frame(&f.recording, reset.id, 2U, frame,
-                             sizeof(frame), 91U) == BC_REC_OK);
-    CHECK(f.recording.snapshot.live_dropped_frames == 1U);
-    CHECK(bc_recording_stop(&f.recording, reset.id, 100U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, reset.id) == BC_REC_OK);
-
-    /* A live ACK/ready lease timeout has the same preview-only effect. */
-    CHECK(bc_recording_start(&f.recording, &timeout, 110U) == BC_REC_OK);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7405U, (const uint8_t[]){1U}, 1U,
-                       244U, 111U, false));
-    CHECK(pump(&f, 111U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7405U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK &&
-          f.service.ready);
-    fill_pattern(frame, sizeof(frame), 0x70U);
-    CHECK(bc_recording_frame(&f.recording, timeout.id, 1U, frame,
-                             sizeof(frame), 112U) == BC_REC_OK);
-    (void)pump(&f, 112U, 244U);
-    CHECK(f.service.live_count == 1U);
-    CHECK(pump(&f, f.service.ready_ms + BC_VOICE_LIVE_STALL_MS + 1U, 244U) == 0U);
-    CHECK(!f.service.ready && f.service.live_disabled &&
-          f.service.live_prefix_count == 0U && f.recording.link_ready);
-    fill_pattern(frame, sizeof(frame), 0x71U);
-    CHECK(bc_recording_frame(&f.recording, timeout.id, 2U, frame,
-                             sizeof(frame), f.service.now_ms + 1U) == BC_REC_OK);
-    CHECK(f.recording.snapshot.live_dropped_frames == 1U);
-    CHECK(bc_recording_stop(&f.recording, timeout.id, 120U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, timeout.id) == BC_REC_OK);
-
-    /* A link loss after a local prefix has been accepted makes the next READY
-     * fail explicitly; the partial prefix is never presented as sequence 1. */
-    CHECK(bc_recording_start(&f.recording, &reconnect, 130U) == BC_REC_OK);
-    fill_pattern(frame, sizeof(frame), 0x80U);
-    CHECK(bc_recording_frame(&f.recording, reconnect.id, 1U, frame,
-                             sizeof(frame), 131U) == BC_REC_OK);
-    bc_voice_service_link(&f.service, 2U, false);
-    CHECK(!f.service.connected && !f.recording.link_ready &&
-          f.service.live_prefix_count == 0U && f.service.live_disabled);
-    bc_voice_service_link(&f.service, 3U, true);
-    CHECK(f.service.connected && f.recording.link_ready && !f.service.ready &&
-          f.service.live_disabled);
-    clear_messages(&f);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7406U, (const uint8_t[]){1U}, 1U,
-                       244U, 140U, false));
-    CHECK(pump(&f, 140U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7406U);
-    CHECK(response != NULL && response->length == 5U &&
-          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
-          f.recording.link_ready);
-    CHECK(bc_recording_stop(&f.recording, reconnect.id, 150U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, reconnect.id) == BC_REC_OK);
-
-    /* The first sequence after a clean new recording is accepted again. */
-    CHECK(bc_recording_start(&f.recording, &retry, 160U) == BC_REC_OK);
-    CHECK(!f.service.live_disabled && f.service.live_sequence == 1U);
-    fill_pattern(frame, sizeof(frame), 0x90U);
-    CHECK(bc_recording_frame(&f.recording, retry.id, 1U, frame,
-                             sizeof(frame), 161U) == BC_REC_OK);
-    CHECK(f.service.live_prefix_count == 1U);
-
-    /* A recording made while disconnected has no resumable live prefix. The
-     * first reconnect rejects READY even after the file is terminal, while
-     * the durable bytes remain available for the normal archive path. */
-    CHECK(bc_recording_stop(&f.recording, retry.id, 170U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, retry.id) == BC_REC_OK);
-    bc_voice_service_link(&f.service, 4U, false);
-    CHECK(!f.service.connected && !f.recording.link_ready);
-    CHECK(bc_recording_start(&f.recording, &offline, 180U) == BC_REC_OK);
-    fill_pattern(frame, sizeof(frame), 0xa0U);
-    CHECK(bc_recording_frame(&f.recording, offline.id, 1U, frame,
-                             sizeof(frame), 181U) == BC_REC_OK);
-    fill_pattern(frame, sizeof(frame), 0xa1U);
-    CHECK(bc_recording_frame(&f.recording, offline.id, 2U, frame,
-                             sizeof(frame), 182U) == BC_REC_OK);
-    CHECK(!f.recording.link_ready && f.service.live_prefix_count == 0U &&
-          f.recording.snapshot.accepted_frames == 2U &&
-          f.recording.snapshot.live_sent_frames == 0U);
-    CHECK(bc_recording_stop(&f.recording, offline.id, 190U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, offline.id) == BC_REC_OK);
-    CHECK(f.recording.snapshot.file.bytes == 2U * BC_REC_FRAME_MAX);
-    bc_voice_service_link(&f.service, 5U, true);
-    CHECK(f.service.connected && f.recording.link_ready &&
-          !f.service.ready && f.service.live_disabled &&
-          f.service.live_prefix_count == 0U);
-    clear_messages(&f);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 7407U, (const uint8_t[]){1U}, 1U,
-                       244U, 200U, false));
-    CHECK(pump(&f, 200U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 7407U);
-    CHECK(response != NULL && response->length == 5U &&
-          response->payload[4] == BC_REC_INTERRUPTED && !f.service.ready &&
-          f.recording.snapshot.file.bytes == 2U * BC_REC_FRAME_MAX);
-    fixture_destroy(&f);
-}
 
 static void test_pending_stop_snapshot_and_queue_reservation(void)
 {
@@ -2422,132 +1963,7 @@ static void test_settings_errors_and_archive_cancellation(void)
     fixture_destroy(&f);
 }
 
-static void test_phone_outcome_lease_and_callback(void)
-{
-    fixture f;
-    bc_voice_outcome_port port;
-    bc_rec_start start = start_value(UINT64_C(0x6001), BC_REC_APP, 0U);
-    uint8_t extra[13], frame[BC_REC_FRAME_MAX];
-    const bc_voice_message *response;
-    unsigned before;
-    uint32_t token;
-    uint32_t terminal_ms = UINT32_MAX - 70U;
 
-    CHECK(fixture_setup(&f));
-
-    /* The optional callback gates both advertisement and acceptance. */
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_HELLO, 800U, NULL, 0U, 244U, 1U, false));
-    CHECK(pump(&f, 1U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_HELLO, 800U);
-    CHECK(response != NULL &&
-          (bc_voice_get32(response->payload + 5U) & BC_VOICE_CAP_PHONE_OUTCOME) == 0U);
-    port.ctx = &f;
-    port.set_outcome = outcome_set;
-    CHECK(bc_voice_service_set_outcome_port(&f.service, &port));
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_HELLO, 801U, NULL, 0U, 244U, 2U, false));
-    CHECK(pump(&f, 2U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_HELLO, 801U);
-    CHECK(response != NULL &&
-          (bc_voice_get32(response->payload + 5U) & BC_VOICE_CAP_PHONE_OUTCOME) != 0U);
-
-    /* READY must be accepted while the current recording is active. The
-     * terminal edge is then latched across the uint32 millisecond wrap. */
-    f.service.now_ms = UINT32_MAX - 90U;
-    CHECK(bc_recording_start(&f.recording, &start, UINT32_MAX - 90U) == BC_REC_OK);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 802U, (const uint8_t[]){1U}, 1U,
-                       244U, UINT32_MAX - 85U, false));
-    CHECK(pump(&f, UINT32_MAX - 85U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 802U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5U);
-    CHECK(token != 0U && f.service.outcome_ready_accepted);
-    fill_pattern(frame, sizeof(frame), 0x21U);
-    f.service.now_ms = UINT32_MAX - 80U;
-    CHECK(bc_recording_frame(&f.recording, start.id, 1U, frame, sizeof(frame),
-                             UINT32_MAX - 80U) == BC_REC_OK);
-    f.service.now_ms = terminal_ms;
-    CHECK(bc_recording_stop(&f.recording, start.id, UINT32_MAX - 75U) == BC_REC_OK);
-    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
-    CHECK(f.service.outcome_terminal_ready &&
-          f.service.outcome_terminal_ms == terminal_ms);
-
-    encode_outcome(extra, start.id, token, BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
-    /* A full response queue rejects the side effect before invoking the
-     * callback. The client can retry the same request after draining it. */
-    f.service.control_count = BC_VOICE_CONTROL_SLOTS;
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 803U, extra, sizeof(extra),
-                       244U, 20U, false));
-    CHECK(f.outcome_calls == 0U &&
-          find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 803U) == NULL);
-    f.service.control_count = 0U;
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 803U, extra, sizeof(extra),
-                       244U, 20U, false));
-    CHECK(pump(&f, 20U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 803U);
-    CHECK(response != NULL && response->length == 5U &&
-          response->payload[4] == BC_REC_OK);
-    CHECK(f.outcome_calls == 1U && f.outcome_recording_id == start.id &&
-          f.outcome_value == BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED);
-
-    /* Same valid outcome is idempotent, while malformed, wrong-token and
-     * wrong-outcome requests never reach the callback. */
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 804U, extra, sizeof(extra),
-                       244U, 21U, false));
-    CHECK(pump(&f, 21U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 804U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK &&
-          f.outcome_calls == 1U);
-    extra[8] ^= 1U;
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 805U, extra, sizeof(extra),
-                       244U, 22U, false));
-    CHECK(pump(&f, 22U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 805U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_WRONG_SESSION &&
-          f.outcome_calls == 1U);
-    extra[8] ^= 1U;
-    extra[12] = 0U;
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 806U, extra, sizeof(extra),
-                       244U, 23U, false));
-    CHECK(pump(&f, 23U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 806U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID &&
-          f.outcome_calls == 1U);
-    extra[12] = BC_VOICE_PHONE_OUTCOME_KEYBOARD_INSERTED;
-
-    /* The strict ten-second boundary expires even an otherwise duplicate
-     * request. Unsigned subtraction keeps the check wrap-safe. */
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 807U, extra, sizeof(extra),
-                       244U, terminal_ms + BC_VOICE_PHONE_OUTCOME_WINDOW_MS,
-                       false));
-    CHECK(pump(&f, terminal_ms + BC_VOICE_PHONE_OUTCOME_WINDOW_MS, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 807U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_INVALID &&
-          f.outcome_calls == 1U);
-
-    /* A new active recording is busy and clears the prior confirmation lease;
-     * after it finishes, the old ID/token cannot be replayed. */
-    {
-        bc_rec_start next = start_value(UINT64_C(0x6002), BC_REC_APP, 0U);
-        CHECK(bc_recording_start(&f.recording, &next, 200U) == BC_REC_OK);
-        before = f.sink.message_count;
-        CHECK(send_request(&f, BC_VOICE_PHONE_OUTCOME, 808U, extra, sizeof(extra),
-                           244U, 201U, false));
-        CHECK(pump(&f, 201U, 244U) != 0U);
-        response = find_response(&f, before, BC_VOICE_PHONE_OUTCOME, 808U);
-        CHECK(response != NULL && response->payload[4] == BC_REC_BUSY &&
-              f.outcome_calls == 1U);
-    }
-    fixture_destroy(&f);
-}
 
 static bool tuning_get(void *ctx, bc_voice_tuning *value, uint8_t *status)
 {
@@ -2779,7 +2195,7 @@ static bool test_audio_get(void *ctx, bc_audio_format *format, bc_voice_audio_st
     return true;
 }
 
-static void test_s05_format_discovery_and_variable_live(void)
+static void test_s05_format_discovery_and_local_recording(void)
 {
     fixture f;
     bc_rec_start legacy_start = start_value(0x5501U, BC_REC_MEMO, 0U);
@@ -2789,8 +2205,7 @@ static void test_s05_format_discovery_and_variable_live(void)
     uint8_t extra[13];
     uint8_t frame[BC_REC_FRAME_MAX];
     const bc_voice_message *response;
-    unsigned before, i, name_length, seen_live = 0U;
-    uint32_t token;
+    unsigned before, i, name_length;
     static const uint16_t lengths[3] = {32U, 1U, BC_REC_FRAME_MAX};
 
     bc_audio_format_legacy_adpcm(&legacy);
@@ -2871,7 +2286,7 @@ static void test_s05_format_discovery_and_variable_live(void)
     response = find_response(&f, before, BC_VOICE_FORMAT_GET, 6U);
     CHECK(response != NULL && response->payload[4] == BC_REC_INVALID);
 
-    /* Container chunks of any bounded length flow through the live path. */
+    /* Container chunks remain stored locally without a live transport. */
     encode_start(extra, &opus_start);
     before = f.sink.message_count;
     CHECK(send_request(&f, BC_VOICE_START, 7U, extra, sizeof(extra), 244U, 50U, false));
@@ -2882,36 +2297,13 @@ static void test_s05_format_discovery_and_variable_live(void)
     CHECK(response != NULL && response->length == 62U + name_length + BC_AUDIO_FORMAT_WIRE_SIZE &&
           bc_audio_format_decode(response->payload + 62U + name_length, &decoded) &&
           decoded.codec == BC_AUDIO_CODEC_OPUS && decoded.pre_skip == 104U);
-    before = f.sink.message_count;
-    CHECK(send_request(&f, BC_VOICE_READY, 8U, (const uint8_t[]){1U}, 1U, 244U, 51U, false));
-    CHECK(pump(&f, 51U, 244U) != 0U);
-    response = find_response(&f, before, BC_VOICE_READY, 8U);
-    CHECK(response != NULL && response->payload[4] == BC_REC_OK);
-    token = response == NULL ? 0U : bc_voice_get32(response->payload + 5);
-    fill_pattern(frame, sizeof(frame), 0x77U);
-    CHECK(!bc_voice_service_live(&f.service, opus_start.id, 1U, frame, 0U));
-    CHECK(!bc_voice_service_live(&f.service, opus_start.id, 1U, frame, BC_REC_FRAME_MAX + 1U));
-    CHECK(!f.service.live_disabled);
     clear_messages(&f);
     for (i = 0U; i < 3U; ++i) {
         fill_pattern(frame, sizeof(frame), (uint8_t)(0x80U + i));
         CHECK(bc_recording_frame(&f.recording, opus_start.id, i + 1U, frame, lengths[i], 60U + i) == BC_REC_OK);
-        CHECK(pump(&f, 60U + i, 244U) != 0U);
+        (void)pump(&f, 60U + i, 244U);
     }
-    for (i = 0U; i < f.sink.message_count; ++i) {
-        const bc_voice_message *message = &f.sink.messages[i];
-        if (message->kind != BC_VOICE_LIVE) continue;
-        CHECK(seen_live < 3U);
-        if (seen_live < 3U) {
-            fill_pattern(frame, sizeof(frame), (uint8_t)(0x80U + seen_live));
-            CHECK(message->length == 8U + lengths[seen_live]);
-            CHECK(bc_voice_get32(message->payload) == token);
-            CHECK(bc_voice_get32(message->payload + 4) == seen_live + 1U);
-            CHECK(memcmp(message->payload + 8, frame, lengths[seen_live]) == 0);
-        }
-        ++seen_live;
-    }
-    CHECK(seen_live == 3U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
     CHECK(f.recording.snapshot.accepted_bytes == 32U + 1U + BC_REC_FRAME_MAX);
 
     /* Stop, then a mixed catalog reports each recording's own descriptor. */
@@ -2949,16 +2341,56 @@ static void test_s05_format_discovery_and_variable_live(void)
     fixture_destroy(&f);
 }
 
+static void test_removed_live_commands_preserve_local_recording(void)
+{
+    fixture f;
+    bc_rec_start start = start_value(0x2222U, BC_REC_PTT, 0U);
+    uint8_t extra[13], frame[BC_REC_FRAME_MAX];
+    const uint8_t retired[] = {BC_VOICE_READY, BC_VOICE_LIVE_ACK, BC_VOICE_PHONE_OUTCOME};
+    const bc_voice_message *response;
+    unsigned before, i;
+    CHECK(fixture_setup(&f));
+    before = f.sink.message_count;
+    CHECK(send_request(&f, BC_VOICE_HELLO, 199U, NULL, 0U, 244U, 1U, false));
+    CHECK(pump(&f, 1U, 244U) != 0U);
+    response = find_response(&f, before, BC_VOICE_HELLO, 199U);
+    CHECK(response != NULL && !(bc_voice_get32(response->payload + 5) &
+          (BC_VOICE_CAP_LIVE | BC_VOICE_CAP_PHONE_OUTCOME)));
+    encode_start(extra, &start);
+    CHECK(send_request(&f, BC_VOICE_START, 200U, extra, sizeof(extra), 244U, 10U, false));
+    CHECK(pump(&f, 10U, 244U) != 0U);
+    CHECK(f.recording.snapshot.phase == BC_REC_RECORDING);
+    fill_pattern(frame, sizeof(frame), 0x41U);
+    for (i = 0; i < sizeof(retired); ++i) {
+        before = f.sink.message_count;
+        CHECK(send_request(&f, retired[i], 201U+i, (const uint8_t[]){1U}, 1U, 244U, 20U+i, false));
+        CHECK(pump(&f, 20U+i, 244U) != 0U);
+        response = find_response(&f, before, retired[i], 201U+i);
+        CHECK(response != NULL && response->payload[4] == BC_REC_UNSUPPORTED);
+        CHECK(f.recording.snapshot.phase == BC_REC_RECORDING);
+        CHECK(bc_recording_frame(&f.recording, start.id, i+1U, frame, sizeof(frame), 30U+i) == BC_REC_OK);
+        CHECK(!bc_voice_service_live(&f.service, start.id, i+1U, frame, sizeof(frame)));
+    }
+    (void)pump(&f, 1000U, 244U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_LIVE) == 0U);
+    CHECK(count_kind(&f, 0U, BC_VOICE_STATE) > 0U);
+    CHECK(f.recording.snapshot.accepted_bytes == 3U * sizeof(frame));
+    bc_voice_service_link(&f.service, 2U, false);
+    CHECK(bc_recording_frame(&f.recording, start.id, 4U, frame, sizeof(frame), 1001U) == BC_REC_OK);
+    CHECK(bc_recording_stop(&f.recording, start.id, 1002U) == BC_REC_OK);
+    CHECK(bc_recording_drained(&f.recording, start.id) == BC_REC_OK);
+    CHECK(f.recording.snapshot.phase == BC_REC_SAVED && f.recording.snapshot.file.bytes == 4U*sizeof(frame));
+    fixture_destroy(&f);
+}
+
 int main(void)
 {
+    test_removed_live_commands_preserve_local_recording();
     test_timeout_unlocks_all_configuration_commands();
     test_handshake_queue_and_wire_rejection();
     test_start_stop_idempotency_and_recovery();
     test_pending_stop_snapshot_and_queue_reservation();
     test_empty_start_retry_query_and_remount();
-    test_ready_live_ack_lease_and_disconnect();
-    test_live_prefix_delayed_ready_and_backpressure();
-    test_live_prefix_overflow_cancel_timeout_and_reconnect();
     test_resume_window_retry_and_crc();
     test_archive_fragment_burst_and_control_priority();
     test_archive_retired_tokens_and_active_retry();
@@ -2969,10 +2401,9 @@ int main(void)
     test_query_catalog_receipt_and_id_custody();
     test_delete_failure_preserves_custody_and_retries();
     test_settings_errors_and_archive_cancellation();
-    test_phone_outcome_lease_and_callback();
     test_tuning_contract_and_busy();
     test_input_settings_and_live_events();
-    test_s05_format_discovery_and_variable_live();
+    test_s05_format_discovery_and_local_recording();
     fprintf(stdout, "%u checks, %u failures\n", checks, failures);
     return failures == 0U ? 0 : 1;
 }

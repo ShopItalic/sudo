@@ -41,6 +41,13 @@ a per-recording format descriptor, existing ADPCM files stay readable, and the
 published S04 RC1 is unchanged. See the
 [S05 ledger entries](docs/reference/supplier-firmware-change-log.md#s05-opus-recording--september-8-2026).
 
+## P08 sample update
+
+P08 removes live microphone streaming, preserves recording-state notifications and
+saved-file transfer, and includes the factory battery-reporting and explicit-delete
+repairs. It retains P07 settings and controls. See the [P08 package and qualification
+notes](docs/reference/factory-local-recording-p08-release.html).
+
 ## Download S04 RC1 (current RC)
 
 **[Release assets: v6.0.3.3S04-rc.1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3S04-rc.1)**
