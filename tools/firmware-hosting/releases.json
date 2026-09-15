@@ -4,6 +4,32 @@
     {
       "schemaVersion": 1,
       "hardware": "603V1.23.2",
+      "version": "6.0.3.3P09",
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P09/BCL603S2P_6.0.3.3P09.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P09/BCL603S2P_6.0.3.3P09.zip",
+        "sha256": "63662a9e00f833910858826f54a7282a4e71a3a7159e6e39f41f889bfe9001bd",
+        "bytes": 189876,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565472615"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "cc13f30bdd603f703574cd20cb38ce4681cc2888",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P09 sample-test prerelease for 603V1.23.2. Adds Short recordings (default: discard new recordings under 2 seconds) and optional scrolling (starts off). Retains the P08 battery changes, local recording, recording-state updates and saved-file sync. Requires the matching P09-capable iPhone app. P09 settings cannot be downgraded to P08. Software and signed-package checks passed; physical qualification and recovery remain unproven. Application only; locally signed with the supplier DFU key, without supplier acceptance.",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34956718044"
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
       "version": "6.0.3.3P08",
       "packageRevision": 2,
       "status": "supplier-signed-ota",

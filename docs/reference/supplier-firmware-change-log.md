@@ -1376,3 +1376,10 @@ and saved-file sync are preserved. Checked file lifecycle and flash errors
 prevent silent overwrite, automatic formatting and low-space reclamation.
 The current combined source is documented in the P09 short-recording and
 scrolling handoffs and the battery audit. Physical qualification is pending.
+
+
+## P09 signed sample package — September 15, 2026
+
+The combined short-recording, optional-scrolling and P08 battery-carryover source is prepared as `v6.0.3.3P09` from `cc13f30bdd603f703574cd20cb38ce4681cc2888`. The clean licensed ArmCC5 build compiled all 347 units with zero errors and no reused objects. Source/load/stack checks, host tests, 804 linked battery-report comparisons against the installed P08 revision 2, GitHub CI and independent signature checks passed.
+
+[Release and verification assets](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P09). The application-only ZIP is 189,876 bytes, SHA-256 `63662a9e00f833910858826f54a7282a4e71a3a7159e6e39f41f889bfe9001bd`; BIN SHA-256 `e46cab47da2200dc18caf9e9603f15417a928c3586a007480d8e093389cf7ae5`. Both public download routes were verified using the actual P09 app download client. This is a locally signed sample prerelease, not supplier acceptance. The matching P09 app is required; P09 settings cannot be downgraded to P08. Physical qualification remains pending.
