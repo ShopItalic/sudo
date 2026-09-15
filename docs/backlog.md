@@ -1,5 +1,16 @@
 # Open work
 
+## Factory P05 cloud sample test — 2026-09-15
+
+Publish the unchanged licensed ArmCC5 P05 application through the GitHub cloud
+catalog, with signature/hash verification and a separate installation step.
+Physical boot, sustained hold, settings persistence, haptics, recording transfer,
+power and dynamic stack/heap measurements remain open. The preserved factory
+distribution is not a per-device backup; recovery is not demonstrated. See the
+[P05 report](reference/factory-p05-release.html) for exact scope and image hashes.
+
+## Earlier candidate work
+
 The source tranche is implemented and host-tested. The remaining work is
 external qualification, supplier/build review, compatibility migration, and
 product decisions:

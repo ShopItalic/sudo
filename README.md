@@ -4,6 +4,15 @@ Firmware and hardware evidence for the **Italic Sudo Ring**, built on the
 standard Bravechip `603V1.23.2` hardware. **Italic** is the brand; **Sudo Ring**
 is the product name.
 
+**September 15 factory P05 sample test:** `6.0.3.3P05` is a small overlay on
+the preserved `6.0.3.3Z62` factory source. It adds hold/release PTT,
+programmable double/triple taps (recording off by default), persistent haptics
+and matching app recording events. It retains the factory recorder and ADPCM
+format. The exact licensed ArmCC5 image and application-only DFU signature
+passed software checks; physical boot and behavior are still unqualified.
+See the [P05 sample-test report](docs/reference/factory-p05-release.html).
+The S04/S05 descriptions below concern those separate historical targets.
+
 **September 9 qualification status:** an S05 engineering update completed its
 transfer but failed physical acceptance; the Ring could not reconnect or report
 its firmware version. Recovery remains unresolved. Do not install that build on

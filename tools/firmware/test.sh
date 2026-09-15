@@ -345,3 +345,8 @@ for runtime_debug_info in 0 1; do
   build/firmware/tests/test_task_logging_$runtime_debug_info
 done
 python3 tests/firmware/test_runtime_callbacks.py
+
+# Incremental factory Z62/P05: actual IQS/recorder, persisted controls, motor
+# lifecycle, and independent application-only signature corruption controls.
+PYTHONPATH=tests/firmware:tools/firmware python3 -m unittest \
+  test_factory_ptt_v5 test_factory_controls_v5 test_signed_application_package
