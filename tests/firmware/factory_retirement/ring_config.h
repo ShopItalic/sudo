@@ -1,0 +1,2 @@
+#define HANDWARE_1_23_2 1
+#define G_SENSOR_DEVIECE_TYPE 4

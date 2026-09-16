@@ -374,3 +374,11 @@ python3 tests/firmware/test_factory_capture_v9.py
 
 # P10: persistent receipts, exclusive storage ownership, wire retries and power cuts.
 python3 tests/firmware/test_factory_cleanup_v10.py
+
+# P10-r3/P11: all four retirements, immutable revision-2 parent and staged audio.
+python3 tests/firmware/test_factory_disable_swipes.py
+python3 tests/firmware/test_factory_keep_short_recordings.py
+python3 tests/firmware/test_factory_p11_base.py
+python3 tests/firmware/test_factory_audio_v11.py
+python3 tests/firmware/test_factory_overlay_p11.py
+python3 tests/firmware/test_factory_disable_speed_test_p11.py

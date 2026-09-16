@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "release": "v6.0.3.3P10-r2",
+  "version": "6.0.3.3P10",
+  "revision": 2,
+  "sourceCommit": "e9840428b22502f762d5cc596f7c469a2ef71c1e",
+  "vendorCommit": "102bfd263952caaf532f0d53041b1f35bdfa943a",
+  "target": "1.23.2",
+  "requiredCompiler": "5060960::V5.06 update 7 (build 960)::.\\ARMCC",
+  "packageSha256": "030e5597bb03a417abb99e0900f48a5676e09c22c3ea7eb3f0099f1b4c8d0248",
+  "packageBytes": 193540,
+  "binarySha256": "3420099da3c4808ea42599ce54b6987652feaca9ea53b695e5c0a52c5bc637e0",
+  "binaryBytes": 192964,
+  "generatedChangedFiles": 40,
+  "generatedDeltaSha256": "b2db49ca02c93780b8e705befb04f7b6d2561022f72b925c047add8ab38936a8",
+  "projectSha256": "3273083decd35e40926c6f9ecb455996fb3ba2cb1a330a76bc4ba31f02258aaa",
+  "note": "Release revision 2 was produced by internal build attempt r4. Do not substitute internal build r2, a mutable tag, current main, or working-tree P10 recipes. The Ring reports the base version only; these digests do not establish which revision is installed on hardware."
+}
