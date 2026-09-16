@@ -20,8 +20,9 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def verify(source, evidence):
-    receipt = json.loads((source / "p10-r3-preparation.json").read_text())
+def verify(source, evidence, *, recipe_module=recipe, preparation_name="p10-r3-preparation.json"):
+    recipe = recipe_module
+    receipt = json.loads((source / preparation_name).read_text())
     with tempfile.TemporaryDirectory(prefix="p10-r3-verify-", dir=ROOT / "build") as folder:
         regenerated = Path(folder) / "source"
         parent, parent_evidence = recipe.prepare_base(regenerated)
@@ -39,6 +40,8 @@ def verify(source, evidence):
             raise ValueError("Unexpected compiler input: " + path)
         for field in ("version", "packageRevision", "project", "projectSha256", "changes", "swipesDisabled", "firmwareShortDeletion", "speedTestDisabled", "motionDisabled"):
             if receipt[field] != expected[field]: raise ValueError("Stale preparation: " + field)
+        if receipt.get("reconnectStopRemoved") != expected.get("reconnectStopRemoved"):
+            raise ValueError("Stale preparation: reconnectStopRemoved")
     build = json.loads((evidence / "result.json").read_text())
     if build["errors"] != 0 or build["target"] != "1.23.2" or build["signed"] or build["flashed"]:
         raise ValueError("Incorrect build receipt")
@@ -68,11 +71,12 @@ def verify(source, evidence):
     return {"status": "blocked-stack-budgets" if failures else "pass-source-and-binary-checks",
             "stackBudgetFailures": failures, "sourceAndLoadChecksPassed": True,
             "startupStackBudget": startup_budget,
-            "version": "6.0.3.3P10", "packageRevision": 3,
+            "version": "6.0.3.3P10", "packageRevision": receipt["packageRevision"],
             "parent": "v6.0.3.3P10-r2", "source_files": len(actual_files),
             **artifact.identity, "layout": artifact.layout, "startup": artifact.startup, "task_stacks": stacks,
             "batteryTimerStack": battery_timer_budget(report),
             "swipesDisabled": True, "firmwareShortDeletion": False, **retired,
+            **({"reconnectStopRemoved": expected["reconnectStopRemoved"]} if "reconnectStopRemoved" in expected else {}),
             "bluetoothServicesUnchanged": True, "sensorConfigurationUnchanged": False,
             "limits": ["Static call chains and CPU startup are not physical runtime, pairing or recovery qualification."],
             "signed": False, "flashed": False, "published": False, "physicallyQualified": False}

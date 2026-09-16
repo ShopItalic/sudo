@@ -62,7 +62,8 @@ def task_descriptors(artifact):
     return found
 
 
-def verify(source, evidence):
+def verify(source, evidence, *, recipe_module=recipe):
+    recipe = recipe_module
     receipt = json.loads((source / "p11-preparation.json").read_text())
     control = receipt["mode"] == "adpcm-control-not-for-release"
     # Receipt alone is not authority: reproduce the active overlay on a
@@ -98,6 +99,8 @@ def verify(source, evidence):
                       "chargingLights", "firmwareShortDeletion", "swipesDisabled", "speedTestDisabled", "motionDisabled"):
             if receipt[field] != expected[field]:
                 raise ValueError("Stale preparation field: " + field)
+        if receipt.get("reconnectStopRemoved") != expected.get("reconnectStopRemoved"):
+            raise ValueError("Stale preparation field: reconnectStopRemoved")
         current_pdm = (source / recipe.audio.APP / "app_pdm_handler.c").read_text(encoding="latin1")
         # Match the supplier's global declaration exactly.
         pattern = r"(?m)^nrfx_pdm_config_t pdm_config\s*=\s*\{.*?\};"
@@ -149,6 +152,7 @@ def verify(source, evidence):
             "sourceAndLoadChecksPassed": True, **retired,
             "mode": receipt["mode"], "packageRevision": receipt["packageRevision"],
             "firmwareShortDeletion": receipt["firmwareShortDeletion"],
+            **({"reconnectStopRemoved": expected["reconnectStopRemoved"]} if "reconnectStopRemoved" in expected else {}),
             "stackBudgetFailures": stack_failures,
             "startupStackBudget": startup_budget,
             "parent": "v6.0.3.3P10-r2", "sourceCommit": receipt["parent"]["lock"]["sourceCommit"],

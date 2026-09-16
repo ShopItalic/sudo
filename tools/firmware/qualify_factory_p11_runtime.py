@@ -14,9 +14,9 @@ from verify_factory_ptt_v11 import task_descriptors
 
 def qualify(source):
     receipt = json.loads((source / "p11-preparation.json").read_text())
-    require(receipt.get("packageRevision") == 2 and receipt.get("mode") in
+    require(receipt.get("packageRevision") in (2, 4) and receipt.get("mode") in
             ("opus", "adpcm-control-not-for-release"),
-            "This codec probe requires P11-r2; P11-r1 keeps the factory ADPCM path")
+            "This codec probe requires P11-r2 or r4; r1 and r3 keep the factory ADPCM path")
     stem = source / "firmware/BCL603S2X/app/project/mdk5/Objects/app"
     artifact = Artifact(stem.with_suffix(".axf"), stem.with_suffix(".bin"))
     p = Probe(artifact)
@@ -86,7 +86,7 @@ def qualify(source):
         require(p.call("p11_audio_finish", args=(audio,), limit=6000000)["return_r0"] == 1, "Restart finish failed")
         p.call("measure")
         diagnostic = dict(zip(names, struct.unpack("<11I", p.cpu.mem_read(artifact.sym("p11_audio_diagnostics"), 44))))
-    return {"status": "pass-exact-armcc-cpu-probes", **artifact.identity, "packageRevision": 2,
+    return {"status": "pass-exact-armcc-cpu-probes", **artifact.identity, "packageRevision": receipt["packageRevision"],
             "mode": "adpcm-control" if control else "opus",
             "startup": artifact.startup, "layout": artifact.layout, "allocated_descriptors": descriptors,
             "heap_after_all_descriptors_and_queues": free_before, "additional_system_reserve": 8192,

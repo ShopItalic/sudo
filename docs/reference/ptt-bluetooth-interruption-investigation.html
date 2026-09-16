@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ring recording interruption on Bluetooth reconnect</title>
+<style>
+:root{color-scheme:light;--ink:#20252b;--muted:#5c6570;--line:#dce1e6;--paper:#fff;--bg:#f3f5f7;--accent:#934018}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:960px;margin:42px auto;padding:40px 46px;background:var(--paper);border:1px solid var(--line);border-radius:16px}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.07em;text-transform:uppercase}h1{font-size:34px;line-height:1.16;margin:12px 0 20px;max-width:740px}h2{font-size:21px;margin-top:32px}p{margin:12px 0}a{color:#245b85;text-underline-offset:3px}
+.finding{border-left:4px solid var(--accent);background:#fff5ee;padding:14px 20px;margin:24px 0}.flow{padding:18px 20px;border:1px solid var(--line);border-radius:8px;font-weight:600}.meta{color:var(--muted);font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid var(--line)}th{background:#f5f7f9;font-weight:600}code{font:13px ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere}li{margin:8px 0}.table-wrap{overflow-x:auto}
+@media(max-width:650px){main{margin:0;border:0;border-radius:0;padding:25px 20px}h1{font-size:28px}th,td{padding:10px 8px}}
+@media print{body{background:white}main{border:0;margin:0;padding:0}a{color:inherit}}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">Ring investigation · September 16, 2026 · MBP-M5</div>
+<h1>Bluetooth reconnect stops an active local recording</h1>
+<p class="meta">Defect reproduced in released P10-r2 source. Source fix implemented in new P11-r3 and P11-r4 recipes, plus a P10-r4 fallback, and tested on the host. No new ArmCC5 image, release package, or Ring installation.</p>
+<div class="finding"><strong>Confirmed in source and a host test:</strong> reconnect queues an internal stop command even when push-to-talk is still held. Disconnect alone does not stop the local recorder in the inspected standard 1.23.2 path. A disconnect followed by automatic reconnect therefore cuts off recording at the reconnect.</div>
+
+<h2>What happens</h2>
+<div class="flow">Bluetooth connects → blue connection cue + internal stop command → PTT ownership cancelled → local recorder stops → two stop buzzes</div>
+<p>The connected callback calls <code>app_package_mic_recording_stop_isr()</code> unconditionally for <code>HANDWARE_1_23_2</code>. That queues <code>0x71 / 0xF9</code>, the internal “stop offline recording” command. <code>app_factory_ptt_before_command()</code> treats this as a recorder ownership change and stops the recording before the normal command handler runs. The normal handler also handles <code>0xF9</code> by calling <code>app_pdm_recording_stop()</code>.</p>
+<p>This path needs no finger release, sensor fault, or timeout. It also cancels a gesture-started memo. Continued hold reports after cancellation do not restart capture; the PTT state requires a new release/hold cycle.</p>
+
+<h2>Disconnect and reconnect are different</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Event</th><th>Current P10-r2 behavior</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>Disconnect only</td><td>Queues <code>0x71 / 0xFC</code>. This clears a legacy online-touch flag only when in online mode. Local PTT is offline; capture continues while valid hold reports continue.</td><td>Source-extracted callback and flag helper; 100 subsequent hold reports passed.</td></tr>
+<tr><td>Connect / reconnect while held</td><td>Queues <code>0x71 / 0xF9</code> and stops capture with contact still asserted.</td><td>Reproduced with zero sensor faults and zero report timeouts.</td></tr>
+<tr><td>Disconnect → automatic reconnect</td><td>Capture survives disconnect and stops at reconnect.</td><td>Reproduced as one continuous hold.</td></tr>
+<tr><td>Sensor reports cease</td><td>The independent 750 ms report timeout can stop PTT, whether Bluetooth is connected or not.</td><td>Explicitly injected stale-report test. This does not establish that Bluetooth causes report starvation.</td></tr>
+</tbody></table></div>
+<p>The default connection indicator is blue for approximately two seconds; the disconnect indicator flashes twice. The recorder’s separate stop routine emits two vibration pulses. The blue cue alone cannot establish whether audio ended, but the reconnect stop command provides a concrete explanation for the combined symptom.</p>
+
+<h2>Reproduction and cause-isolation control</h2>
+<p>The host harness compiles the full production PTT state machine and the actual connection/disconnection callbacks, packet constructors, and legacy flag helper extracted from the authenticated P10-r2 prepared tree. Recorder hardware, radio, queue delivery, and RTOS scheduling are modeled. AddressSanitizer and UndefinedBehaviorSanitizer were enabled.</p>
+<p>Five baseline scenarios passed their expected outcomes. A separate diagnostic control omitted only the reconnect callback’s stop enqueue: PTT then survived disconnect/reconnect and still stopped on release; memo capture survived reconnect and still stopped on its gesture. Both controls passed. The diagnostic control does not modify production firmware.</p>
+<p><a href="../../build/diagnostics/ptt-bluetooth-20260916-181338/results.txt">Baseline results</a> · <a href="../../build/diagnostics/ptt-bluetooth-20260916-181338/control-results.txt">Cause-isolation results</a> · <a href="../../build/diagnostics/ptt-bluetooth-20260916-181338/evidence.json">Evidence manifest</a> · <a href="../../build/diagnostics/ptt-bluetooth-20260916-181338/investigate.py">Reproduction script</a></p>
+
+<h2>App behavior</h2>
+<p>The current local app clears pending operations and recording presentation when disconnected. The inspected cancellation paths do not issue a local recording-stop command. On characteristic readiness, the app binds to factory recording events and schedules sync. Its automatic reconnection and stale-transfer recovery can trigger the firmware’s connected callback; the confirmed stop therefore happens without the app explicitly requesting it.</p>
+<p>This is a current-source audit, not verification of the installed app binary. The closed vendor SDK’s internal behavior was not independently disassembled.</p>
+
+<h2>Implemented source fix</h2>
+<p>The new <a href="../../tools/firmware/factory_recording_connection.py">shared patch</a> removes only the offline-stop enqueue from the connected callback. The disconnect callback, PTT state machine, deliberate stop commands, capture drain, and safe file close are preserved. Connection changes no longer revoke local recording ownership.</p>
+<p>Both existing P11 variants receive an updated revision. Earlier preparation recipes remain unchanged:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Revision</th><th>Recorder</th><th>Charging lights</th><th>Reconnect fix</th></tr></thead>
+<tbody>
+<tr><td>P11-r1</td><td>Factory ADPCM</td><td>Yes</td><td>No; earlier recipe</td></tr>
+<tr><td>P11-r2</td><td>Opus</td><td>Yes</td><td>No; earlier recipe</td></tr>
+<tr><td><a href="../../tools/firmware/prepare_factory_ptt_v11_r3.py">P11-r3</a></td><td>Factory ADPCM</td><td>Yes</td><td>Yes; replaces r1</td></tr>
+<tr><td><a href="../../tools/firmware/prepare_factory_ptt_v11_r4.py">P11-r4</a></td><td>Opus</td><td>Yes</td><td>Yes; replaces r2</td></tr>
+</tbody></table></div>
+<p>There are four P11 revisions and two current development paths. A separate <a href="../../tools/firmware/prepare_factory_ptt_v10_r4.py">P10-r4</a> recipe is available as a P10 fallback. Each new recipe records the final source hash and reconnect fix in its preparation receipt; the matching verifier regenerates and compares those inputs before checking a compiled image.</p>
+<p>The <a href="../../tests/firmware/test_factory_recording_connection.py">regression harness</a> compiles the actual generated callbacks, command cases, and PTT state machine. All <strong>1,204 runtime checks</strong> pass across P10-r4, P11-r3, P11-r4, and the diagnostic ADPCM pipeline control. P11-r3 retains the original factory recorder, separate from the diagnostic pipeline. The checks cover repeated reconnects, delayed queued commands, pending hold activation, memos, deliberate stops, release, and sensor faults. The same harness rejects the released P10-r2 source at the reconnect-preservation assertion, confirming it detects the original defect.</p>
+<p>The full firmware host suite also passes with the final revision mapping. Host modeling does not establish physical timing, radio behavior, or playable audio on a Ring.</p>
+<p><a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/p11-pair-regressions.log">P11 pair regression results</a> · <a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/host-tests-p11-pair.log">Full host suite</a> · <a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/p11-pair-evidence.json">Fix evidence manifest</a> · <a href="../firmware.md">Preparation and verification instructions</a></p>
+
+<h2>Remaining release and physical verification</h2>
+<ol>
+<li>Compile and qualify the new revisions with ArmCC5, then sign and publish through the established firmware release workflow.</li>
+<li>Add the P11-r3/r4 app labels and recognize the verified r4 package as Opus-compatible. The current app allows only r2 on a Ring reporting P11; retain the refusal for ADPCM-only or unknown packages when Opus files may exist.</li>
+<li>On the verified target and approved firmware candidate, test a held recording through a disconnect/reconnect and verify a single playable file containing audio before and after the transition. Check memo behavior and the stop gesture too.</li>
+<li>Separately improve indication priority so the active-recording light remains authoritative during Bluetooth status cues. This source fix preserves the existing connection cues.</li>
+</ol>
+<p>The exact installed Ring revision has not been read back in this investigation. This confirms a defect in released P10-r2 software and a mechanism matching the reported symptom; it does not prove which transition occurred in a specific past incident. The fix is implemented in source; compiler verification, release qualification, and a physical regression test remain pending.</p>
+
+<h2>Source anchors</h2>
+<ul>
+<li><a href="../../build/firmware/factory-cleanup-p10-r4-20260915/firmware/bc_ros/bc_application/app_ble_handler.c">P10-r2 app_ble_handler.c</a>: connected callback around line 126; stop enqueue at line 141; disconnected callback around line 185.</li>
+<li><a href="../../build/firmware/factory-cleanup-p10-r4-20260915/firmware/bc_ros/bc_application/app_package.c">P10-r2 app_package.c</a>: <code>app_package_mic_recording_stop_isr</code>, line 230.</li>
+<li><a href="../../firmware/factory_ptt_v10/app_factory_ptt.c">PTT state machine</a>: <code>app_factory_ptt_before_command</code>, line 256. Matches the released overlay.</li>
+<li><a href="../../../app/apps/ios/Sudo/Services/RingSession.swift">Current local RingSession.swift</a>: transport readiness, disconnect cancellation, and automatic reconnection.</li>
+</ul>
+<p class="meta">All 40 generated changed-file hashes and their combined digest match the P10-r2 release lock. Source digest: <code>b2db49ca02c93780b8e705befb04f7b6d2561022f72b925c047add8ab38936a8</code>.</p>
+</main></body></html>

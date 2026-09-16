@@ -1,5 +1,55 @@
 # Production firmware baseline
 
+## Bluetooth reconnect recording fix — P11-r3 and P11-r4, September 16, 2026
+
+Both P11 recorder variants receive new revisions with the offline-stop command
+removed from the Bluetooth connected callback:
+
+| P11 revision | Recorder | Charging lights | Reconnect fix | Relationship |
+| --- | --- | --- | --- | --- |
+| r1 | Factory ADPCM | Yes | No | Earlier recipe, unchanged |
+| r2 | Opus | Yes | No | Earlier recipe, unchanged |
+| r3 | Factory ADPCM | Yes | Yes | New replacement for r1 |
+| r4 | Opus | Yes | Yes | New replacement for r2 |
+
+This gives four P11 revisions and two current development paths. Push-to-talk
+and gesture memos continue across disconnect/reconnect; release, deliberate
+stop commands, and sensor-fault protections retain their existing behavior.
+Package revision is required to distinguish these candidates from their parents
+with the same wire version. A separate P10-r4 recipe retains the reconnect fix
+as a P10 fallback; it is not another P11 variant.
+
+Prepare a fresh source tree with:
+
+```sh
+python3 tools/firmware/prepare_factory_ptt_v10_r4.py --output <fresh-p10-path>
+python3 tools/firmware/prepare_factory_ptt_v11_r3.py --output <fresh-p11-adpcm-path>
+python3 tools/firmware/prepare_factory_ptt_v11_r4.py --output <fresh-p11-opus-path>
+```
+
+After an ArmCC5 build through the established
+[qualification workflow](how-to/qualify-firmware.md), run the matching verifier
+using the qualification Python environment (with pyelftools and Unicorn):
+
+```sh
+python tools/firmware/verify_factory_ptt_v10_r4.py --source <p10-source> --evidence <p10-compiler-evidence> --output <new-p10-verification.json>
+python tools/firmware/verify_factory_ptt_v11_r3.py --source <p11-adpcm-source> --evidence <p11-adpcm-compiler-evidence> --output <new-p11-adpcm-verification.json>
+python tools/firmware/verify_factory_ptt_v11_r4.py --source <p11-opus-source> --evidence <p11-opus-compiler-evidence> --output <new-p11-opus-verification.json>
+```
+
+The regression test compiles actual generated BLE callbacks and the PTT state
+machine. All 1,204 runtime checks pass across P10-r4, P11-r3, P11-r4, and the
+diagnostic ADPCM pipeline control. P11-r3 uses the original factory recorder,
+not that diagnostic control. The released P10-r2 negative control detects the
+original bug. The full firmware host suite also passes with this final revision
+mapping. This is a source fix with host evidence. These new revisions have not been
+compiled with ArmCC5, signed, published, installed, or physically qualified.
+Before offering them in the app, add the new revision labels and recognize r4
+as Opus-compatible. Preserve the existing refusal to install ADPCM-only or
+unknown packages on a Ring reporting P11 when it may contain Opus recordings.
+See the [investigation and fix evidence](reference/ptt-bluetooth-interruption-investigation.html).
+
+
 ## P10-r3 / P11-r1 / P11-r2 downloads — September 16, 2026
 
 All four retirements are implemented in these **new** application-only

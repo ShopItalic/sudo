@@ -529,3 +529,49 @@ Remaining physical qualification:
 See the [P10 risk review](reference/factory-cleanup-p10-risk-review.html) and
 `build/diagnostics/factory-cleanup-p10-20260915/`. Compilation, signatures and
 host fault injection do not establish physical safety or production readiness.
+
+## P10 Bluetooth reconnect interrupts held recording — 2026-09-16
+
+Jeremy reports push-to-talk ending while still held, with a blue light and two
+buzzes. Investigation of authenticated released P10-r2 source found a direct
+cause: `app_ble_connect_callback()` queues `app_package_mic_recording_stop_isr()`
+on standard 1.23.2. Its `0x71/0xF9` packet cancels PTT ownership and stops the
+offline recorder, including gesture-started memos. Disconnect alone queues
+`0x71/0xFC`, whose online-only flag cleanup does not stop local recording.
+
+The source-extracted host harness reproduced reconnect stopping an uninterrupted
+hold with no sensor fault or timeout. Disconnect alone survived 100 fresh hold
+reports. Removing only the connect-generated stop in a diagnostic control kept
+both PTT and memo recording active across reconnect; their stop gestures still
+worked. Source hashes match all 40 changed files and the combined released
+P10-r2 digest. The original investigation changed no production implementation.
+
+- [x] Remove the reconnect-generated offline-stop enqueue in the factory-derived
+  firmware recipe, retaining deliberate stop commands and safe file finalization.
+- [x] Cover the actual BLE callbacks in PTT/memo lifecycle regression tests.
+- [ ] Compile and qualify the new P11-r3 (factory ADPCM) and P11-r4 (Opus)
+  candidates, then package and
+  publish through the firmware release workflow.
+- [ ] Add P11-r3/r4 app labels and allow the verified r4 Opus package on an
+  existing P11 Ring. Keep ADPCM-only and unknown revisions blocked when the
+  Ring may contain Opus files; the current app accepts only r2 in this case.
+- [ ] Preserve recording indication across Bluetooth connection-status cues.
+- [ ] Verify the installed target/revision and physically test one continuous
+  recording across disconnect/reconnect, including playable before/after audio.
+
+See the [investigation](reference/ptt-bluetooth-interruption-investigation.html)
+and `build/diagnostics/ptt-bluetooth-20260916-181338/`. Host reproduction proves
+this code path, not the event sequence of a specific past physical incident.
+
+The source fix is now implemented by `factory_recording_connection.py` in new
+`prepare_factory_ptt_v11_r3.py` (inherits r1 factory ADPCM) and
+`prepare_factory_ptt_v11_r4.py` (inherits r2 Opus) recipes. These are the two
+updated P11 paths; all four P11 revisions keep their identities. A separate
+`prepare_factory_ptt_v10_r4.py` preserves a P10 fallback. Published preparation
+recipes remain unchanged. The actual-callback regression passes 1,204 checks,
+including repeated reconnects, delayed command delivery,
+pending hold activation, memos, deliberate stops, release, and sensor faults.
+Its released P10-r2 negative control reproduces the defect. Results are in
+`build/diagnostics/ptt-bluetooth-fix-20260916/p11-pair-regressions.log`.
+The full host suite passes with the final revision mapping
+(`host-tests-p11-pair.log`). No Ring was flashed.

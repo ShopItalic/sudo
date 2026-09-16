@@ -143,6 +143,7 @@ build/firmware/tests/test_voice_legacy_archive
 python3 tests/firmware/test_armcc_archive.py
 python3 tests/firmware/test_ble_security.py
 python3 tests/firmware/test_release_manifest.py
+python3 tests/firmware/test_release_revisions.py
 python3 tests/firmware/test_release_manifest.py \
   tools/firmware-hosting/factory-p10-r3-manifest.json \
   tools/firmware-hosting/factory-p11-r1-manifest.json \
@@ -383,6 +384,9 @@ python3 tests/firmware/test_factory_cleanup_v10.py
 python3 tests/firmware/test_factory_disable_swipes.py
 python3 tests/firmware/test_factory_keep_short_recordings.py
 python3 tests/firmware/test_factory_p11_base.py
+
+# Actual BLE callbacks must preserve local capture across disconnect/reconnect.
+python3 tests/firmware/test_factory_recording_connection.py
 python3 tests/firmware/test_factory_audio_v11.py
 python3 tests/firmware/test_factory_overlay_p11.py
 python3 tests/firmware/test_factory_disable_speed_test_p11.py
