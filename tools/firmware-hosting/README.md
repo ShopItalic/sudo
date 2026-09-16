@@ -193,3 +193,36 @@ and `signing.supplierAcceptance` is false. This status is not supplier approval
 or a physical qualification result. The app-visible notice and release report
 identify the sample-test boundary. Installation remains a separate explicit
 app action with hardware, recording and fresh power checks.
+
+## P10-r3 and staged P11 downloads (2026-09-16)
+
+All four optional features are retired in the three new signed application-only
+prereleases: BLE/TCP speed tests, motion sampling/tasks, swipe output and
+duration-based recording deletion. Existing releases remain immutable.
+
+| GitHub release | Exact manifest | Scope beyond the four retirements |
+| --- | --- | --- |
+| [P10-r3](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P10-r3) | [manifest](factory-p10-r3-manifest.json) | Factory ADPCM; no charging-light addition |
+| [P11-r1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r1) | [manifest](factory-p11-r1-manifest.json) | Factory ADPCM + charging lights |
+| [P11-r2](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r2) | [manifest](factory-p11-r2-manifest.json) | Opus + charging lights |
+
+The three recipes are pinned independently to released P10 revision 2, not
+chained through newly generated builds. Every release tag identifies source
+`31ddf23abe6fd1caec742f82cc7b40bb4f6dd960`; the attached evidence binds the exact
+licensed build, source/load and CPU checks to its independently verified ZIP.
+The committed individual manifests add the resolved, verified numeric asset
+API URLs. Public browser and API downloads matched the ZIP length, SHA-256,
+application bytes and supplier-compatible signature for every release.
+
+P10-r3 replaces P10-r2 in the curated catalog; the P10-r2 release and immutable
+parent remain intact. P11 packages are downloadable from GitHub, including
+iPhone Safari, but are intentionally outside the current app catalog. The
+current client rejects P11 package names and keys selection by base version,
+which cannot distinguish P11-r1 from P11-r2. Finish matching revision-aware
+client support, Opus custody/decode and downgrade protection before adding
+P11 to a compatible catalog. Never bypass validation or overwrite old assets
+to make a revision appear in the picker. Neither installed package revision
+nor safe downgrade can be inferred from the base-version readback alone.
+
+No Ring was flashed and physical qualification remains open. See the
+[current qualification boundaries](../../docs/backlog.md#p10-r3--p11-release-qualification--september-16-2026).

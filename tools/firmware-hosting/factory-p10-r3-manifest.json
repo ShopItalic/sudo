@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "hardware": "603V1.23.2",
+  "version": "6.0.3.3P10",
+  "packageRevision": 3,
+  "status": "supplier-signed-ota",
+  "otaAvailable": true,
+  "withdrawn": false,
+  "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r3/BCL603S2P_6.0.3.3P10.zip",
+  "otaPackage": {
+    "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r3/BCL603S2P_6.0.3.3P10.zip",
+    "sha256": "f36d9ffd513fa82ebdc8d1dfb074722a90deccc00daf8a3d8dfcb7decbbec9bf",
+    "bytes": 187188,
+    "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567477549"
+  },
+  "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+  "sourceCommit": "31ddf23abe6fd1caec742f82cc7b40bb4f6dd960",
+  "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35070143004",
+  "releaseChannel": "sample-test-prerelease",
+  "physicallyQualified": false,
+  "signing": {
+    "locallyPackaged": true,
+    "keyProvenance": "supplier-dfu-key",
+    "supplierAcceptance": false
+  },
+  "notice": "P10-r3 — Four retirements; factory ADPCM. Application-only sample-test prerelease for 603V1.23.2, independently based on released P10 revision 2. BLE/TCP speed tests, motion sampling/tasks, swipe output and firmware duration-based deletion are disabled. Hold/release and optional double/triple-tap recording, transfer and receipt-controlled cleanup remain. Requires the matching P10-capable iPhone app. Software and signed-package checks passed; physical boot, timing, power, custody and recovery remain unproven. Locally signed with the supplier DFU key, without supplier acceptance. No Ring was flashed by this task. The Ring reports the base version only; installed package revision cannot be read back. Older published revisions remain unchanged."
+}

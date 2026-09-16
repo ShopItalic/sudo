@@ -1,5 +1,42 @@
 # Production firmware baseline
 
+## P10-r3 / P11-r1 / P11-r2 downloads — September 16, 2026
+
+All four retirements are implemented in these **new** application-only
+sample-test prereleases: BLE/TCP speed tests, motion sampling/tasks, swipe
+output, and automatic duration-based recording deletion. Hold/release and
+optional double/triple-tap recording, saved-file transfer and explicit
+receipt-controlled cleanup remain. Old releases have not been overwritten.
+
+| Release | Codec | Charging light | Signed ZIP bytes |
+| --- | --- | --- | ---: |
+| [P10-r3](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P10-r3) | Factory ADPCM | No addition | 187,188 |
+| [P11-r1](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r1) | Factory ADPCM | Amber charging / green full | 187,516 |
+| [P11-r2](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r2) | Opus | Amber charging / green full | 337,868 |
+
+Each recipe independently uses released **P10 revision 2** as its immutable
+parent; see `firmware/factory_ptt_v11/base-lock.json`. Source and release tags
+are pinned to `31ddf23abe6fd1caec742f82cc7b40bb4f6dd960`. Licensed ArmCC5 builds,
+source/object/load identity, static stack budgets, host fault tests and exact
+ARM CPU probes passed. All three public ZIPs passed independent signature,
+digest and length checks through the browser and asset-API routes.
+[Main-source CI](https://github.com/ShopItalic/sudo/actions/runs/35070912196)
+passed; its GNU artifact is not a distribution image.
+
+The GitHub links can be used from iPhone Safari. The curated app catalog now
+offers P10-r3 to a matching P10-capable app. **P11 is not yet in the in-app
+picker:** current package validation rejects P11 and selection identifies
+releases only by base version. Both P11 revisions report `6.0.3.3P11`, so a
+matching client must support revision-aware validation/selection, Opus decode
+and custody, and downgrade prevention before catalog activation. Do not
+downgrade a P11 Ring to P11-r1 or P10 while Opus files may remain. No app update
+or installation is claimed here.
+
+No Ring was flashed. Physical boot, recovery, audio timing, dynamic memory,
+charging behavior, sensor power-off and recording custody still need testing
+on an identified recoverable spare. CPU probes do not establish these results.
+See [hosting details and exact manifests](../tools/firmware-hosting/README.md#p10-r3-and-staged-p11-downloads-2026-09-16).
+
 **September 10 software result:** the restored ArmCC 5.06u7 build 960 supplier
 baseline exactly matches the factory application. The repaired Sudo candidate
 retains recording and Opus, builds with zero errors, and passes the full host

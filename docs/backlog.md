@@ -1,5 +1,31 @@
 # Open work
 
+## P10-r3 / P11 release qualification — September 16, 2026
+
+The four requested retirements are source-tested, licensed-built and published
+in P10-r3, P11-r1 and P11-r2. All three signed public downloads were independently
+verified through both GitHub routes. Review caught and removed a retained
+motion timer from the supplier static-data table; the published binaries have
+no retired motion/speed worker or timer symbols. See the
+[release summary](firmware.md#p10-r3--p11-r1--p11-r2-downloads--september-16-2026).
+
+Remaining boundaries:
+
+- **P11 iPhone support:** reconcile the staged app work with its owner; finish
+  P11 package validation and revision-aware catalog/picker identity; verify
+  Opus playback, exact raw custody and guarded downgrade behavior. Do not add
+  both P11 revisions to the existing base-version-only catalog, or offer P11
+  to older clients. GitHub/Safari download availability is already verified;
+  an iPhone picker or installation result is not.
+- **Physical qualification:** establish recovery on an identified spare before
+  testing boot/reconnect, preserved files, short/long recordings, transfer,
+  cleanup receipts, power cuts, charging-light priority, actual sensor shutdown,
+  power draw and dynamic heap/stack/scratch high-water. No Ring was flashed.
+- **Opus real-time margin:** the exact-binary CPU model passed overflow unwind
+  and restart; its conservative allocation scenario left 53,536 heap bytes
+  after the codec plus an extra 8 KiB reserve. This is not scheduler timing,
+  sustained recording throughput, physical high-water or BLE speed proof.
+
 ## P10 battery display refresh — September 15, 2026
 
 After the user's update, the phone's P10 handshake reported 100% / off charger
