@@ -18,7 +18,7 @@ table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;v
 <body><main>
 <div class="eyebrow">Ring investigation · September 16, 2026 · MBP-M5</div>
 <h1>Bluetooth reconnect stops an active local recording</h1>
-<p class="meta">Defect reproduced in released P10-r2 source. Source fix implemented in new P11-r3 and P11-r4 recipes, plus a P10-r4 fallback, and tested on the host. No new ArmCC5 image, release package, or Ring installation.</p>
+<p class="meta">Defect reproduced in released P10-r2 source. P11-r3 and P11-r4 are now built with ArmCC5, signed, published, and included in the revision-aware app catalog. The P10-r4 fallback remains a source recipe. No Ring was flashed.</p>
 <div class="finding"><strong>Confirmed in source and a host test:</strong> reconnect queues an internal stop command even when push-to-talk is still held. Disconnect alone does not stop the local recorder in the inspected standard 1.23.2 path. A disconnect followed by automatic reconnect therefore cuts off recording at the reconnect.</div>
 
 <h2>What happens</h2>
@@ -62,14 +62,14 @@ table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;v
 <p>The full firmware host suite also passes with the final revision mapping. Host modeling does not establish physical timing, radio behavior, or playable audio on a Ring.</p>
 <p><a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/p11-pair-regressions.log">P11 pair regression results</a> · <a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/host-tests-p11-pair.log">Full host suite</a> · <a href="../../build/diagnostics/ptt-bluetooth-fix-20260916/p11-pair-evidence.json">Fix evidence manifest</a> · <a href="../firmware.md">Preparation and verification instructions</a></p>
 
-<h2>Remaining release and physical verification</h2>
+<h2>Release status and remaining physical verification</h2>
 <ol>
-<li>Compile and qualify the new revisions with ArmCC5, then sign and publish through the established firmware release workflow.</li>
-<li>Add the P11-r3/r4 app labels and recognize the verified r4 package as Opus-compatible. The current app allows only r2 on a Ring reporting P11; retain the refusal for ADPCM-only or unknown packages when Opus files may exist.</li>
+<li>Completed: licensed ArmCC5 builds, source/object/stack validation, 138 exact ARM retirement scenarios per image, r4 Opus CPU probes, signatures, and public browser/API ZIP verification. <a href="https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r3">P11-r3</a> and <a href="https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r4">P11-r4</a> are published.</li>
+<li>Completed in app source: all four revision identities, exact downloaded-package confirmation, and r2/r4 Opus compatibility. The <a href="../../tools/firmware-hosting/releases-v2.json">schema-2 catalog</a> preserves the legacy catalog. The separate Dex task installed and launched the shared app build. On-phone picker and Ring-update testing remain.</li>
 <li>On the verified target and approved firmware candidate, test a held recording through a disconnect/reconnect and verify a single playable file containing audio before and after the transition. Check memo behavior and the stop gesture too.</li>
 <li>Separately improve indication priority so the active-recording light remains authoritative during Bluetooth status cues. This source fix preserves the existing connection cues.</li>
 </ol>
-<p>The exact installed Ring revision has not been read back in this investigation. This confirms a defect in released P10-r2 software and a mechanism matching the reported symptom; it does not prove which transition occurred in a specific past incident. The fix is implemented in source; compiler verification, release qualification, and a physical regression test remain pending.</p>
+<p>The exact installed Ring revision has not been read back in this investigation. This confirms a defect in released P10-r2 software and a mechanism matching the reported symptom; it does not prove which transition occurred in a specific past incident. The released packages contain the verified fix. A physical regression test remains pending.</p>
 
 <h2>Source anchors</h2>
 <ul>

@@ -42,11 +42,22 @@ machine. All 1,204 runtime checks pass across P10-r4, P11-r3, P11-r4, and the
 diagnostic ADPCM pipeline control. P11-r3 uses the original factory recorder,
 not that diagnostic control. The released P10-r2 negative control detects the
 original bug. The full firmware host suite also passes with this final revision
-mapping. This is a source fix with host evidence. These new revisions have not been
-compiled with ArmCC5, signed, published, installed, or physically qualified.
-Before offering them in the app, add the new revision labels and recognize r4
-as Opus-compatible. Preserve the existing refusal to install ADPCM-only or
-unknown packages on a Ring reporting P11 when it may contain Opus recordings.
+mapping. Both new revisions have now been built with licensed ArmCC5, signed,
+and published: [P11-r3](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r3)
+(187,340 bytes) and [P11-r4](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r4)
+(337,704 bytes). Their public browser and asset-API downloads match the
+qualified binaries, package digests, lengths and verified signatures.
+Source/object identity, static stack checks and 138 exact ARM retirement probes
+passed for each image; r4 also passed the Opus pipeline CPU probes.
+
+All four revisions are offered by the new schema-2
+[`releases-v2.json`](../tools/firmware-hosting/releases-v2.json) catalog. The
+matching app keys selection and installation confirmation by version and
+revision, validates the release tag and digest, and admits only Opus r2/r4 on
+a Ring already reporting P11. The legacy `releases.json` remains unchanged.
+The separate Dex task installed and launched the matching shared app build on
+Jeremy iPhone. This release task did not install an app or flash a Ring.
+Physical recording, transfer, power and recovery qualification remain open.
 See the [investigation and fix evidence](reference/ptt-bluetooth-interruption-investigation.html).
 
 
@@ -73,14 +84,11 @@ digest and length checks through the browser and asset-API routes.
 [Main-source CI](https://github.com/ShopItalic/sudo/actions/runs/35070912196)
 passed; its GNU artifact is not a distribution image.
 
-The GitHub links can be used from iPhone Safari. The curated app catalog now
-offers P10-r3 to a matching P10-capable app. **P11 is not yet in the in-app
-picker:** current package validation rejects P11 and selection identifies
-releases only by base version. Both P11 revisions report `6.0.3.3P11`, so a
-matching client must support revision-aware validation/selection, Opus decode
-and custody, and downgrade prevention before catalog activation. Do not
-downgrade a P11 Ring to P11-r1 or P10 while Opus files may remain. No app update
-or installation is claimed here.
+The GitHub links can be used from iPhone Safari. The legacy catalog offers
+P10-r3 to earlier clients. P11-r1/r2 were initially staged outside that catalog;
+the compatible schema-2 catalog now includes all four P11 revisions as
+described above. Their base-version readback cannot identify the installed
+package revision or establish whether an ADPCM downgrade would be safe.
 
 No Ring was flashed. Physical boot, recovery, audio timing, dynamic memory,
 charging behavior, sensor power-off and recording custody still need testing

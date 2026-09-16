@@ -10,7 +10,8 @@ catalog were deleted on 2026-09-11, so the retired S05 URL no longer serves.
 
 | Object | Location | Public URL |
 | --- | --- | --- |
-| Canonical catalog (committed source) | `tools/firmware-hosting/releases.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json` |
+| Legacy catalog (older clients) | `tools/firmware-hosting/releases.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json` |
+| Revision-aware catalog (new clients) | `tools/firmware-hosting/releases-v2.json` | `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases-v2.json` |
 | OTA package / application image | GitHub Release asset | `https://github.com/ShopItalic/sudo/releases/download/<tag>/<asset>` |
 | Release evidence | GitHub Release assets | `manifest.json`, `SHA256SUMS`, `provenance.json`, `ci-build-summary.json`, `toolchain-version.txt`, notices |
 
@@ -21,8 +22,7 @@ discovers the package from `otaPackageURL`, never from a guessed file name.
 
 Every release also attaches `manifest.json` for provenance and offline use.
 Factory Z62 and P05 releases attach their single release entry; older releases
-may contain a catalog snapshot. The committed `releases.json` inventory on main
-is authoritative for app discovery. Its release entry must agree with the
+may contain a catalog snapshot. The committed catalog selected by the client version is authoritative for app discovery. Older clients use `releases.json`; revision-aware clients use `releases-v2.json`. Its release entry must agree with the
 published package URL, digest and byte count.
 
 ## Trusted origins for the app
@@ -35,13 +35,13 @@ published package URL, digest and byte count.
 - `objects.githubusercontent.com` and `release-assets.githubusercontent.com`,
   the signed redirect targets GitHub uses for release assets.
 
-The primary catalog URL is
+Older clients use the primary catalog URL
 `https://api.github.com/repos/ShopItalic/sudo/contents/tools/firmware-hosting/releases.json?ref=main`,
 requested with `Accept: application/vnd.github.raw+json`. On network errors
 only, the app can fall back to
 `https://raw.githubusercontent.com/ShopItalic/sudo/main/tools/firmware-hosting/releases.json`.
 The API route was added after the raw host timed out on the test iPhone.
-Both URLs identify the same committed file. Catalog redirects are refused;
+Both URLs identify the same committed file. Revision-aware clients use the same two routes with `releases-v2.json` in place of `releases.json`. Catalog redirects are refused;
 GitHub asset CDN redirects are accepted only for package requests. Every other
 host or repository must be refused.
 
@@ -215,14 +215,37 @@ API URLs. Public browser and API downloads matched the ZIP length, SHA-256,
 application bytes and supplier-compatible signature for every release.
 
 P10-r3 replaces P10-r2 in the curated catalog; the P10-r2 release and immutable
-parent remain intact. P11 packages are downloadable from GitHub, including
-iPhone Safari, but are intentionally outside the current app catalog. The
-current client rejects P11 package names and keys selection by base version,
-which cannot distinguish P11-r1 from P11-r2. Finish matching revision-aware
-client support, Opus custody/decode and downgrade protection before adding
-P11 to a compatible catalog. Never bypass validation or overwrite old assets
+parent remain intact. P11-r1/r2 were initially staged outside the legacy app catalog. The new
+schema-2 catalog below now activates all four revisions for a matching client. Never bypass validation or overwrite old assets
 to make a revision appear in the picker. Neither installed package revision
 nor safe downgrade can be inferred from the base-version readback alone.
 
 No Ring was flashed and physical qualification remains open. See the
 [current qualification boundaries](../../docs/backlog.md#p10-r3--p11-release-qualification--september-16-2026).
+
+
+## Four P11 revisions in the app (2026-09-16)
+
+`releases-v2.json` uses catalog schema 2 and unique `(version, packageRevision)`
+identities. It includes P11-r4, r3, r2 and r1 followed by the six unchanged legacy
+entries. The schema-1 `releases.json` stays byte-identical so older clients can
+continue parsing their inventory. Each release entry still uses schema 1 fields.
+
+- P11-r1: original factory ADPCM and charging lights.
+- P11-r2: original Opus and charging lights.
+- [P11-r3](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r3): ADPCM, charging lights and reconnect preservation; 187,340-byte ZIP.
+- [P11-r4](https://github.com/ShopItalic/sudo/releases/tag/v6.0.3.3P11-r4): Opus, charging lights and reconnect preservation; 337,704-byte ZIP.
+
+The new tags identify source `585dec13f2ceabfbf295a633569a1cb526f47846`;
+[source CI](https://github.com/ShopItalic/sudo/actions/runs/35087368482) passed.
+The packages use licensed ArmCC5, with independent ECDSA signature and exact
+binary comparison after public browser and asset-API downloads. Exact manifests
+are `factory-p11-r3-manifest.json` and `factory-p11-r4-manifest.json`. The
+distributed ZIPs contain only the application; no GNU CI image, key or supplier
+source archive is distributed.
+
+The app validates known P11 revisions, matching tag URLs, digest and length;
+the picker and installation confirmation retain the downloaded revision. A Ring
+already reporting P11 permits Opus r2/r4 only, because its base-version response
+cannot rule out stored Opus files. Physical boot, continuous PTT/memo capture
+through reconnect, transfer/custody, timing, power and recovery remain unproven.

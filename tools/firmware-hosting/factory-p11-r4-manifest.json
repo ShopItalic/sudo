@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "hardware": "603V1.23.2",
+  "version": "6.0.3.3P11",
+  "packageRevision": 4,
+  "status": "supplier-signed-ota",
+  "otaAvailable": true,
+  "withdrawn": false,
+  "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r4/BCL603S2P_6.0.3.3P11.zip",
+  "otaPackage": {
+    "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r4/BCL603S2P_6.0.3.3P11.zip",
+    "sha256": "8556e3f45ebd89e4f59b2b9ee4f1c57bf46b92ce7fc51dddbc224c890fcc1ded",
+    "bytes": 337704,
+    "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567790901"
+  },
+  "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+  "sourceCommit": "585dec13f2ceabfbf295a633569a1cb526f47846",
+  "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35087368482",
+  "releaseChannel": "sample-test-prerelease",
+  "physicallyQualified": false,
+  "signing": {
+    "locallyPackaged": true,
+    "keyProvenance": "supplier-dfu-key",
+    "supplierAcceptance": false
+  },
+  "notice": "P11-r4 \u2014 Opus + charging lights + reconnect fix. Application-only sample-test prerelease for 603V1.23.2, independently based on released P10 revision 2. BLE/TCP speed tests, motion sampling/tasks, swipe output and firmware duration-based deletion are disabled. Bluetooth reconnect no longer interrupts an active local PTT recording or memo. Hold/release, deliberate stops, transfer and receipt-controlled cleanup remain. Requires the updated P11-capable iPhone app and its revision-aware catalog. A Ring already reporting P11 can install Opus revisions r2/r4; ADPCM-only revisions remain blocked because Opus recordings may exist. Software and signed-package checks passed; physical boot, timing, power, custody and recovery remain unproven. Locally signed with the supplier DFU key, without supplier acceptance. No Ring was flashed by this task."
+}

@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 2,
+  "releases": [
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P11",
+      "packageRevision": 4,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "withdrawn": false,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r4/BCL603S2P_6.0.3.3P11.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r4/BCL603S2P_6.0.3.3P11.zip",
+        "sha256": "8556e3f45ebd89e4f59b2b9ee4f1c57bf46b92ce7fc51dddbc224c890fcc1ded",
+        "bytes": 337704,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567790901"
+      },
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "585dec13f2ceabfbf295a633569a1cb526f47846",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35087368482",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P11-r4 \u2014 Opus + charging lights + reconnect fix. Bluetooth reconnect preserves local PTT and memo recordings. Sample-test package for 603V1.23.2. Requires the P11-capable app. A Ring already reporting P11 accepts Opus r2/r4; ADPCM r1/r3 are blocked because Opus files may exist. Application only. Software and signature checks passed; physical recording, transfer and recovery checks remain."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P11",
+      "packageRevision": 3,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "withdrawn": false,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r3/BCL603S2P_6.0.3.3P11.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r3/BCL603S2P_6.0.3.3P11.zip",
+        "sha256": "a669e600d94b4c005183f862d9c5a225d71b585d0d2a9effd1df5ae5d753b6fb",
+        "bytes": 187340,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567780858"
+      },
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "585dec13f2ceabfbf295a633569a1cb526f47846",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35087368482",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P11-r3 \u2014 Factory ADPCM + charging lights + reconnect fix. Bluetooth reconnect preserves local PTT and memo recordings. Sample-test package for 603V1.23.2. Requires the P11-capable app. A Ring already reporting P11 accepts Opus r2/r4; ADPCM r1/r3 are blocked because Opus files may exist. Application only. Software and signature checks passed; physical recording, transfer and recovery checks remain."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P11",
+      "packageRevision": 2,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "withdrawn": false,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r2/BCL603S2P_6.0.3.3P11.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r2/BCL603S2P_6.0.3.3P11.zip",
+        "sha256": "e0397ce3a3a86d60c71ef72fd14a75963300d31432cb4fd8021b386777c42041",
+        "bytes": 337868,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567493578"
+      },
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "31ddf23abe6fd1caec742f82cc7b40bb4f6dd960",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35070143004",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P11-r2 \u2014 Opus + charging lights. Earlier revision without the reconnect fix. Sample-test package for 603V1.23.2. Requires the P11-capable app. A Ring already reporting P11 accepts Opus r2/r4; ADPCM r1/r3 are blocked because Opus files may exist. Application only. Software and signature checks passed; physical recording, transfer and recovery checks remain."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P11",
+      "packageRevision": 1,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "withdrawn": false,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r1/BCL603S2P_6.0.3.3P11.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P11-r1/BCL603S2P_6.0.3.3P11.zip",
+        "sha256": "11cfd46e3f88a37fe6d57f3b7143bb9144074d91aa25ebd4ebed638f49bd2288",
+        "bytes": 187516,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567489479"
+      },
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "31ddf23abe6fd1caec742f82cc7b40bb4f6dd960",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35070143004",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P11-r1 \u2014 Factory ADPCM + charging lights. Earlier revision without the reconnect fix. Sample-test package for 603V1.23.2. Requires the P11-capable app. A Ring already reporting P11 accepts Opus r2/r4; ADPCM r1/r3 are blocked because Opus files may exist. Application only. Software and signature checks passed; physical recording, transfer and recovery checks remain."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P10",
+      "packageRevision": 3,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "withdrawn": false,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r3/BCL603S2P_6.0.3.3P10.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P10-r3/BCL603S2P_6.0.3.3P10.zip",
+        "sha256": "f36d9ffd513fa82ebdc8d1dfb074722a90deccc00daf8a3d8dfcb7decbbec9bf",
+        "bytes": 187188,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/567477549"
+      },
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "31ddf23abe6fd1caec742f82cc7b40bb4f6dd960",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/35070143004",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P10-r3 \u2014 Four retirements; factory ADPCM. Application-only sample-test prerelease for 603V1.23.2, independently based on released P10 revision 2. BLE/TCP speed tests, motion sampling/tasks, swipe output and firmware duration-based deletion are disabled. Hold/release and optional double/triple-tap recording, transfer and receipt-controlled cleanup remain. Requires the matching P10-capable iPhone app. Software and signed-package checks passed; physical boot, timing, power, custody and recovery remain unproven. Locally signed with the supplier DFU key, without supplier acceptance. No Ring was flashed by this task. The Ring reports the base version only; installed package revision cannot be read back. Older published revisions remain unchanged."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P09",
+      "packageRevision": 2,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P09-r2/BCL603S2P_6.0.3.3P09.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P09-r2/BCL603S2P_6.0.3.3P09.zip",
+        "sha256": "cb6a0adbf84e300546fa3124dedbbcbc9fb942d360cc2a7b45d02971415807e7",
+        "bytes": 189876,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565608205"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "e9840428b22502f762d5cc596f7c469a2ef71c1e",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34964669787",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P09 revision 2 includes the battery motor-stop fix and the recording-busy guard when saving controls. Retains short-recording filtering (default 2 seconds) and optional scrolling (default off). P09 settings cannot be downgraded to P08. Application only; bootloader unchanged. Requires the updated P10-capable iPhone app for this catalog. Locally signed with the supplier DFU key, without supplier acceptance. Physical qualification and recovery remain unproven. The Ring reports the base version only; identify this revision by the package digest."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P08",
+      "packageRevision": 3,
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P08-r3/BCL603S2P_6.0.3.3P08.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P08-r3/BCL603S2P_6.0.3.3P08.zip",
+        "sha256": "77caa599e1a00118972eb65677251d4ffececc79b993ad038b907a4cf2a613c9",
+        "bytes": 187228,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565607877"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "e9840428b22502f762d5cc596f7c469a2ef71c1e",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34964669787",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P08 revision 3 fixes finite vibration cues leaving the motor active and battery reads unavailable. Retains compact battery reports, averaging fixes, measurement guards, local recording and saved-file sync. Application only; bootloader unchanged. Requires the updated P10-capable iPhone app for this catalog. Locally signed with the supplier DFU key, without supplier acceptance. Physical qualification and recovery remain unproven. The Ring reports the base version only; identify this revision by the package digest."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P07",
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P07/BCL603S2P_6.0.3.3P07.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P07/BCL603S2P_6.0.3.3P07.zip",
+        "sha256": "2277d8d75a71906a175f615affb2404b339c5a14a422bf144ac5761e14e5166e",
+        "bytes": 187672,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/565179553"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "25ccc6e6dc3ba2432711d6e3bdb3f2f749fe7fd9",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P07 sample-test prerelease for 603V1.23.2, based on factory 6.0.3.3Z62. Adds per-direction swipe on/off (default on); hold/release PTT, 0.5\u20135 second hold delay (default 0.5), optional double/triple tap recording, haptics and recording light controls. Locally signed with the supplier DFU key, not supplier approval. Application only; bootloader unchanged. Software and package checks passed; P07 physical qualification and recovery are not demonstrated. Use the matching P07-capable iPhone app.",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34942388565"
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3P05",
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P05/BCL603S2P_6.0.3.3P05.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3P05/BCL603S2P_6.0.3.3P05.zip",
+        "sha256": "cc7f9c2f24c13ab15dc99d16ba5215db11d650f38892ed6ef8703837a8650a45",
+        "bytes": 187140,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/564797375"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5.06 update 7 for Certification (build 960)",
+      "sourceCommit": "82abe9e228df3daae0bb43e80f0d70506b3ffe58",
+      "ciRunURL": "https://github.com/ShopItalic/sudo/actions/runs/34925304323",
+      "releaseChannel": "sample-test-prerelease",
+      "physicallyQualified": false,
+      "signing": {
+        "locallyPackaged": true,
+        "keyProvenance": "supplier-dfu-key",
+        "supplierAcceptance": false
+      },
+      "notice": "P05 sample-test prerelease for 603V1.23.2 on factory 6.0.3.3Z62. Hold/release PTT; programmable double/triple tap recording off by default; haptics on. Locally packaged with the supplier DFU signing key, not supplier approval. Software checks passed; physical boot, sustained hold, settings persistence and audio transfer remain unqualified. Recovery is not demonstrated. Application only; bootloader unchanged."
+    },
+    {
+      "schemaVersion": 1,
+      "hardware": "603V1.23.2",
+      "version": "6.0.3.3Z62",
+      "status": "supplier-signed-ota",
+      "otaAvailable": true,
+      "otaPackageURL": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3Z62/BCL603S2P_6.0.3.3Z62.zip",
+      "otaPackage": {
+        "url": "https://github.com/ShopItalic/sudo/releases/download/v6.0.3.3Z62/BCL603S2P_6.0.3.3Z62.zip",
+        "sha256": "3e928afdfcb402450aea7a527093dba102d08650cc9ffed52cf41cd9f8d1a38f",
+        "bytes": 184715,
+        "apiURL": "https://api.github.com/repos/ShopItalic/sudo/releases/assets/562566936"
+      },
+      "withdrawn": false,
+      "toolchain": "Arm Compiler 5 (preserved supplier distribution)",
+      "notice": "Original supplier application. The upgrade from 6.0.0.7Z62 and recovery on sealed Rings have not been physically verified. This package does not update the bootloader."
+    }
+  ]
+}

@@ -11,12 +11,10 @@ no retired motion/speed worker or timer symbols. See the
 
 Remaining boundaries:
 
-- **P11 iPhone support:** reconcile the staged app work with its owner; finish
-  P11 package validation and revision-aware catalog/picker identity; verify
-  Opus playback, exact raw custody and guarded downgrade behavior. Do not add
-  both P11 revisions to the existing base-version-only catalog, or offer P11
-  to older clients. GitHub/Safari download availability is already verified;
-  an iPhone picker or installation result is not.
+- **P11 iPhone support:** verify on-phone selection, Opus playback and exact
+  raw custody with the new schema-2 catalog and revision-aware app. The separate
+  Dex task installed and launched the shared app build. Physical Ring update,
+  playback and custody remain unverified. Keep the legacy catalog separate.
 - **Physical qualification:** establish recovery on an identified spare before
   testing boot/reconnect, preserved files, short/long recordings, transfer,
   cleanup receipts, power cuts, charging-light priority, actual sensor shutdown,
@@ -549,12 +547,11 @@ P10-r2 digest. The original investigation changed no production implementation.
 - [x] Remove the reconnect-generated offline-stop enqueue in the factory-derived
   firmware recipe, retaining deliberate stop commands and safe file finalization.
 - [x] Cover the actual BLE callbacks in PTT/memo lifecycle regression tests.
-- [ ] Compile and qualify the new P11-r3 (factory ADPCM) and P11-r4 (Opus)
-  candidates, then package and
-  publish through the firmware release workflow.
-- [ ] Add P11-r3/r4 app labels and allow the verified r4 Opus package on an
-  existing P11 Ring. Keep ADPCM-only and unknown revisions blocked when the
-  Ring may contain Opus files; the current app accepts only r2 in this case.
+- [x] Build and qualify P11-r3 (factory ADPCM) and P11-r4 (Opus) with ArmCC5,
+  sign and publish both; verify public ZIPs against qualified application bytes.
+- [x] Add all four P11 revisions to the separate schema-2 catalog and matching
+  app labels. Allow r2/r4 on an existing P11 Ring; keep ADPCM-only and unknown
+  revisions blocked when Opus files may exist.
 - [ ] Preserve recording indication across Bluetooth connection-status cues.
 - [ ] Verify the installed target/revision and physically test one continuous
   recording across disconnect/reconnect, including playable before/after audio.
